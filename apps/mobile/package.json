@@ -1,0 +1,26 @@
+{
+  "name": "@sllas/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SLLAS Mobile App (Expo / React Native)",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "dev": "expo start --clear",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sllas/contracts": "workspace:*",
+    "expo": "~51.0.0",
+    "expo-status-bar": "~1.12.1",
+    "react": "18.2.0",
+    "react-native": "0.74.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@types/react": "~18.2.0",
+    "typescript": "^5.5.0"
+  }
+}

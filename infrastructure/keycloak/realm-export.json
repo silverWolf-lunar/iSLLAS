@@ -1,0 +1,201 @@
+{
+  "realm": "sllas",
+  "enabled": true,
+  "displayName": "SLLAS - Smart Land Lease and Allocation System",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "sslRequired": "external",
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespan": 5184000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanLogin": 1800,
+  "accessCodeLifespanUserAction": 300,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "sllas_system_admin",
+        "description": "System Administrator - full access"
+      },
+      {
+        "name": "sllas_registry_officer",
+        "description": "Registry Officer - land registration and application review"
+      },
+      {
+        "name": "sllas_approver",
+        "description": "Approver - application approval and lease management"
+      },
+      {
+        "name": "sllas_auditor",
+        "description": "Auditor - read-only access to all records"
+      },
+      {
+        "name": "sllas_client",
+        "description": "Client - individual or business applying for land leases"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "sllas-api",
+      "name": "SLLAS API",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "sllas-api-dev-secret",
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "sllas-web",
+      "name": "SLLAS Web Application",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "sllas-web-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ]
+    },
+    {
+      "clientId": "sllas-mobile",
+      "name": "SLLAS Mobile Application",
+      "enabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "sllas://callback",
+        "exp://localhost:8081/--/callback"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@sllas.gov.zw",
+      "email": "admin@sllas.gov.zw",
+      "firstName": "System",
+      "lastName": "Administrator",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin_dev_password",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["sllas_system_admin"]
+    },
+    {
+      "username": "officer@sllas.gov.zw",
+      "email": "officer@sllas.gov.zw",
+      "firstName": "John",
+      "lastName": "Moyo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "officer_dev_password",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["sllas_registry_officer"]
+    },
+    {
+      "username": "approver@sllas.gov.zw",
+      "email": "approver@sllas.gov.zw",
+      "firstName": "Mary",
+      "lastName": "Nyathi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "approver_dev_password",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["sllas_approver"]
+    },
+    {
+      "username": "auditor@sllas.gov.zw",
+      "email": "auditor@sllas.gov.zw",
+      "firstName": "Grace",
+      "lastName": "Chidziva",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "auditor_dev_password",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["sllas_auditor"]
+    },
+    {
+      "username": "client@example.com",
+      "email": "client@example.com",
+      "firstName": "Tendai",
+      "lastName": "Mukwena",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "client_dev_password",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["sllas_client"]
+    }
+  ]
+}

@@ -1,0 +1,2741 @@
+openapi: 3.1.0
+info:
+  title: SLLAS — Smart Land Lease and Allocation System API
+  version: 1.0.0
+  description: |
+    RESTful API for the Smart Land Lease and Allocation System.
+    Manages land parcel registration, lease applications, approvals,
+    notifications, and recommendations for Zimbabwe's land management.
+  contact:
+    name: SLLAS Development Team
+    email: dev@sllas.gov.zw
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3001/api/v1
+    description: Local development
+  - url: https://api.sllas.gov.zw/api/v1
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Users
+    description: User management (admin)
+  - name: Roles
+    description: Role and permission management
+  - name: Offices
+    description: Government office management
+  - name: Clients
+    description: Client profile and document management
+  - name: Parcels
+    description: Land parcel registration, search, and management
+  - name: Applications
+    description: Lease application lifecycle
+  - name: Leases
+    description: Lease management and renewals
+  - name: Recommendations
+    description: Land-use recommendation engine
+  - name: Activity Profiles
+    description: Recommendation rule configuration
+  - name: Notifications
+    description: Notification delivery and preferences
+  - name: Files
+    description: File upload and download
+  - name: Reports
+    description: Dashboards and exports
+  - name: Audit
+    description: Audit event history
+  - name: Admin
+    description: System configuration
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  # ─────────── AUTH ───────────
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Initiate OIDC login flow
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful, session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: End session
+      responses:
+        '204':
+          description: Session ended
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Get current authenticated user
+      responses:
+        '200':
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Refresh access token
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  # ─────────── USERS ───────────
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List users (admin, jurisdiction-scoped)
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserStatus'
+        - name: officeId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsers'
+
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Create a new user (admin only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      operationId: getUser
+      summary: Get user by ID
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update user
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # ─────────── ROLES ───────────
+  /roles:
+    get:
+      tags: [Roles]
+      operationId: listRoles
+      summary: List all roles
+      responses:
+        '200':
+          description: Role list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+
+  /roles/{roleId}/permissions:
+    get:
+      tags: [Roles]
+      operationId: getRolePermissions
+      summary: Get permissions for a role
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Permission list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Permission'
+
+  # ─────────── OFFICES ───────────
+  /offices:
+    get:
+      tags: [Offices]
+      operationId: listOffices
+      summary: List government offices
+      parameters:
+        - name: level
+          in: query
+          schema:
+            $ref: '#/components/schemas/OfficeLevel'
+        - name: adminAreaId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Office list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Office'
+
+    post:
+      tags: [Offices]
+      operationId: createOffice
+      summary: Create office (admin only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOfficeRequest'
+      responses:
+        '201':
+          description: Office created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Office'
+
+  # ─────────── CLIENTS ───────────
+  /clients:
+    get:
+      tags: [Clients]
+      operationId: listClientProfiles
+      summary: List client profiles (staff, jurisdiction-scoped)
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ClientType'
+        - name: verificationStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/VerificationStatus'
+      responses:
+        '200':
+          description: Paginated client profiles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClientProfiles'
+
+    post:
+      tags: [Clients]
+      operationId: createClientProfile
+      summary: Create client profile (self-service)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientProfileRequest'
+      responses:
+        '201':
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientProfile'
+
+  /clients/{clientId}:
+    get:
+      tags: [Clients]
+      operationId: getClientProfile
+      summary: Get client profile
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Client profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientProfile'
+
+  /clients/{clientId}/documents:
+    post:
+      tags: [Clients]
+      operationId: uploadClientDocument
+      summary: Upload identity document
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadClientDocumentRequest'
+      responses:
+        '201':
+          description: Document uploaded
+
+  /clients/{clientId}/verify:
+    post:
+      tags: [Clients]
+      operationId: verifyClientProfile
+      summary: Verify or reject client documents (officer)
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyClientRequest'
+      responses:
+        '200':
+          description: Verification status updated
+
+  # ─────────── PARCELS ───────────
+  /parcels:
+    get:
+      tags: [Parcels]
+      operationId: searchParcels
+      summary: Search and filter parcels
+      description: |
+        Full-text and spatial search for land parcels.
+        Public (unauthenticated) requests return limited fields and are rate-limited.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+        - {} # Allow public access with limited results
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: provinceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: districtId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ParcelStatus'
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: minHectares
+          in: query
+          schema:
+            type: number
+        - name: maxHectares
+          in: query
+          schema:
+            type: number
+        - name: soilType
+          in: query
+          schema:
+            $ref: '#/components/schemas/SoilType'
+        - name: naturalRegion
+          in: query
+          schema:
+            $ref: '#/components/schemas/NaturalRegion'
+        - name: waterAccess
+          in: query
+          schema:
+            type: boolean
+        - name: roadAccess
+          in: query
+          schema:
+            $ref: '#/components/schemas/RoadAccess'
+        - name: electricity
+          in: query
+          schema:
+            type: boolean
+        - name: bbox
+          in: query
+          description: 'Bounding box: west,south,east,north (EPSG:4326)'
+          schema:
+            type: string
+            example: '29.0,-22.0,33.0,-15.0'
+        - name: near
+          in: query
+          description: 'Center point for radius search: lat,lng'
+          schema:
+            type: string
+            example: '-17.8292,31.0522'
+        - name: radiusKm
+          in: query
+          description: 'Radius in km (used with near)'
+          schema:
+            type: number
+            example: 50
+      responses:
+        '200':
+          description: Paginated parcel results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedParcels'
+
+    post:
+      tags: [Parcels]
+      operationId: createParcel
+      summary: Register a new land parcel (officer)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateParcelRequest'
+      responses:
+        '201':
+          description: Parcel created in DRAFT status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parcel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Overlapping boundary detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /parcels/{parcelId}:
+    get:
+      tags: [Parcels]
+      operationId: getParcel
+      summary: Get parcel details
+      parameters:
+        - $ref: '#/components/parameters/ParcelIdParam'
+      responses:
+        '200':
+          description: Parcel with attributes, files, and geometry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelDetail'
+
+    patch:
+      tags: [Parcels]
+      operationId: updateParcel
+      summary: Update parcel (DRAFT only)
+      parameters:
+        - $ref: '#/components/parameters/ParcelIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateParcelRequest'
+      responses:
+        '200':
+          description: Parcel updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parcel'
+
+  /parcels/{parcelId}/status:
+    post:
+      tags: [Parcels]
+      operationId: transitionParcelStatus
+      summary: Transition parcel status
+      parameters:
+        - $ref: '#/components/parameters/ParcelIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParcelStatusTransitionRequest'
+      responses:
+        '200':
+          description: Status transitioned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parcel'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /parcels/{parcelId}/history:
+    get:
+      tags: [Parcels]
+      operationId: getParcelHistory
+      summary: Get parcel status history
+      parameters:
+        - $ref: '#/components/parameters/ParcelIdParam'
+      responses:
+        '200':
+          description: Status history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusHistoryEntry'
+
+  /parcels/import:
+    post:
+      tags: [Parcels]
+      operationId: importParcels
+      summary: Bulk import parcels from CSV/GeoJSON (background job)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                format:
+                  type: string
+                  enum: [csv, geojson]
+      responses:
+        '202':
+          description: Import job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+
+  # ─────────── APPLICATIONS ───────────
+  /applications:
+    get:
+      tags: [Applications]
+      operationId: listApplications
+      summary: List applications (filtered by role and jurisdiction)
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApplicationStatus'
+        - name: parcelId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: clientId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: assignedOfficerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: isOverdue
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paginated applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApplications'
+
+    post:
+      tags: [Applications]
+      operationId: createApplication
+      summary: Create a lease application (client)
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /applications/{applicationId}:
+    get:
+      tags: [Applications]
+      operationId: getApplication
+      summary: Get application details
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      responses:
+        '200':
+          description: Application with full history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetail'
+
+    patch:
+      tags: [Applications]
+      operationId: updateApplication
+      summary: Update draft application
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationRequest'
+      responses:
+        '200':
+          description: Application updated
+
+  /applications/{applicationId}/transitions:
+    post:
+      tags: [Applications]
+      operationId: transitionApplication
+      summary: Transition application status (submit, review, approve, reject, etc.)
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationTransitionRequest'
+      responses:
+        '200':
+          description: Status transitioned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /applications/{applicationId}/documents:
+    get:
+      tags: [Applications]
+      operationId: listApplicationDocuments
+      summary: List application documents
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      responses:
+        '200':
+          description: Document list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplicationDocument'
+
+    post:
+      tags: [Applications]
+      operationId: uploadApplicationDocument
+      summary: Add document to application
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadApplicationDocumentRequest'
+      responses:
+        '201':
+          description: Document added
+
+  /applications/{applicationId}/reviews:
+    post:
+      tags: [Applications]
+      operationId: submitReview
+      summary: Submit officer review
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitReviewRequest'
+      responses:
+        '201':
+          description: Review submitted
+
+  /applications/{applicationId}/inspections:
+    post:
+      tags: [Applications]
+      operationId: scheduleInspection
+      summary: Schedule site inspection
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleInspectionRequest'
+      responses:
+        '201':
+          description: Inspection scheduled
+
+  /applications/{applicationId}/inspections/{inspectionId}:
+    patch:
+      tags: [Applications]
+      operationId: updateInspection
+      summary: File inspection report
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+        - name: inspectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInspectionRequest'
+      responses:
+        '200':
+          description: Inspection updated
+
+  # ─────────── LEASES ───────────
+  /leases:
+    get:
+      tags: [Leases]
+      operationId: listLeases
+      summary: List leases
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/LeaseStatus'
+        - name: clientId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: parcelId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: expiringBefore
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Paginated leases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLeases'
+
+  /leases/{leaseId}:
+    get:
+      tags: [Leases]
+      operationId: getLease
+      summary: Get lease details
+      parameters:
+        - name: leaseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lease details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaseDetail'
+
+  /leases/{leaseId}/renewals:
+    post:
+      tags: [Leases]
+      operationId: requestRenewal
+      summary: Request lease renewal (client)
+      parameters:
+        - name: leaseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestRenewalRequest'
+      responses:
+        '201':
+          description: Renewal requested
+
+  /leases/{leaseId}/renewals/{renewalId}:
+    patch:
+      tags: [Leases]
+      operationId: decideRenewal
+      summary: Approve or reject renewal (approver)
+      parameters:
+        - name: leaseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: renewalId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideRenewalRequest'
+      responses:
+        '200':
+          description: Renewal decision recorded
+
+  /leases/{leaseId}/terminate:
+    post:
+      tags: [Leases]
+      operationId: terminateLease
+      summary: Terminate lease early (approver)
+      parameters:
+        - name: leaseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminateLeaseRequest'
+      responses:
+        '200':
+          description: Lease terminated
+
+  # ─────────── RECOMMENDATIONS ───────────
+  /recommendations:
+    post:
+      tags: [Recommendations]
+      operationId: runRecommendation
+      summary: Run recommendation engine
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationRequest'
+      responses:
+        '200':
+          description: Recommendation results with scores and explanations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+
+  /recommendations/history:
+    get:
+      tags: [Recommendations]
+      operationId: getRecommendationHistory
+      summary: Get recommendation run history
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: History of recommendation runs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRecommendationRuns'
+
+  # ─────────── ACTIVITY PROFILES ───────────
+  /activity-profiles:
+    get:
+      tags: [Activity Profiles]
+      operationId: listActivityProfiles
+      summary: List activity profiles
+      responses:
+        '200':
+          description: Activity profile list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityProfile'
+
+    post:
+      tags: [Activity Profiles]
+      operationId: createActivityProfile
+      summary: Create activity profile (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateActivityProfileRequest'
+      responses:
+        '201':
+          description: Activity profile created
+
+  /activity-profiles/{profileId}:
+    get:
+      tags: [Activity Profiles]
+      operationId: getActivityProfile
+      summary: Get activity profile with rules
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Activity profile details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityProfileDetail'
+
+    put:
+      tags: [Activity Profiles]
+      operationId: updateActivityProfile
+      summary: Update activity profile (admin, creates new version)
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateActivityProfileRequest'
+      responses:
+        '200':
+          description: Profile updated (new version)
+
+  # ─────────── NOTIFICATIONS ───────────
+  /notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: Get user's notifications
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotifications'
+
+  /notifications/preferences:
+    get:
+      tags: [Notifications]
+      operationId: getNotificationPreferences
+      summary: Get notification preferences
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationPreference'
+
+    put:
+      tags: [Notifications]
+      operationId: updateNotificationPreferences
+      summary: Update notification preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/NotificationPreference'
+      responses:
+        '200':
+          description: Preferences updated
+
+  /notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      operationId: markNotificationRead
+      summary: Mark notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Marked as read
+
+  # ─────────── FILES ───────────
+  /files/upload-intents:
+    post:
+      tags: [Files]
+      operationId: createUploadIntent
+      summary: Get a signed upload URL
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadIntentRequest'
+      responses:
+        '200':
+          description: Signed upload URL and file metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadIntentResponse'
+
+  /files/{fileId}/download:
+    get:
+      tags: [Files]
+      operationId: downloadFile
+      summary: Get a signed download URL
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Redirect to signed download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadResponse'
+
+  # ─────────── REPORTS ───────────
+  /reports/dashboard:
+    get:
+      tags: [Reports]
+      operationId: getDashboard
+      summary: Get dashboard data
+      parameters:
+        - name: provinceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dashboard metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardData'
+
+  /reports/export:
+    post:
+      tags: [Reports]
+      operationId: requestExport
+      summary: Request report export (background job)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202':
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+
+  # ─────────── AUDIT ───────────
+  /audit-events:
+    get:
+      tags: [Audit]
+      operationId: searchAuditEvents
+      summary: Search audit history
+      parameters:
+        - $ref: '#/components/parameters/CursorParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: actorId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Paginated audit events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEvents'
+
+  # ─────────── SYNC (Mobile) ───────────
+  /sync/changes:
+    get:
+      tags: [Admin]
+      operationId: getSyncChanges
+      summary: Get changes since cursor (mobile sync)
+      parameters:
+        - name: cursor
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: entities
+          in: query
+          description: Comma-separated entity types to sync
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Changes since cursor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncChangesResponse'
+
+  # ─────────── ADMIN CONFIG ───────────
+  /admin/land-categories:
+    get:
+      tags: [Admin]
+      operationId: listLandCategories
+      summary: List land categories
+      responses:
+        '200':
+          description: Land category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LandCategory'
+
+    post:
+      tags: [Admin]
+      operationId: createLandCategory
+      summary: Create land category (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLandCategoryRequest'
+      responses:
+        '201':
+          description: Category created
+
+  /admin/notification-templates:
+    get:
+      tags: [Admin]
+      operationId: listNotificationTemplates
+      summary: List notification templates
+      responses:
+        '200':
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationTemplate'
+
+    post:
+      tags: [Admin]
+      operationId: createNotificationTemplate
+      summary: Create notification template (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNotificationTemplateRequest'
+      responses:
+        '201':
+          description: Template created
+
+  /admin/admin-areas:
+    get:
+      tags: [Admin]
+      operationId: listAdminAreas
+      summary: List admin areas (provinces, districts, wards)
+      parameters:
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [PROVINCE, DISTRICT, WARD]
+        - name: parentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Admin area list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminArea'
+
+  # ─────────── SSE (Real-time) ───────────
+  /events/applications/{applicationId}:
+    get:
+      tags: [Applications]
+      operationId: streamApplicationEvents
+      summary: SSE stream for application status updates
+      parameters:
+        - $ref: '#/components/parameters/ApplicationIdParam'
+      responses:
+        '200':
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sllas_session
+
+  parameters:
+    CursorParam:
+      name: cursor
+      in: query
+      description: Cursor for pagination (opaque string from previous response)
+      schema:
+        type: string
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page (max 100)
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+    SortParam:
+      name: sort
+      in: query
+      description: 'Sort field and direction (e.g., createdAt:desc)'
+      schema:
+        type: string
+    ParcelIdParam:
+      name: parcelId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ApplicationIdParam:
+      name: applicationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserIdParam:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflict (duplicate, state violation)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ─── Error ───
+    ErrorResponse:
+      type: object
+      required: [code, message, correlationId]
+      properties:
+        code:
+          type: string
+          example: PARCEL_OVERLAP_DETECTED
+        message:
+          type: string
+          example: The submitted boundary overlaps with parcel ZW-HAR-001
+        details:
+          type: object
+          additionalProperties: true
+        correlationId:
+          type: string
+          format: uuid
+
+    # ─── Pagination ───
+    PaginationMeta:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+        totalCount:
+          type: integer
+          description: Only returned when explicitly requested (expensive)
+
+    # ─── Enums ───
+    UserStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED, DEACTIVATED]
+
+    ParcelStatus:
+      type: string
+      enum: [DRAFT, PENDING_VERIFICATION, AVAILABLE, RESERVED, ALLOCATED, LEASED, WITHDRAWN, DISPUTED]
+
+    ApplicationStatus:
+      type: string
+      enum: [DRAFT, SUBMITTED, UNDER_REVIEW, INFO_REQUESTED, SITE_INSPECTION, APPROVED, REJECTED, OFFER_ISSUED, ACCEPTED, AGREEMENT_SIGNED, ACTIVE, WITHDRAWN]
+
+    LeaseStatus:
+      type: string
+      enum: [ACTIVE, EXPIRING_SOON, EXPIRED, RENEWAL_REQUESTED, RENEWED, TERMINATED, SUSPENDED]
+
+    ClientType:
+      type: string
+      enum: [INDIVIDUAL, BUSINESS]
+
+    VerificationStatus:
+      type: string
+      enum: [UNVERIFIED, PENDING, VERIFIED, REJECTED]
+
+    OfficeLevel:
+      type: string
+      enum: [NATIONAL, PROVINCIAL, DISTRICT]
+
+    SoilType:
+      type: string
+      enum: [CLAY, LOAM, SANDY, SILT, PEAT, CHALKY, MIXED]
+
+    NaturalRegion:
+      type: string
+      enum: [I, II, III, IV, V]
+
+    RoadAccess:
+      type: string
+      enum: [TARRED, GRAVEL, DIRT_TRACK, NONE]
+
+    # ─── Auth ───
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        officeId:
+          type: string
+          format: uuid
+          nullable: true
+
+    # ─── Users ───
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRoleAssignment'
+        createdAt:
+          type: string
+          format: date-time
+
+    UserRoleAssignment:
+      type: object
+      properties:
+        role:
+          type: string
+        officeId:
+          type: string
+          format: uuid
+          nullable: true
+        officeName:
+          type: string
+          nullable: true
+
+    CreateUserRequest:
+      type: object
+      required: [email, firstName, lastName]
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        roles:
+          type: array
+          items:
+            type: object
+            properties:
+              roleId:
+                type: string
+                format: uuid
+              officeId:
+                type: string
+                format: uuid
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        status:
+          $ref: '#/components/schemas/UserStatus'
+
+    PaginatedUsers:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # ─── Roles ───
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        isSystem:
+          type: boolean
+
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        resource:
+          type: string
+        action:
+          type: string
+        description:
+          type: string
+
+    # ─── Offices ───
+    Office:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        level:
+          $ref: '#/components/schemas/OfficeLevel'
+        adminAreaId:
+          type: string
+          format: uuid
+        adminAreaName:
+          type: string
+        isActive:
+          type: boolean
+
+    CreateOfficeRequest:
+      type: object
+      required: [name, level, adminAreaId]
+      properties:
+        name:
+          type: string
+        level:
+          $ref: '#/components/schemas/OfficeLevel'
+        adminAreaId:
+          type: string
+          format: uuid
+
+    # ─── Clients ───
+    ClientProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ClientType'
+        nationalId:
+          type: string
+        businessRegNumber:
+          type: string
+        businessName:
+          type: string
+        verificationStatus:
+          $ref: '#/components/schemas/VerificationStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateClientProfileRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          $ref: '#/components/schemas/ClientType'
+        nationalId:
+          type: string
+        businessRegNumber:
+          type: string
+        businessName:
+          type: string
+        address:
+          type: string
+
+    UploadClientDocumentRequest:
+      type: object
+      required: [fileId, documentType]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        documentType:
+          type: string
+          enum: [NATIONAL_ID, BUSINESS_REG, PROOF_OF_ADDRESS, TAX_CLEARANCE, OTHER]
+
+    VerifyClientRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [VERIFY, REJECT]
+        reason:
+          type: string
+
+    PaginatedClientProfiles:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientProfile'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # ─── Parcels ───
+    Parcel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        referenceNumber:
+          type: string
+        provinceId:
+          type: string
+          format: uuid
+        provinceName:
+          type: string
+        districtId:
+          type: string
+          format: uuid
+        districtName:
+          type: string
+        wardId:
+          type: string
+          format: uuid
+        wardName:
+          type: string
+        landCategoryId:
+          type: string
+          format: uuid
+        landCategoryName:
+          type: string
+        areaHectares:
+          type: number
+        status:
+          $ref: '#/components/schemas/ParcelStatus'
+        centroid:
+          $ref: '#/components/schemas/GeoPoint'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ParcelDetail:
+      allOf:
+        - $ref: '#/components/schemas/Parcel'
+        - type: object
+          properties:
+            boundary:
+              $ref: '#/components/schemas/GeoJSON'
+            attributes:
+              $ref: '#/components/schemas/ParcelAttributes'
+            files:
+              type: array
+              items:
+                $ref: '#/components/schemas/ParcelFile'
+            registeredBy:
+              type: string
+            verifiedBy:
+              type: string
+              nullable: true
+
+    ParcelAttributes:
+      type: object
+      properties:
+        soilType:
+          $ref: '#/components/schemas/SoilType'
+        naturalRegion:
+          $ref: '#/components/schemas/NaturalRegion'
+        rainfallBand:
+          type: string
+        waterAccess:
+          type: boolean
+        waterSources:
+          type: string
+        roadAccess:
+          $ref: '#/components/schemas/RoadAccess'
+        electricityAvailable:
+          type: boolean
+        gridProximityKm:
+          type: number
+        terrain:
+          type: string
+          enum: [FLAT, GENTLY_UNDULATING, HILLY, MOUNTAINOUS, VALLEY]
+        currentUse:
+          type: string
+        previousUse:
+          type: string
+        zoningPermittedUses:
+          type: string
+        restrictions:
+          type: string
+
+    CreateParcelRequest:
+      type: object
+      required: [provinceId, districtId, landCategoryId, boundary]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client-generated UUID for offline support
+        provinceId:
+          type: string
+          format: uuid
+        districtId:
+          type: string
+          format: uuid
+        wardId:
+          type: string
+          format: uuid
+        landCategoryId:
+          type: string
+          format: uuid
+        boundary:
+          $ref: '#/components/schemas/GeoJSON'
+        attributes:
+          $ref: '#/components/schemas/ParcelAttributes'
+        notes:
+          type: string
+
+    UpdateParcelRequest:
+      type: object
+      properties:
+        landCategoryId:
+          type: string
+          format: uuid
+        boundary:
+          $ref: '#/components/schemas/GeoJSON'
+        attributes:
+          $ref: '#/components/schemas/ParcelAttributes'
+        notes:
+          type: string
+        version:
+          type: integer
+          description: Optimistic locking version
+
+    ParcelStatusTransitionRequest:
+      type: object
+      required: [toStatus]
+      properties:
+        toStatus:
+          $ref: '#/components/schemas/ParcelStatus'
+        reason:
+          type: string
+
+    ParcelFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        fileType:
+          type: string
+          enum: [PHOTO, TITLE_DEED, SURVEY_PLAN, OTHER]
+        originalName:
+          type: string
+        downloadUrl:
+          type: string
+
+    PaginatedParcels:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Parcel'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # ─── Applications ───
+    Application:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        applicationNumber:
+          type: string
+        clientProfileId:
+          type: string
+          format: uuid
+        parcelId:
+          type: string
+          format: uuid
+        parcelReference:
+          type: string
+        intendedActivity:
+          type: string
+        requestedTermYears:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        assignedOfficerId:
+          type: string
+          format: uuid
+          nullable: true
+        isOverdue:
+          type: boolean
+        slaDeadline:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ApplicationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Application'
+        - type: object
+          properties:
+            planSummary:
+              type: string
+            documents:
+              type: array
+              items:
+                $ref: '#/components/schemas/ApplicationDocument'
+            statusHistory:
+              type: array
+              items:
+                $ref: '#/components/schemas/StatusHistoryEntry'
+            reviews:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReviewEntry'
+            inspections:
+              type: array
+              items:
+                $ref: '#/components/schemas/InspectionEntry'
+
+    CreateApplicationRequest:
+      type: object
+      required: [parcelId, intendedActivity, requestedTermYears]
+      properties:
+        parcelId:
+          type: string
+          format: uuid
+        activityProfileId:
+          type: string
+          format: uuid
+        intendedActivity:
+          type: string
+        planSummary:
+          type: string
+        requestedTermYears:
+          type: integer
+          minimum: 1
+
+    UpdateApplicationRequest:
+      type: object
+      properties:
+        intendedActivity:
+          type: string
+        planSummary:
+          type: string
+        requestedTermYears:
+          type: integer
+
+    ApplicationTransitionRequest:
+      type: object
+      required: [toStatus]
+      properties:
+        toStatus:
+          $ref: '#/components/schemas/ApplicationStatus'
+        reason:
+          type: string
+        comments:
+          type: string
+
+    UploadApplicationDocumentRequest:
+      type: object
+      required: [fileId, documentType]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        documentType:
+          type: string
+          enum: [PLAN, SUPPORTING, ID_COPY, OTHER]
+        description:
+          type: string
+
+    ApplicationDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        documentType:
+          type: string
+        description:
+          type: string
+        originalName:
+          type: string
+        downloadUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    SubmitReviewRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [RECOMMEND_APPROVE, RECOMMEND_REJECT, REQUEST_INFO, ESCALATE]
+        comments:
+          type: string
+        conditions:
+          type: string
+
+    ScheduleInspectionRequest:
+      type: object
+      required: [scheduledDate]
+      properties:
+        scheduledDate:
+          type: string
+          format: date-time
+        inspectorId:
+          type: string
+          format: uuid
+
+    UpdateInspectionRequest:
+      type: object
+      required: [result, findings]
+      properties:
+        result:
+          type: string
+          enum: [PASS, FAIL, CONDITIONAL]
+        findings:
+          type: string
+        conditions:
+          type: string
+        gpsCoordinates:
+          $ref: '#/components/schemas/GeoPoint'
+
+    StatusHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fromStatus:
+          type: string
+        toStatus:
+          type: string
+        actorName:
+          type: string
+        reason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ReviewEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reviewerName:
+          type: string
+        decision:
+          type: string
+        comments:
+          type: string
+        conditions:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    InspectionEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        inspectorName:
+          type: string
+        scheduledDate:
+          type: string
+          format: date-time
+        completedDate:
+          type: string
+          format: date-time
+          nullable: true
+        result:
+          type: string
+          nullable: true
+        findings:
+          type: string
+          nullable: true
+
+    PaginatedApplications:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Application'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # ─── Leases ───
+    LeaseDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        leaseNumber:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+        parcelId:
+          type: string
+          format: uuid
+        parcelReference:
+          type: string
+        clientProfileId:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        annualRent:
+          type: number
+        currency:
+          type: string
+        status:
+          $ref: '#/components/schemas/LeaseStatus'
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              documentType:
+                type: string
+              downloadUrl:
+                type: string
+        renewals:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              status:
+                type: string
+              requestedTermYears:
+                type: integer
+              requestedAt:
+                type: string
+                format: date-time
+
+    RequestRenewalRequest:
+      type: object
+      required: [requestedTermYears, justification]
+      properties:
+        requestedTermYears:
+          type: integer
+          minimum: 1
+        justification:
+          type: string
+
+    DecideRenewalRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVE, REJECT]
+        reason:
+          type: string
+
+    TerminateLeaseRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+
+    PaginatedLeases:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaseDetail'
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # ─── Recommendations ───
+    RecommendationRequest:
+      type: object
+      required: [direction]
+      properties:
+        direction:
+          type: string
+          enum: [ACTIVITY_TO_PARCELS, PARCEL_TO_ACTIVITIES]
+        activityProfileId:
+          type: string
+          format: uuid
+          description: Required for ACTIVITY_TO_PARCELS
+        parcelId:
+          type: string
+          format: uuid
+          description: Required for PARCEL_TO_ACTIVITIES
+        filters:
+          type: object
+          properties:
+            provinceId:
+              type: string
+              format: uuid
+            districtId:
+              type: string
+              format: uuid
+            minHectares:
+              type: number
+            maxHectares:
+              type: number
+        topN:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 50
+
+    RecommendationResponse:
+      type: object
+      properties:
+        runId:
+          type: string
+          format: uuid
+        direction:
+          type: string
+        activityProfileName:
+          type: string
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationResult'
+
+    RecommendationResult:
+      type: object
+      properties:
+        parcelId:
+          type: string
+          format: uuid
+        parcelReference:
+          type: string
+        totalScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        rank:
+          type: integer
+        explanations:
+          type: array
+          items:
+            type: object
+            properties:
+              criterion:
+                type: string
+              score:
+                type: number
+              weight:
+                type: number
+              weightedScore:
+                type: number
+              reason:
+                type: string
+
+    PaginatedRecommendationRuns:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              direction:
+                type: string
+              activityProfileName:
+                type: string
+              resultCount:
+                type: integer
+              createdAt:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # ─── Activity Profiles ───
+    ActivityProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+        version:
+          type: integer
+
+    ActivityProfileDetail:
+      allOf:
+        - $ref: '#/components/schemas/ActivityProfile'
+        - type: object
+          properties:
+            hardConstraints:
+              type: object
+              additionalProperties: true
+            weightedPreferences:
+              type: object
+              additionalProperties: true
+
+    CreateActivityProfileRequest:
+      type: object
+      required: [name, displayName, hardConstraints, weightedPreferences]
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        hardConstraints:
+          type: object
+          additionalProperties: true
+        weightedPreferences:
+          type: object
+          additionalProperties: true
+
+    UpdateActivityProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        description:
+          type: string
+        hardConstraints:
+          type: object
+          additionalProperties: true
+        weightedPreferences:
+          type: object
+          additionalProperties: true
+        isActive:
+          type: boolean
+
+    # ─── Notifications ───
+    NotificationPreference:
+      type: object
+      properties:
+        channel:
+          type: string
+          enum: [IN_APP, PUSH, EMAIL, SMS]
+        enabled:
+          type: boolean
+
+    PaginatedNotifications:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              subject:
+                type: string
+              body:
+                type: string
+              channel:
+                type: string
+              status:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+              readAt:
+                type: string
+                format: date-time
+                nullable: true
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    NotificationTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        channel:
+          type: string
+        subjectTemplate:
+          type: string
+        bodyTemplate:
+          type: string
+        isActive:
+          type: boolean
+        version:
+          type: integer
+
+    CreateNotificationTemplateRequest:
+      type: object
+      required: [code, channel, subjectTemplate, bodyTemplate]
+      properties:
+        code:
+          type: string
+        channel:
+          type: string
+          enum: [IN_APP, PUSH, EMAIL, SMS]
+        subjectTemplate:
+          type: string
+        bodyTemplate:
+          type: string
+
+    # ─── Files ───
+    UploadIntentRequest:
+      type: object
+      required: [fileName, contentType]
+      properties:
+        fileName:
+          type: string
+        contentType:
+          type: string
+          example: image/jpeg
+        fileSizeBytes:
+          type: integer
+
+    UploadIntentResponse:
+      type: object
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+
+    DownloadResponse:
+      type: object
+      properties:
+        downloadUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+
+    # ─── Reports ───
+    DashboardData:
+      type: object
+      properties:
+        parcelsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        parcelsByProvince:
+          type: object
+          additionalProperties:
+            type: integer
+        idleLandHectares:
+          type: number
+        applicationPipeline:
+          type: object
+          additionalProperties:
+            type: integer
+        avgProcessingDays:
+          type: number
+        leaseExpiryForecast:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              count:
+                type: integer
+        approvalRate:
+          type: number
+        rejectionRate:
+          type: number
+
+    ExportRequest:
+      type: object
+      required: [reportType, format]
+      properties:
+        reportType:
+          type: string
+          enum: [PARCELS, APPLICATIONS, LEASES, AUDIT]
+        format:
+          type: string
+          enum: [CSV, XLSX, PDF]
+        filters:
+          type: object
+          additionalProperties: true
+
+    JobStatus:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED, PROCESSING, COMPLETED, FAILED]
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+        resultUrl:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+
+    # ─── Audit ───
+    PaginatedAuditEvents:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              entityType:
+                type: string
+              entityId:
+                type: string
+                format: uuid
+              action:
+                type: string
+              actorName:
+                type: string
+              actorIp:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # ─── Sync ───
+    SyncChangesResponse:
+      type: object
+      properties:
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              entityType:
+                type: string
+              entityId:
+                type: string
+                format: uuid
+              action:
+                type: string
+                enum: [CREATE, UPDATE, DELETE]
+              data:
+                type: object
+              timestamp:
+                type: string
+                format: date-time
+        nextCursor:
+          type: string
+
+    # ─── Geo ───
+    GeoJSON:
+      type: object
+      description: GeoJSON geometry object
+      properties:
+        type:
+          type: string
+          enum: [Polygon, MultiPolygon, Point]
+        coordinates:
+          type: array
+
+    GeoPoint:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+
+    # ─── Admin ───
+    LandCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+
+    CreateLandCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    AdminArea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        code:
+          type: string
+        level:
+          type: string
+          enum: [PROVINCE, DISTRICT, WARD]
+        parentId:
+          type: string
+          format: uuid
+          nullable: true

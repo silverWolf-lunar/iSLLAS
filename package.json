@@ -1,0 +1,31 @@
+{
+  "name": "sllas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Smart Land Lease and Allocation System (SLLAS) — Zimbabwe",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @sllas/api dev",
+    "dev:web": "pnpm --filter @sllas/web dev",
+    "dev:mobile": "pnpm --filter @sllas/mobile dev",
+    "dev:worker": "pnpm --filter @sllas/worker dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:integration": "pnpm --filter @sllas/api test:integration",
+    "test:e2e": "pnpm --filter tests-e2e test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @sllas/api migration:run",
+    "db:seed": "pnpm --filter @sllas/api seed:run",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:staging:up": "docker compose --env-file .env.staging -f docker-compose.staging.yml up -d --build",
+    "docker:staging:down": "docker compose --env-file .env.staging -f docker-compose.staging.yml down",
+    "clean": "pnpm -r exec rm -rf dist node_modules .next .expo"
+  }
+}

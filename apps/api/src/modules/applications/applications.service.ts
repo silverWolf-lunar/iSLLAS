@@ -1,0 +1,614 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import {
+  ApplicationStatus,
+  AuditAction,
+  EventType,
+  LeaseStatus,
+  ParcelStatus,
+  Role,
+  UserProfile,
+  VerificationStatus,
+} from '@sllas/contracts';
+import {
+  ApplicationRejectionInput,
+  ApplicationReviewInput,
+  CreateApplicationInput,
+  SignLeaseAgreementInput,
+} from '@sllas/validation';
+import { AuditService } from '../audit/audit.service';
+import { ClientProfile } from '../client-profiles/client-profile.entity';
+import { OutboxService } from '../outbox/outbox.service';
+import { Parcel } from '../parcels/parcel.entity';
+import { ApplicationStatusHistory } from './application-status-history.entity';
+import { LeaseApplication } from './lease-application.entity';
+import { Lease } from './lease.entity';
+
+@Injectable()
+export class ApplicationsService {
+  constructor(
+    @InjectRepository(LeaseApplication)
+    private readonly applicationRepo: Repository<LeaseApplication>,
+    @InjectRepository(ApplicationStatusHistory)
+    private readonly historyRepo: Repository<ApplicationStatusHistory>,
+    @InjectRepository(Lease)
+    private readonly leaseRepo: Repository<Lease>,
+    @InjectRepository(ClientProfile)
+    private readonly profileRepo: Repository<ClientProfile>,
+    @InjectRepository(Parcel)
+    private readonly parcelRepo: Repository<Parcel>,
+    private readonly dataSource: DataSource,
+    private readonly outboxService: OutboxService,
+    private readonly auditService: AuditService,
+  ) {}
+
+  async createDraft(dto: CreateApplicationInput, user: UserProfile): Promise<LeaseApplication> {
+    this.assertClient(user);
+    const profile = await this.getProfileForUser(user.id);
+    const parcel = await this.parcelRepo.findOne({ where: { id: dto.parcelId } });
+    if (!parcel) throw new NotFoundException(`Parcel ${dto.parcelId} not found`);
+    if (parcel.status !== ParcelStatus.AVAILABLE) {
+      throw new ConflictException('Applications can only be drafted against an available parcel');
+    }
+
+    const application = this.applicationRepo.create({
+      id: dto.id,
+      applicationNumber: this.applicationNumber(),
+      clientProfileId: profile.id,
+      parcelId: parcel.id,
+      activityProfileId: dto.activityProfileId || null,
+      intendedActivity: dto.intendedActivity,
+      businessPlanSummary: dto.businessPlanSummary,
+      requestedTermYears: dto.requestedTermYears,
+      proposedInvestmentUsd: dto.proposedInvestmentUsd || null,
+      expectedJobsCreated: dto.expectedJobsCreated ?? null,
+      status: ApplicationStatus.DRAFT,
+      assignedOfficerId: null,
+      approvedBy: null,
+      rejectionReason: null,
+      submittedAt: null,
+    });
+    const saved = await this.applicationRepo.save(application);
+    await this.historyRepo.save(this.historyRepo.create({
+      applicationId: saved.id,
+      fromStatus: null,
+      toStatus: ApplicationStatus.DRAFT,
+      actorId: user.id,
+      reason: 'Application draft created',
+      comments: null,
+      metadata: null,
+    }));
+    await this.auditService.logEvent({
+      action: AuditAction.CREATE,
+      entityType: 'LEASE_APPLICATION',
+      entityId: saved.id,
+      actorId: user.id,
+      actorRole: user.role,
+      provinceId: parcel.provinceId,
+      metadata: { applicationNumber: saved.applicationNumber, parcelId: parcel.id },
+    });
+    return saved;
+  }
+
+  /**
+   * Atomically turns an AVAILABLE parcel into RESERVED. The row lock, live-application
+   * unique index, and transaction form three independent layers against double allocation.
+   */
+  async submit(id: string, user: UserProfile): Promise<LeaseApplication> {
+    this.assertClient(user);
+    const profile = await this.getProfileForUser(user.id);
+    if (profile.verificationStatus !== VerificationStatus.VERIFIED) {
+      throw new ForbiddenException('Your client profile must be verified before submitting an application');
+    }
+
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      this.assertOwnApplication(application, profile);
+      if (application.status !== ApplicationStatus.DRAFT) {
+        throw new BadRequestException('Only DRAFT applications can be submitted');
+      }
+
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      if (parcel.status !== ParcelStatus.AVAILABLE) {
+        throw new ConflictException('This parcel is no longer available for allocation');
+      }
+
+      const fromStatus = application.status;
+      application.status = ApplicationStatus.SUBMITTED;
+      application.submittedAt = new Date();
+      parcel.status = ParcelStatus.RESERVED;
+      await manager.getRepository(LeaseApplication).save(application);
+      await manager.getRepository(Parcel).save(parcel);
+      await this.writeHistory(manager, application, fromStatus, user, 'Application submitted');
+      await this.outboxService.enqueue({
+        eventType: EventType.APPLICATION_SUBMITTED,
+        aggregateType: 'LEASE_APPLICATION',
+        aggregateId: application.id,
+        payload: { applicationNumber: application.applicationNumber, parcelId: parcel.id },
+        entityManager: manager,
+      });
+      await this.auditService.logEvent({
+        action: AuditAction.STATUS_CHANGE,
+        entityType: 'LEASE_APPLICATION',
+        entityId: application.id,
+        actorId: user.id,
+        actorRole: user.role,
+        provinceId: parcel.provinceId,
+        metadata: { fromStatus, toStatus: application.status, parcelStatus: parcel.status },
+        entityManager: manager,
+      });
+      return application;
+    }).catch(error => this.rethrowAllocationConflict(error));
+  }
+
+  async startReview(id: string, dto: ApplicationReviewInput, user: UserProfile): Promise<LeaseApplication> {
+    this.assertRole(user, [Role.REGISTRY_OFFICER, Role.SYSTEM_ADMIN]);
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      this.assertJurisdiction(user, parcel);
+      if (application.status !== ApplicationStatus.SUBMITTED) {
+        throw new BadRequestException('Only SUBMITTED applications can enter review');
+      }
+      const fromStatus = application.status;
+      application.status = ApplicationStatus.UNDER_REVIEW;
+      application.assignedOfficerId = user.id;
+      await manager.getRepository(LeaseApplication).save(application);
+      await this.writeHistory(manager, application, fromStatus, user, null, dto.comments);
+      await this.emitStatusChange(manager, application, parcel, user, fromStatus);
+      return application;
+    });
+  }
+
+  async requestInformation(id: string, dto: ApplicationReviewInput, user: UserProfile): Promise<LeaseApplication> {
+    this.assertRole(user, [Role.REGISTRY_OFFICER, Role.SYSTEM_ADMIN]);
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      this.assertJurisdiction(user, parcel);
+      this.assertAssignedOfficer(application, user);
+      if (application.status !== ApplicationStatus.UNDER_REVIEW) {
+        throw new BadRequestException('Information can only be requested while an application is under review');
+      }
+      const fromStatus = application.status;
+      application.status = ApplicationStatus.INFO_REQUESTED;
+      await manager.getRepository(LeaseApplication).save(application);
+      await this.writeHistory(manager, application, fromStatus, user, null, dto.comments);
+      await this.outboxService.enqueue({
+        eventType: EventType.APPLICATION_INFO_REQUESTED,
+        aggregateType: 'LEASE_APPLICATION',
+        aggregateId: application.id,
+        payload: { applicationNumber: application.applicationNumber, parcelId: parcel.id, comments: dto.comments },
+        entityManager: manager,
+      });
+      await this.emitStatusChange(manager, application, parcel, user, fromStatus);
+      return application;
+    });
+  }
+
+  async provideInformation(id: string, dto: ApplicationReviewInput, user: UserProfile): Promise<LeaseApplication> {
+    this.assertClient(user);
+    const profile = await this.getProfileForUser(user.id);
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      this.assertOwnApplication(application, profile);
+      if (application.status !== ApplicationStatus.INFO_REQUESTED) {
+        throw new BadRequestException('Information can only be provided when it has been requested');
+      }
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      const fromStatus = application.status;
+      application.status = ApplicationStatus.UNDER_REVIEW;
+      await manager.getRepository(LeaseApplication).save(application);
+      await this.writeHistory(manager, application, fromStatus, user, null, dto.comments);
+      await this.emitStatusChange(manager, application, parcel, user, fromStatus);
+      return application;
+    });
+  }
+
+  /** Approving immediately produces an offer, while retaining both events in history. */
+  async approve(id: string, dto: ApplicationReviewInput, user: UserProfile): Promise<LeaseApplication> {
+    this.assertRole(user, [Role.APPROVER]);
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      this.assertJurisdiction(user, parcel);
+      if (application.status !== ApplicationStatus.UNDER_REVIEW) {
+        throw new BadRequestException('Only applications under review can be approved');
+      }
+      if (application.assignedOfficerId === user.id) {
+        throw new ForbiddenException('The reviewing officer cannot approve the same application');
+      }
+      if (parcel.status !== ParcelStatus.RESERVED) {
+        throw new ConflictException('The reserved parcel is not in a state that can be allocated');
+      }
+
+      const reviewStatus = application.status;
+      application.status = ApplicationStatus.APPROVED;
+      application.approvedBy = user.id;
+      parcel.status = ParcelStatus.ALLOCATED;
+      await this.writeHistory(manager, application, reviewStatus, user, null, dto.comments);
+
+      const offerStatus = application.status;
+      application.status = ApplicationStatus.OFFER_ISSUED;
+      await manager.getRepository(LeaseApplication).save(application);
+      await manager.getRepository(Parcel).save(parcel);
+      await this.writeHistory(manager, application, offerStatus, user, 'Offer issued after approval');
+      await this.outboxService.enqueue({
+        eventType: EventType.APPLICATION_APPROVED,
+        aggregateType: 'LEASE_APPLICATION',
+        aggregateId: application.id,
+        payload: { applicationNumber: application.applicationNumber, parcelId: parcel.id, approvedBy: user.id },
+        entityManager: manager,
+      });
+      await this.outboxService.enqueue({
+        eventType: EventType.OFFER_ISSUED,
+        aggregateType: 'LEASE_APPLICATION',
+        aggregateId: application.id,
+        payload: { applicationNumber: application.applicationNumber, parcelId: parcel.id },
+        entityManager: manager,
+      });
+      await this.auditService.logEvent({
+        action: AuditAction.APPROVE,
+        entityType: 'LEASE_APPLICATION',
+        entityId: application.id,
+        actorId: user.id,
+        actorRole: user.role,
+        provinceId: parcel.provinceId,
+        metadata: { fromStatus: reviewStatus, toStatus: application.status, parcelStatus: parcel.status },
+        entityManager: manager,
+      });
+      return application;
+    });
+  }
+
+  async reject(id: string, dto: ApplicationRejectionInput, user: UserProfile): Promise<LeaseApplication> {
+    this.assertRole(user, [Role.APPROVER]);
+    return this.closeWithRejection(id, dto.reason, user, ApplicationStatus.UNDER_REVIEW);
+  }
+
+  async withdraw(id: string, dto: ApplicationRejectionInput, user: UserProfile): Promise<LeaseApplication> {
+    const profile = user.role === Role.CLIENT ? await this.getProfileForUser(user.id) : null;
+    this.assertRole(user, [Role.CLIENT, Role.SYSTEM_ADMIN]);
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      if (profile) this.assertOwnApplication(application, profile);
+      const withdrawable = [
+        ApplicationStatus.DRAFT,
+        ApplicationStatus.SUBMITTED,
+        ApplicationStatus.UNDER_REVIEW,
+        ApplicationStatus.INFO_REQUESTED,
+        ApplicationStatus.SITE_INSPECTION,
+      ];
+      if (!withdrawable.includes(application.status)) {
+        throw new BadRequestException(`Application cannot be withdrawn while ${application.status}`);
+      }
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      this.assertJurisdiction(user, parcel);
+      const fromStatus = application.status;
+      application.status = ApplicationStatus.WITHDRAWN;
+      if (parcel.status === ParcelStatus.RESERVED) parcel.status = ParcelStatus.AVAILABLE;
+      await manager.getRepository(LeaseApplication).save(application);
+      await manager.getRepository(Parcel).save(parcel);
+      await this.writeHistory(manager, application, fromStatus, user, dto.reason);
+      await this.emitStatusChange(manager, application, parcel, user, fromStatus);
+      return application;
+    });
+  }
+
+  async acceptOffer(id: string, user: UserProfile): Promise<LeaseApplication> {
+    this.assertClient(user);
+    const profile = await this.getProfileForUser(user.id);
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      this.assertOwnApplication(application, profile);
+      if (application.status !== ApplicationStatus.OFFER_ISSUED) {
+        throw new BadRequestException('Only an issued offer can be accepted');
+      }
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      if (parcel.status !== ParcelStatus.ALLOCATED) {
+        throw new ConflictException('The parcel is no longer allocated to this application');
+      }
+      const fromStatus = application.status;
+      application.status = ApplicationStatus.ACCEPTED;
+      await manager.getRepository(LeaseApplication).save(application);
+      await this.writeHistory(manager, application, fromStatus, user, 'Offer accepted');
+      await this.outboxService.enqueue({
+        eventType: EventType.OFFER_ACCEPTED,
+        aggregateType: 'LEASE_APPLICATION',
+        aggregateId: application.id,
+        payload: { applicationNumber: application.applicationNumber, parcelId: parcel.id },
+        entityManager: manager,
+      });
+      await this.emitStatusChange(manager, application, parcel, user, fromStatus);
+      return application;
+    });
+  }
+
+  async signAgreement(id: string, dto: SignLeaseAgreementInput, user: UserProfile): Promise<Lease> {
+    this.assertClient(user);
+    const profile = await this.getProfileForUser(user.id);
+    try {
+      return await this.dataSource.transaction(async manager => {
+        const application = await this.lockApplication(manager, id);
+        this.assertOwnApplication(application, profile);
+        if (application.status !== ApplicationStatus.ACCEPTED) {
+          throw new BadRequestException('Only an accepted offer can be converted into a lease');
+        }
+        const parcel = await this.lockParcel(manager, application.parcelId);
+        if (parcel.status !== ParcelStatus.ALLOCATED) {
+          throw new ConflictException('The parcel is no longer allocated to this application');
+        }
+
+        const agreementStatus = application.status;
+        application.status = ApplicationStatus.AGREEMENT_SIGNED;
+        await this.writeHistory(manager, application, agreementStatus, user, 'Signed lease agreement received');
+
+        const lease = manager.getRepository(Lease).create({
+          leaseNumber: this.leaseNumber(),
+          applicationId: application.id,
+          parcelId: parcel.id,
+          clientProfileId: profile.id,
+          leasePeriod: this.toLeasePeriod(dto.startDate, dto.endDate),
+          startDate: this.toDateOnly(dto.startDate),
+          endDate: this.toDateOnly(dto.endDate),
+          annualRent: dto.annualRent,
+          currency: dto.currency,
+          termsConditions: dto.termsConditions || null,
+          status: LeaseStatus.ACTIVE,
+          approvedBy: application.approvedBy,
+          approvedAt: new Date(),
+        });
+        const savedLease = await manager.getRepository(Lease).save(lease);
+
+        const activeStatus = application.status;
+        application.status = ApplicationStatus.ACTIVE;
+        parcel.status = ParcelStatus.LEASED;
+        await manager.getRepository(LeaseApplication).save(application);
+        await manager.getRepository(Parcel).save(parcel);
+        await this.writeHistory(manager, application, activeStatus, user, 'Lease created and activated', null, {
+          leaseId: savedLease.id,
+          leaseNumber: savedLease.leaseNumber,
+        });
+        await this.outboxService.enqueue({
+          eventType: EventType.LEASE_CREATED,
+          aggregateType: 'LEASE',
+          aggregateId: savedLease.id,
+          payload: { leaseNumber: savedLease.leaseNumber, applicationId: application.id, parcelId: parcel.id },
+          entityManager: manager,
+        });
+        await this.auditService.logEvent({
+          action: AuditAction.CREATE,
+          entityType: 'LEASE',
+          entityId: savedLease.id,
+          actorId: user.id,
+          actorRole: user.role,
+          provinceId: parcel.provinceId,
+          metadata: { applicationId: application.id, parcelId: parcel.id, leaseNumber: savedLease.leaseNumber },
+          entityManager: manager,
+        });
+        return savedLease;
+      });
+    } catch (error) {
+      return this.rethrowAllocationConflict(error);
+    }
+  }
+
+  async findOne(id: string, user: UserProfile): Promise<LeaseApplication> {
+    const application = await this.applicationRepo.findOne({
+      where: { id },
+      relations: ['clientProfile', 'parcel'],
+    });
+    if (!application) throw new NotFoundException(`Application ${id} not found`);
+    await this.assertCanRead(application, user);
+    return application;
+  }
+
+  async list(user: UserProfile): Promise<LeaseApplication[]> {
+    const qb = this.applicationRepo.createQueryBuilder('application')
+      .leftJoinAndSelect('application.clientProfile', 'clientProfile')
+      .leftJoinAndSelect('application.parcel', 'parcel')
+      .orderBy('application.createdAt', 'DESC');
+    if (user.role === Role.CLIENT) {
+      qb.where('clientProfile.userId = :userId', { userId: user.id });
+    } else if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER) {
+      if (user.provinceId) qb.andWhere('parcel.provinceId = :provinceId', { provinceId: user.provinceId });
+      if (user.districtId) qb.andWhere('parcel.districtId = :districtId', { districtId: user.districtId });
+    } else if (user.role !== Role.SYSTEM_ADMIN && user.role !== Role.AUDITOR) {
+      throw new ForbiddenException('You are not permitted to view applications');
+    }
+    return qb.getMany();
+  }
+
+  private async closeWithRejection(
+    id: string,
+    reason: string,
+    user: UserProfile,
+    expectedStatus: ApplicationStatus,
+  ): Promise<LeaseApplication> {
+    return this.dataSource.transaction(async manager => {
+      const application = await this.lockApplication(manager, id);
+      const parcel = await this.lockParcel(manager, application.parcelId);
+      this.assertJurisdiction(user, parcel);
+      if (application.status !== expectedStatus) {
+        throw new BadRequestException(`Application must be ${expectedStatus} to be rejected`);
+      }
+      if (application.assignedOfficerId === user.id) {
+        throw new ForbiddenException('The reviewing officer cannot reject the same application');
+      }
+      const fromStatus = application.status;
+      application.status = ApplicationStatus.REJECTED;
+      application.rejectionReason = reason;
+      if (parcel.status === ParcelStatus.RESERVED || parcel.status === ParcelStatus.ALLOCATED) {
+        parcel.status = ParcelStatus.AVAILABLE;
+      }
+      await manager.getRepository(LeaseApplication).save(application);
+      await manager.getRepository(Parcel).save(parcel);
+      await this.writeHistory(manager, application, fromStatus, user, reason);
+      await this.outboxService.enqueue({
+        eventType: EventType.APPLICATION_REJECTED,
+        aggregateType: 'LEASE_APPLICATION',
+        aggregateId: application.id,
+        payload: { applicationNumber: application.applicationNumber, parcelId: parcel.id, reason },
+        entityManager: manager,
+      });
+      await this.auditService.logEvent({
+        action: AuditAction.REJECT,
+        entityType: 'LEASE_APPLICATION',
+        entityId: application.id,
+        actorId: user.id,
+        actorRole: user.role,
+        provinceId: parcel.provinceId,
+        metadata: { fromStatus, toStatus: application.status, parcelStatus: parcel.status, reason },
+        entityManager: manager,
+      });
+      return application;
+    });
+  }
+
+  private async lockApplication(manager: EntityManager, id: string): Promise<LeaseApplication> {
+    const application = await manager.getRepository(LeaseApplication).findOne({
+      where: { id },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!application) throw new NotFoundException(`Application ${id} not found`);
+    return application;
+  }
+
+  private async lockParcel(manager: EntityManager, id: string): Promise<Parcel> {
+    const parcel = await manager.getRepository(Parcel).findOne({
+      where: { id },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!parcel) throw new NotFoundException(`Parcel ${id} not found`);
+    return parcel;
+  }
+
+  private async writeHistory(
+    manager: EntityManager,
+    application: LeaseApplication,
+    fromStatus: ApplicationStatus | null,
+    user: UserProfile,
+    reason: string | null,
+    comments: string | null = null,
+    metadata: Record<string, unknown> | null = null,
+  ): Promise<void> {
+    const repo = manager.getRepository(ApplicationStatusHistory);
+    await repo.save(repo.create({
+      applicationId: application.id,
+      fromStatus,
+      toStatus: application.status,
+      actorId: user.id,
+      reason,
+      comments,
+      metadata,
+    }));
+  }
+
+  private async emitStatusChange(
+    manager: EntityManager,
+    application: LeaseApplication,
+    parcel: Parcel,
+    user: UserProfile,
+    fromStatus: ApplicationStatus,
+  ): Promise<void> {
+    await this.outboxService.enqueue({
+      eventType: EventType.APPLICATION_STATUS_CHANGED,
+      aggregateType: 'LEASE_APPLICATION',
+      aggregateId: application.id,
+      payload: { applicationNumber: application.applicationNumber, parcelId: parcel.id, fromStatus, toStatus: application.status },
+      entityManager: manager,
+    });
+    await this.auditService.logEvent({
+      action: AuditAction.STATUS_CHANGE,
+      entityType: 'LEASE_APPLICATION',
+      entityId: application.id,
+      actorId: user.id,
+      actorRole: user.role,
+      provinceId: parcel.provinceId,
+      metadata: { fromStatus, toStatus: application.status },
+      entityManager: manager,
+    });
+  }
+
+  private async getProfileForUser(userId: string): Promise<ClientProfile> {
+    const profile = await this.profileRepo.findOne({ where: { userId } });
+    if (!profile) throw new ForbiddenException('Create a client profile before creating an application');
+    return profile;
+  }
+
+  private assertOwnApplication(application: LeaseApplication, profile: ClientProfile): void {
+    if (application.clientProfileId !== profile.id) {
+      throw new ForbiddenException('You can only access your own applications');
+    }
+  }
+
+  private async assertCanRead(application: LeaseApplication, user: UserProfile): Promise<void> {
+    if (user.role === Role.SYSTEM_ADMIN || user.role === Role.AUDITOR) return;
+    if (user.role === Role.CLIENT) {
+      const profile = await this.getProfileForUser(user.id);
+      this.assertOwnApplication(application, profile);
+      return;
+    }
+    this.assertRole(user, [Role.REGISTRY_OFFICER, Role.APPROVER]);
+    this.assertJurisdiction(user, application.parcel);
+  }
+
+  private assertClient(user: UserProfile): void {
+    this.assertRole(user, [Role.CLIENT]);
+  }
+
+  private assertRole(user: UserProfile, roles: Role[]): void {
+    if (!roles.includes(user.role as Role)) {
+      throw new ForbiddenException(`This action requires one of: ${roles.join(', ')}`);
+    }
+  }
+
+  private assertAssignedOfficer(application: LeaseApplication, user: UserProfile): void {
+    if (user.role !== Role.SYSTEM_ADMIN && application.assignedOfficerId !== user.id) {
+      throw new ForbiddenException('Only the officer assigned to this application can perform this review action');
+    }
+  }
+
+  private assertJurisdiction(user: UserProfile, parcel: Parcel): void {
+    if (user.role === Role.CLIENT || user.role === Role.SYSTEM_ADMIN || user.role === Role.AUDITOR) return;
+    if (user.provinceId && user.provinceId !== parcel.provinceId) {
+      throw new ForbiddenException('Application is outside your provincial jurisdiction');
+    }
+    if (user.districtId && user.districtId !== parcel.districtId) {
+      throw new ForbiddenException('Application is outside your district jurisdiction');
+    }
+  }
+
+  private applicationNumber(): string {
+    return `APP-${new Date().getUTCFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  }
+
+  private leaseNumber(): string {
+    return `LS-${new Date().getUTCFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  }
+
+  private toDateOnly(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private toLeasePeriod(startDate: Date, endDate: Date): string {
+    const endExclusive = new Date(endDate);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    return `[${startDate.toISOString()},${endExclusive.toISOString()})`;
+  }
+
+  private rethrowAllocationConflict<T>(error: unknown): T {
+    const databaseError = error as { code?: string };
+    if (databaseError?.code === '23505' || databaseError?.code === '23P01') {
+      throw new ConflictException('A concurrent allocation already exists for this parcel or lease period');
+    }
+    throw error;
+  }
+}

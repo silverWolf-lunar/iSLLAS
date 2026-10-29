@@ -1,0 +1,15 @@
+{
+  "name": "@sllas/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared configuration constants and Zimbabwe reference data for SLLAS",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

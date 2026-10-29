@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+!.env.staging.example
+.git
+.next
+.expo
+node_modules
+**/node_modules
+**/dist
+**/.next
+coverage
+*.log
