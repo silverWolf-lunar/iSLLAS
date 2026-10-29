@@ -1,15 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { Header } from './Header';
 import { useApp } from './AppContext';
+import { RoleGate } from './RoleGate';
 
 export function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { currentUser, profileLoading, profileError, retryProfile } = useApp();
 
-  if (pathname === '/signin') {
+  if (pathname === '/signin' || pathname === '/') {
     return <>{children}</>;
   }
 
@@ -28,7 +29,11 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
             )
-            : children}
+            : (
+              <Suspense fallback={<p role="status" style={{ padding: '24px', color: 'var(--text-muted)' }}>Loading portal…</p>}>
+                <RoleGate>{children}</RoleGate>
+              </Suspense>
+            )}
       </main>
       <footer className="app-footer">
         <div className="app-footer-group">

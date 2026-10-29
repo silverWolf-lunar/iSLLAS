@@ -35,8 +35,8 @@ export class JurisdictionGuard implements CanActivate {
       return true;
     }
 
-    // For Registry Officers and Approvers, verify jurisdiction match
-    if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER) {
+    // For Registry Officers, Approvers, and Estates Officers, verify jurisdiction match
+    if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER || user.role === Role.ESTATES_OFFICER) {
       // If user is attached to National Office (no province restriction), allow
       if (!user.provinceId && !user.districtId) {
         return true;

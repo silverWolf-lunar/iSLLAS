@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useApp } from '../components/AppContext';
 import { ParcelRecord } from '../lib/parcel-data';
 import { ParcelStatus, NaturalRegion } from '@sllas/contracts';
+import { ApplyForParcelModal } from '../components/ApplyForParcelModal';
 
 const SpatialMap = dynamic(
   () => import('../components/SpatialMap').then(module => module.SpatialMap),
@@ -21,6 +22,23 @@ export default function ParcelsExplorerPage() {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
   const [selectedParcel, setSelectedParcel] = useState<ParcelRecord | null>(null);
+  const [applyingParcel, setApplyingParcel] = useState<ParcelRecord | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const statusParam = params.get('status');
+      const viewParam = params.get('view');
+      const parcelIdParam = params.get('parcelId');
+
+      if (statusParam) setSelectedStatus(statusParam);
+      if (viewParam === 'map') setViewMode('map');
+      if (parcelIdParam) {
+        const found = parcels.find(p => p.id === parcelIdParam);
+        if (found) setSelectedParcel(found);
+      }
+    }
+  }, [parcels]);
 
   const filteredParcels = useMemo(() => {
     return parcels.filter(p => {
@@ -307,15 +325,34 @@ export default function ParcelsExplorerPage() {
                 </pre>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
-                <Link href={`/parcels/${selectedParcel.id}`} className="btn btn-primary" style={{ flex: 1, fontSize: '0.8125rem' }}>
-                  Open Full Dossier →
-                </Link>
-                {selectedParcel.status === ParcelStatus.PENDING_VERIFICATION && (
-                  <Link href={`/parcels/verify`} className="btn btn-accent" style={{ fontSize: '0.8125rem' }}>
-                    Verify
-                  </Link>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+                {selectedParcel.status === ParcelStatus.AVAILABLE && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{
+                      width: '100%',
+                      background: 'var(--primary-600)',
+                      borderColor: 'var(--primary-400)',
+                      fontSize: '0.875rem',
+                      fontWeight: 700,
+                      padding: '10px',
+                    }}
+                    onClick={() => setApplyingParcel(selectedParcel)}
+                  >
+                    🌱 Apply for This Land Parcel
+                  </button>
                 )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Link href={`/parcels/${selectedParcel.id}`} className="btn btn-outline" style={{ flex: 1, fontSize: '0.8125rem' }}>
+                    Open Full Dossier →
+                  </Link>
+                  {selectedParcel.status === ParcelStatus.PENDING_VERIFICATION && (
+                    <Link href={`/parcels/verify`} className="btn btn-accent" style={{ fontSize: '0.8125rem' }}>
+                      Verify
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -369,6 +406,16 @@ export default function ParcelsExplorerPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
+                        {parcel.status === ParcelStatus.AVAILABLE && (
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem', background: 'var(--primary-600)' }}
+                            onClick={() => setApplyingParcel(parcel)}
+                          >
+                            Apply
+                          </button>
+                        )}
                         <Link href={`/parcels/${parcel.id}`} className="btn btn-outline" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
                           Dossier
                         </Link>
@@ -397,11 +444,31 @@ export default function ParcelsExplorerPage() {
                 <h3>{parcel.name}</h3>
                 <p>{parcel.province} · {parcel.district}</p>
                 <div className="parcel-card-meta"><span>{parcel.areaHectares} ha</span><span>Region {parcel.naturalRegion}</span></div>
-                <Link href={`/parcels/${parcel.id}`} className="btn btn-outline">View parcel</Link>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                  <Link href={`/parcels/${parcel.id}`} className="btn btn-outline" style={{ flex: 1 }}>View parcel</Link>
+                  {parcel.status === ParcelStatus.AVAILABLE && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ background: 'var(--primary-600)' }}
+                      onClick={() => setApplyingParcel(parcel)}
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
               </article>
             ))}
         </div>
         </>
+      )}
+
+      {applyingParcel && (
+        <ApplyForParcelModal
+          parcel={applyingParcel}
+          isOpen={!!applyingParcel}
+          onClose={() => setApplyingParcel(null)}
+        />
       )}
     </div>
   );

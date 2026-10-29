@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Role, UserProfile } from '@sllas/contracts';
+import { ApplicationStatus, Role, UserProfile } from '@sllas/contracts';
 import {
   ApplicationRejectionInput,
   ApplicationReviewInput,
@@ -10,6 +10,8 @@ import {
   createApplicationSchema,
   SignLeaseAgreementInput,
   signLeaseAgreementSchema,
+  AllocateParcelInput,
+  allocateParcelSchema,
 } from '@sllas/validation';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -33,10 +35,40 @@ export class ApplicationsController {
     return this.applicationsService.createDraft(dto, user);
   }
 
+  @Post('allocate')
+  @Roles(Role.REGISTRY_OFFICER, Role.SYSTEM_ADMIN)
+  @ApiOperation({ summary: 'Allocate an available parcel to a verified applicant' })
+  allocate(
+    @Body(new ZodValidationPipe(allocateParcelSchema)) dto: AllocateParcelInput,
+    @CurrentUser() user: UserProfile,
+  ) {
+    return this.applicationsService.allocate(dto, user);
+  }
+
+  @Get('waiting-list')
+  @Roles(Role.CLIENT, Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
+  @ApiOperation({ summary: 'Get active applications in waiting list order' })
+  getWaitingList(
+    @Query('provinceId') provinceId?: string,
+    @Query('districtId') districtId?: string,
+    @Query('status') status?: ApplicationStatus,
+    @Query('search') search?: string,
+    @CurrentUser() user?: UserProfile,
+  ) {
+    return this.applicationsService.getWaitingList({ provinceId, districtId, status, search }, user!);
+  }
+
   @Get()
-  @Roles(Role.CLIENT, Role.REGISTRY_OFFICER, Role.APPROVER, Role.SYSTEM_ADMIN, Role.AUDITOR)
+  @Roles(Role.CLIENT, Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
   @ApiOperation({ summary: 'List applications visible to the authenticated user' })
   list(@CurrentUser() user: UserProfile) {
+    return this.applicationsService.list(user);
+  }
+
+  @Get('my')
+  @Roles(Role.CLIENT, Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
+  @ApiOperation({ summary: 'List applications for the current authenticated user' })
+  my(@CurrentUser() user: UserProfile) {
     return this.applicationsService.list(user);
   }
 

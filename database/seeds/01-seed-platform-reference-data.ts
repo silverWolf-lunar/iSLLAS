@@ -14,6 +14,7 @@ export async function seedPlatformReferenceData(dataSource: DataSource): Promise
       { name: Role.SYSTEM_ADMIN, description: 'Full system administration and configuration' },
       { name: Role.REGISTRY_OFFICER, description: 'Land parcel registration, verification, application review' },
       { name: Role.APPROVER, description: 'Senior land board approver for applications and leases' },
+      { name: Role.ESTATES_OFFICER, description: 'Estates officer - master waiting list monitoring, lease generation, and legal agreements' },
       { name: Role.AUDITOR, description: 'Read-only compliance and audit history inspector' },
       { name: Role.CLIENT, description: 'Citizen or business applicant for land leases' },
     ];

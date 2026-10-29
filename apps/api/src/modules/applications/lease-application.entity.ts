@@ -23,6 +23,13 @@ export class LeaseApplication {
   @Index('idx_lease_applications_number')
   applicationNumber: string;
 
+  @Column({ name: 'waiting_list_number', type: 'varchar', length: 100, nullable: true })
+  @Index('idx_lease_applications_waiting_list')
+  waitingListNumber: string | null;
+
+  @Column({ name: 'subdivision_details', type: 'varchar', length: 255, nullable: true })
+  subdivisionDetails: string | null;
+
   @Column({ name: 'client_profile_id', type: 'uuid' })
   @Index('idx_lease_applications_client')
   clientProfileId: string;
@@ -78,6 +85,13 @@ export class LeaseApplication {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'approved_by' })
   approvedByUser: User | null;
+
+  @Column({ name: 'allocated_by', type: 'uuid', nullable: true })
+  allocatedBy: string | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'allocated_by' })
+  allocatedByUser: User | null;
 
   @Column({ name: 'rejection_reason', type: 'text', nullable: true })
   rejectionReason: string | null;

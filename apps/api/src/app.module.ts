@@ -15,6 +15,8 @@ import { ApplicationsModule } from './modules/applications/applications.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { LeasesModule } from './modules/leases/leases.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -37,6 +39,8 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
     ParcelsModule,
     ClientProfilesModule,
     ApplicationsModule,
+    LeasesModule,
+    UploadsModule,
     RecommendationsModule,
     NotificationsModule,
     ReportsModule,

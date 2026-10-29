@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useApp } from '../../components/AppContext';
 import { ParcelStatus } from '@sllas/contracts';
+import { ApplyForParcelModal } from '../../components/ApplyForParcelModal';
 
 const SpatialMap = dynamic(
   () => import('../../components/SpatialMap').then(module => module.SpatialMap),
@@ -21,6 +22,7 @@ export default function ParcelDetailPage() {
   const parcel = parcels.find(p => p.id === parcelId);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'geometry' | 'audit'>('overview');
+  const [showApplyModal, setShowApplyModal] = useState(false);
 
   if (!parcel) {
     return (
@@ -91,6 +93,14 @@ export default function ParcelDetailPage() {
 
           {parcel.status === ParcelStatus.AVAILABLE && (
             <>
+              <button
+                type="button"
+                onClick={() => setShowApplyModal(true)}
+                className="btn btn-primary"
+                style={{ background: 'var(--primary-600)', borderColor: 'var(--primary-400)', fontWeight: 700 }}
+              >
+                🌱 Apply for This Land Parcel
+              </button>
               <button
                 onClick={() => handleStatusChange(ParcelStatus.RESERVED)}
                 className="btn btn-outline"
@@ -370,6 +380,14 @@ export default function ParcelDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {showApplyModal && (
+        <ApplyForParcelModal
+          parcel={parcel}
+          isOpen={showApplyModal}
+          onClose={() => setShowApplyModal(false)}
+        />
       )}
     </div>
   );

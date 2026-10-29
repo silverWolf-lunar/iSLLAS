@@ -63,6 +63,19 @@ export class ClientProfile {
   @Column({ type: 'jsonb', nullable: true })
   directors: Array<{ fullName: string; nationalId: string; phoneNumber: string }> | null;
 
+  @Column({ type: 'jsonb', nullable: true, default: () => "'[]'::jsonb" })
+  documents: Array<{
+    id: string;
+    type: string;
+    fileName: string;
+    fileUrl: string;
+    fileSizeBytes?: number;
+    mimeType?: string;
+    status: string;
+    uploadedAt: string;
+    rejectionReason?: string | null;
+  }> | null;
+
   @Column({
     name: 'verification_status',
     type: 'enum',

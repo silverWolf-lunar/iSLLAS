@@ -22,7 +22,9 @@ import {
   ApplicationReviewInput,
   CreateApplicationInput,
   SignLeaseAgreementInput,
+  AllocateParcelInput,
 } from '@sllas/validation';
+import { WaitingListEntry, WaitingListQuery } from '@sllas/contracts';
 import { AuditService } from '../audit/audit.service';
 import { ClientProfile } from '../client-profiles/client-profile.entity';
 import { OutboxService } from '../outbox/outbox.service';
@@ -123,6 +125,9 @@ export class ApplicationsService {
       const fromStatus = application.status;
       application.status = ApplicationStatus.SUBMITTED;
       application.submittedAt = new Date();
+      if (!application.waitingListNumber) {
+        application.waitingListNumber = await this.nextWaitingListNumber(manager);
+      }
       parcel.status = ParcelStatus.RESERVED;
       await manager.getRepository(LeaseApplication).save(application);
       await manager.getRepository(Parcel).save(parcel);
@@ -417,13 +422,166 @@ export class ApplicationsService {
       .orderBy('application.createdAt', 'DESC');
     if (user.role === Role.CLIENT) {
       qb.where('clientProfile.userId = :userId', { userId: user.id });
-    } else if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER) {
+    } else if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER || user.role === Role.ESTATES_OFFICER) {
       if (user.provinceId) qb.andWhere('parcel.provinceId = :provinceId', { provinceId: user.provinceId });
       if (user.districtId) qb.andWhere('parcel.districtId = :districtId', { districtId: user.districtId });
     } else if (user.role !== Role.SYSTEM_ADMIN && user.role !== Role.AUDITOR) {
       throw new ForbiddenException('You are not permitted to view applications');
     }
     return qb.getMany();
+  }
+
+  /**
+   * Allocation Workbench: Registry/Resettlement Officer allocates an available parcel to a verified applicant.
+   */
+  async allocate(dto: AllocateParcelInput, user: UserProfile): Promise<LeaseApplication> {
+    this.assertRole(user, [Role.REGISTRY_OFFICER, Role.SYSTEM_ADMIN]);
+
+    const clientProfile = await this.profileRepo.findOne({
+      where: { id: dto.clientProfileId },
+      relations: ['user'],
+    });
+    if (!clientProfile) {
+      throw new NotFoundException(`Client profile ${dto.clientProfileId} not found`);
+    }
+    if (clientProfile.verificationStatus !== VerificationStatus.VERIFIED) {
+      throw new BadRequestException('Applicant must have a VERIFIED profile to receive an allocation');
+    }
+
+    return this.dataSource.transaction(async manager => {
+      const parcel = await this.lockParcel(manager, dto.parcelId);
+      this.assertJurisdiction(user, parcel);
+
+      if (parcel.status !== ParcelStatus.AVAILABLE) {
+        throw new ConflictException(`Parcel ${parcel.referenceNumber} is ${parcel.status} and cannot be allocated`);
+      }
+
+      const waitingListNumber = await this.nextWaitingListNumber(manager);
+      const application = manager.getRepository(LeaseApplication).create({
+        applicationNumber: this.applicationNumber(),
+        waitingListNumber,
+        parcelId: parcel.id,
+        clientProfileId: clientProfile.id,
+        intendedActivity: dto.intendedActivity,
+        businessPlanSummary: dto.businessPlanSummary,
+        requestedTermYears: dto.requestedTermYears,
+        proposedInvestmentUsd: dto.proposedInvestmentUsd ?? null,
+        expectedJobsCreated: dto.expectedJobsCreated ?? null,
+        subdivisionDetails: dto.subdivisionDetails ?? null,
+        allocatedBy: user.id,
+        assignedOfficerId: user.id,
+        status: ApplicationStatus.UNDER_REVIEW,
+        submittedAt: new Date(),
+      });
+
+      const savedApp = await manager.getRepository(LeaseApplication).save(application);
+      parcel.status = ParcelStatus.RESERVED;
+      await manager.getRepository(Parcel).save(parcel);
+
+      await this.writeHistory(
+        manager,
+        savedApp,
+        ApplicationStatus.DRAFT,
+        user,
+        `Allocated via Allocation Workbench by ${user.firstName} ${user.lastName}`,
+      );
+
+      await this.outboxService.enqueue({
+        eventType: EventType.APPLICATION_SUBMITTED,
+        aggregateType: 'LEASE_APPLICATION',
+        aggregateId: savedApp.id,
+        payload: {
+          applicationNumber: savedApp.applicationNumber,
+          waitingListNumber: savedApp.waitingListNumber,
+          parcelId: parcel.id,
+          clientProfileId: clientProfile.id,
+        },
+        entityManager: manager,
+      });
+
+      await this.auditService.logEvent({
+        action: AuditAction.CREATE,
+        entityType: 'LEASE_APPLICATION',
+        entityId: savedApp.id,
+        actorId: user.id,
+        actorRole: user.role,
+        provinceId: parcel.provinceId,
+        metadata: {
+          action: 'ALLOCATION_WORKBENCH',
+          parcelReference: parcel.referenceNumber,
+          applicantId: clientProfile.id,
+          waitingListNumber,
+        },
+        entityManager: manager,
+      });
+
+      return savedApp;
+    });
+  }
+
+  /**
+   * Master Waiting List query
+   */
+  async getWaitingList(query: WaitingListQuery = {}, user: UserProfile): Promise<WaitingListEntry[]> {
+    const qb = this.applicationRepo.createQueryBuilder('app')
+      .leftJoinAndSelect('app.clientProfile', 'clientProfile')
+      .leftJoinAndSelect('clientProfile.user', 'clientUser')
+      .leftJoinAndSelect('app.parcel', 'parcel')
+      .leftJoinAndSelect('parcel.province', 'province')
+      .leftJoinAndSelect('parcel.district', 'district')
+      .where('app.waitingListNumber IS NOT NULL')
+      .orderBy('app.submittedAt', 'ASC');
+
+    if (user.role === Role.CLIENT) {
+      qb.andWhere('clientProfile.userId = :userId', { userId: user.id });
+    } else if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER || user.role === Role.ESTATES_OFFICER) {
+      if (user.provinceId) qb.andWhere('parcel.provinceId = :provinceId', { provinceId: user.provinceId });
+      if (user.districtId) qb.andWhere('parcel.districtId = :districtId', { districtId: user.districtId });
+    }
+
+    if (query.provinceId) {
+      qb.andWhere('parcel.provinceId = :qProvinceId', { qProvinceId: query.provinceId });
+    }
+    if (query.districtId) {
+      qb.andWhere('parcel.districtId = :qDistrictId', { qDistrictId: query.districtId });
+    }
+    if (query.status) {
+      qb.andWhere('app.status = :qStatus', { qStatus: query.status });
+    }
+    if (query.search) {
+      qb.andWhere(
+        '(LOWER(app.waitingListNumber) LIKE :s OR LOWER(app.applicationNumber) LIKE :s OR LOWER(parcel.referenceNumber) LIKE :s OR LOWER(clientProfile.companyName) LIKE :s OR LOWER(clientProfile.nationalIdNumber) LIKE :s)',
+        { s: `%${query.search.toLowerCase()}%` },
+      );
+    }
+
+    const applications = await qb.getMany();
+    return applications.map((app, index) => ({
+      id: app.id,
+      applicationNumber: app.applicationNumber,
+      waitingListNumber: app.waitingListNumber || `WL-${new Date().getUTCFullYear()}-${app.applicationNumber.slice(-4)}`,
+      applicantName: app.clientProfile?.companyName
+        ? app.clientProfile.companyName
+        : app.clientProfile?.user
+          ? `${app.clientProfile.user.firstName} ${app.clientProfile.user.lastName}`.trim()
+          : 'Applicant',
+      applicantType: app.clientProfile?.clientType,
+      nationalIdNumber: app.clientProfile?.nationalIdNumber,
+      registrationNumber: app.clientProfile?.registrationNumber,
+      companyName: app.clientProfile?.companyName,
+      intendedActivity: app.intendedActivity,
+      parcelId: app.parcelId,
+      parcelReference: app.parcel?.referenceNumber || '',
+      parcelName: app.parcel ? `Parcel ${app.parcel.referenceNumber}` : '',
+      provinceId: app.parcel?.provinceId || '',
+      provinceName: app.parcel?.province?.name || '',
+      districtId: app.parcel?.districtId || '',
+      districtName: app.parcel?.district?.name || '',
+      areaHectares: Number(app.parcel?.areaHectares || 0),
+      status: app.status,
+      submittedAt: app.submittedAt ? app.submittedAt.toISOString() : app.createdAt.toISOString(),
+      position: index + 1,
+    }));
   }
 
   private async closeWithRejection(
@@ -583,6 +741,16 @@ export class ApplicationsService {
     }
     if (user.districtId && user.districtId !== parcel.districtId) {
       throw new ForbiddenException('Application is outside your district jurisdiction');
+    }
+  }
+
+  private async nextWaitingListNumber(manager: EntityManager): Promise<string> {
+    try {
+      const res = await manager.query(`SELECT nextval('waiting_list_seq') as seq`);
+      const seq = String(res[0]?.seq ?? Math.floor(1000 + Math.random() * 9000)).padStart(4, '0');
+      return `WL-${new Date().getUTCFullYear()}-${seq}`;
+    } catch {
+      return `WL-${new Date().getUTCFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     }
   }
 

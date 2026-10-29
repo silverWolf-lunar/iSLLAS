@@ -11,5 +11,18 @@ export default function middleware(request: NextRequestWithAuth, event: NextFetc
 }
 
 export const config = {
-  matcher: ['/((?!signin|api/auth|api/health/auth|_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/admin/:path*',
+    '/client/:path*',
+    '/officer/:path*',
+    '/approver/:path*',
+    '/estates/:path*',
+    '/audit/:path*',
+    '/reports/:path*',
+    '/settings/:path*',
+    '/parcels/new',
+    '/parcels/verify',
+    '/parcels/bulk-import',
+  ],
 };
+

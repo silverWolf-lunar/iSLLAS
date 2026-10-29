@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClientType, EventType, Role, UserProfile, VerificationStatus, AuditAction } from '@sllas/contracts';
-import { ClientProfileInput, VerifyClientProfileInput } from '@sllas/validation';
+import { ClientProfileInput, VerifyClientProfileInput, ClientDocumentInput } from '@sllas/validation';
 import { ClientProfile } from './client-profile.entity';
 import { OutboxService } from '../outbox/outbox.service';
 import { AuditService } from '../audit/audit.service';
@@ -56,6 +56,110 @@ export class ClientProfilesService {
       metadata: { verificationStatus: saved.verificationStatus },
     });
     return saved;
+  }
+
+  async attachDocument(
+    doc: ClientDocumentInput,
+    user: UserProfile,
+  ): Promise<ClientProfile> {
+    this.assertClient(user);
+    const profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+    if (!profile) {
+      throw new NotFoundException('Client profile not found. Please create your profile before uploading documents.');
+    }
+
+    const currentDocs = profile.documents || [];
+    const newDoc = {
+      id: crypto.randomUUID(),
+      type: doc.type,
+      fileName: doc.fileName,
+      fileUrl: doc.fileUrl,
+      fileSizeBytes: doc.fileSizeBytes,
+      mimeType: doc.mimeType,
+      status: 'UPLOADED',
+      uploadedAt: new Date().toISOString(),
+    };
+
+    profile.documents = [...currentDocs.filter(d => d.type !== doc.type), newDoc];
+    profile.verificationStatus = VerificationStatus.PENDING;
+    const saved = await this.profileRepo.save(profile);
+
+    await this.auditService.logEvent({
+      action: AuditAction.UPLOAD,
+      entityType: 'CLIENT_PROFILE',
+      entityId: saved.id,
+      actorId: user.id,
+      actorRole: user.role,
+      provinceId: saved.provinceId,
+      metadata: { documentType: doc.type, fileName: doc.fileName },
+    });
+
+    return saved;
+  }
+
+  async listProfiles(
+    filters: { status?: VerificationStatus; provinceId?: string; districtId?: string; search?: string } = {},
+    user: UserProfile,
+  ): Promise<ClientProfile[]> {
+    if (
+      user.role !== Role.REGISTRY_OFFICER &&
+      user.role !== Role.ESTATES_OFFICER &&
+      user.role !== Role.APPROVER &&
+      user.role !== Role.SYSTEM_ADMIN &&
+      user.role !== Role.AUDITOR
+    ) {
+      throw new ForbiddenException('You are not permitted to inspect applicant review queues');
+    }
+
+    const qb = this.profileRepo.createQueryBuilder('profile')
+      .leftJoinAndSelect('profile.user', 'user')
+      .leftJoinAndSelect('profile.province', 'province')
+      .leftJoinAndSelect('profile.district', 'district')
+      .orderBy('profile.updatedAt', 'DESC');
+
+    if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER || user.role === Role.ESTATES_OFFICER) {
+      if (user.provinceId) qb.andWhere('profile.provinceId = :pId', { pId: user.provinceId });
+      if (user.districtId) qb.andWhere('profile.districtId = :dId', { dId: user.districtId });
+    }
+
+    if (filters.status) {
+      qb.andWhere('profile.verificationStatus = :status', { status: filters.status });
+    }
+    if (filters.provinceId) {
+      qb.andWhere('profile.provinceId = :qProvinceId', { qProvinceId: filters.provinceId });
+    }
+    if (filters.districtId) {
+      qb.andWhere('profile.districtId = :qDistrictId', { qDistrictId: filters.districtId });
+    }
+    if (filters.search) {
+      qb.andWhere(
+        '(LOWER(profile.nationalIdNumber) LIKE :s OR LOWER(profile.companyName) LIKE :s OR LOWER(profile.registrationNumber) LIKE :s OR LOWER(user.firstName) LIKE :s OR LOWER(user.lastName) LIKE :s)',
+        { s: `%${filters.search.toLowerCase()}%` },
+      );
+    }
+
+    return qb.getMany();
+  }
+
+  async getProfileById(id: string, user: UserProfile): Promise<ClientProfile> {
+    const profile = await this.profileRepo.findOne({
+      where: { id },
+      relations: ['user', 'province', 'district'],
+    });
+    if (!profile) throw new NotFoundException(`Client profile ${id} not found`);
+
+    if (user.role === Role.CLIENT && profile.userId !== user.id) {
+      throw new ForbiddenException('You cannot inspect other client profiles');
+    }
+    if (
+      (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER || user.role === Role.ESTATES_OFFICER) &&
+      user.provinceId &&
+      user.provinceId !== profile.provinceId
+    ) {
+      throw new ForbiddenException('Client profile is outside your provincial jurisdiction');
+    }
+
+    return profile;
   }
 
   async verifyProfile(

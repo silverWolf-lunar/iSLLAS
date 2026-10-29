@@ -1,4 +1,4 @@
-﻿{
+{
     "realm":  "sllas",
     "enabled":  true,
     "displayName":  "SLLAS - Smart Land Lease and Allocation System",
@@ -41,6 +41,10 @@
                                 {
                                     "name":  "sllas_approver",
                                     "description":  "Approver - application approval and lease management"
+                                },
+                                {
+                                    "name":  "sllas_estates_officer",
+                                    "description":  "Estates Officer - master waiting list and lease management"
                                 },
                                 {
                                     "name":  "sllas_auditor",

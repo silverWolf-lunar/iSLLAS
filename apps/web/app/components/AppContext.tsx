@@ -4,13 +4,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { CurrentUser } from './Header';
 import { mapApiParcel, ParcelRecord, ProvinceStat } from '../lib/parcel-data';
-import { ParcelStatus, UserProfile } from '@sllas/contracts';
+import { ParcelStatus, Role, UserProfile } from '@sllas/contracts';
 
 interface AppContextType {
   currentUser: CurrentUser | null;
   profileLoading: boolean;
   profileError: string | null;
   retryProfile: () => void;
+  switchDevRole: (role: Role) => Promise<void>;
   parcels: ParcelRecord[];
   provinces: ProvinceStat[];
   addParcel: (p: Omit<ParcelRecord, 'id' | 'registeredAt' | 'registeredByUserId' | 'registeredByUserName'>) => ParcelRecord;
@@ -98,6 +99,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           name: `${profile.firstName} ${profile.lastName}`.trim(),
           role: profile.role,
           office: profile.officeId ?? 'Unassigned office',
+          provinceId: profile.provinceId,
+          districtId: profile.districtId,
         });
 
         const parcelRows = parcelPayload.data?.data ?? parcelPayload.data ?? [];
@@ -123,6 +126,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => controller.abort();
   }, [status, session?.error, profileRetryKey]);
+
+  const switchDevRole = async (targetRole: Role) => {
+    try {
+      await fetch('/api/backend/api/v1/auth/dev-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: targetRole }),
+      });
+      setProfileRetryKey(k => k + 1);
+    } catch (err) {
+      console.error('Failed to switch dev role', err);
+    }
+  };
 
   const addParcel = (): ParcelRecord => {
     throw new Error('Parcel creation requires persisted province, district, ward, and category identifiers');
@@ -169,6 +185,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setProfileError(null);
         setProfileRetryKey(value => value + 1);
       },
+      switchDevRole,
       parcels,
       provinces,
       addParcel,

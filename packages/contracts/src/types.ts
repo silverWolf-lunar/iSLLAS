@@ -18,6 +18,9 @@ import {
   VerificationStatus,
   ApplicationStatus,
   LeaseStatus,
+  Currency,
+  ClientDocumentType,
+  ClientDocumentStatus,
   RecommendationDirection,
   NotificationChannel,
   NotificationDeliveryStatus,
@@ -372,8 +375,33 @@ export interface Lease {
 }
 
 export interface LeaseDetail extends Lease {
-  documents: LeaseDocument[];
-  renewals: LeaseRenewalSummary[];
+  documents?: LeaseDocument[];
+  renewals?: LeaseRenewalSummary[];
+  termsConditions?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  createdAt?: string;
+  parcel?: {
+    id: string;
+    referenceNumber: string;
+    areaHectares: number;
+    province: string;
+    district: string;
+    ward?: string | null;
+    soilType?: string | null;
+    naturalRegion?: string | null;
+  };
+  client?: {
+    id: string;
+    name: string;
+    clientType: ClientType;
+    nationalIdNumber?: string | null;
+    companyName?: string | null;
+    registrationNumber?: string | null;
+    address: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
 export interface LeaseDocument {
@@ -576,3 +604,150 @@ export interface NotificationTemplate {
   isActive: boolean;
   version: number;
 }
+
+// ─── Waiting List & Allocation ───
+
+export interface WaitingListEntry {
+  id: string;
+  applicationNumber: string;
+  waitingListNumber: string;
+  applicantName: string;
+  applicantType: ClientType;
+  nationalIdNumber?: string | null;
+  registrationNumber?: string | null;
+  companyName?: string | null;
+  intendedActivity: string;
+  parcelId: string;
+  parcelReference: string;
+  parcelName: string;
+  provinceId: string;
+  provinceName: string;
+  districtId: string;
+  districtName: string;
+  areaHectares: number;
+  status: ApplicationStatus;
+  submittedAt: string;
+  position?: number;
+}
+
+export interface WaitingListQuery {
+  provinceId?: string;
+  districtId?: string;
+  status?: ApplicationStatus;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AllocateParcelInput {
+  parcelId: string;
+  clientProfileId: string;
+  intendedActivity: string;
+  businessPlanSummary: string;
+  requestedTermYears: number;
+  proposedInvestmentUsd?: number | null;
+  expectedJobsCreated?: number | null;
+  subdivisionDetails?: string | null;
+}
+
+// ─── Lease Legal & Print Views ───
+
+export interface LeaseLegalDocument {
+  leaseNumber: string;
+  title: string;
+  jurisdiction: string;
+  republicHeader: string;
+  lessor: string;
+  lessee: {
+    name: string;
+    type: string;
+    idNumber: string;
+    address: string;
+  };
+  property: {
+    reference: string;
+    name: string;
+    province: string;
+    district: string;
+    sizeHectares: number;
+    boundariesDescription: string;
+  };
+  term: {
+    startDate: string;
+    endDate: string;
+    years: number;
+  };
+  financial: {
+    annualRent: number;
+    currency: string;
+    dueDay: string;
+  };
+  statutoryClauses: string[];
+  signatories: {
+    lessorTitle: string;
+    lessorRepresentative: string;
+    lesseeRepresentative: string;
+    witnessOne: string;
+    witnessTwo: string;
+  };
+}
+
+// ─── User & Office Administration ───
+
+export interface CreateUserInput {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: Role;
+  phoneNumber?: string | null;
+  officeId?: string | null;
+  provinceId?: string | null;
+  districtId?: string | null;
+}
+
+export interface UpdateUserInput {
+  firstName?: string;
+  lastName?: string;
+  role?: Role;
+  status?: UserStatus;
+  phoneNumber?: string | null;
+  officeId?: string | null;
+  provinceId?: string | null;
+  districtId?: string | null;
+}
+
+export interface CreateOfficeInput {
+  name: string;
+  code: string;
+  level: OfficeLevel;
+  provinceId?: string | null;
+  districtId?: string | null;
+  address?: string | null;
+  email?: string | null;
+  phoneNumber?: string | null;
+}
+
+export interface UpdateOfficeInput {
+  name?: string;
+  level?: OfficeLevel;
+  provinceId?: string | null;
+  districtId?: string | null;
+  address?: string | null;
+  email?: string | null;
+  phoneNumber?: string | null;
+}
+
+// ─── KYC Document Uploads ───
+
+export interface ClientKycDocument {
+  id: string;
+  type: ClientDocumentType;
+  fileName: string;
+  fileUrl: string;
+  fileSizeBytes?: number;
+  mimeType?: string;
+  status: ClientDocumentStatus;
+  uploadedAt: string;
+  rejectionReason?: string | null;
+}
+

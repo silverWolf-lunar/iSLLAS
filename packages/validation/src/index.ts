@@ -12,6 +12,9 @@ import {
   Currency,
   NotificationChannel,
   RecommendationDirection,
+  OfficeLevel,
+  UserStatus,
+  ClientDocumentType,
 } from '@sllas/contracts';
 
 // ─────────────────────────────────────────────────────────────
@@ -259,6 +262,76 @@ export const notificationReadSchema = z.object({
   notificationIds: z.array(z.string().uuid()).min(1).max(100),
 });
 
+// ─────────────────────────────────────────────────────────────
+// Allocation & Waiting List Schemas
+// ─────────────────────────────────────────────────────────────
+
+export const allocateParcelSchema = z.object({
+  parcelId: z.string().uuid(),
+  clientProfileId: z.string().uuid(),
+  intendedActivity: z.string().min(3).max(255),
+  businessPlanSummary: z.string().min(20).max(5000),
+  requestedTermYears: z.coerce.number().int().min(1).max(99),
+  proposedInvestmentUsd: z.coerce.number().nonnegative().optional().nullable(),
+  expectedJobsCreated: z.coerce.number().int().nonnegative().optional().nullable(),
+  subdivisionDetails: z.string().max(255).optional().nullable(),
+});
+
+// ─────────────────────────────────────────────────────────────
+// User & Office Management Schemas
+// ─────────────────────────────────────────────────────────────
+
+export const createUserSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  role: z.nativeEnum(Role),
+  phoneNumber: z.string().max(50).optional().nullable(),
+  officeId: z.string().uuid().optional().nullable(),
+  provinceId: z.string().uuid().optional().nullable(),
+  districtId: z.string().uuid().optional().nullable(),
+});
+
+export const updateUserSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+  role: z.nativeEnum(Role).optional(),
+  status: z.nativeEnum(UserStatus).optional(),
+  phoneNumber: z.string().max(50).optional().nullable(),
+  officeId: z.string().uuid().optional().nullable(),
+  provinceId: z.string().uuid().optional().nullable(),
+  districtId: z.string().uuid().optional().nullable(),
+});
+
+export const createOfficeSchema = z.object({
+  name: z.string().min(3).max(255),
+  code: z.string().min(3).max(50),
+  level: z.nativeEnum(OfficeLevel),
+  provinceId: z.string().uuid().optional().nullable(),
+  districtId: z.string().uuid().optional().nullable(),
+  address: z.string().max(500).optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  phoneNumber: z.string().max(50).optional().nullable(),
+});
+
+export const updateOfficeSchema = z.object({
+  name: z.string().min(3).max(255).optional(),
+  level: z.nativeEnum(OfficeLevel).optional(),
+  provinceId: z.string().uuid().optional().nullable(),
+  districtId: z.string().uuid().optional().nullable(),
+  address: z.string().max(500).optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  phoneNumber: z.string().max(50).optional().nullable(),
+});
+
+export const clientDocumentSchema = z.object({
+  type: z.nativeEnum(ClientDocumentType),
+  fileName: z.string().min(1).max(255),
+  fileUrl: z.string().url(),
+  fileSizeBytes: z.number().int().nonnegative().optional(),
+  mimeType: z.string().max(100).optional(),
+});
+
 // Export all types inferred from schemas
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
@@ -279,3 +352,10 @@ export type RunRecommendationInput = z.infer<typeof runRecommendationSchema>;
 export type ActivityProfileInput = z.infer<typeof activityProfileSchema>;
 export type ParcelRecommendationQuery = z.infer<typeof parcelRecommendationQuerySchema>;
 export type NotificationReadInput = z.infer<typeof notificationReadSchema>;
+export type AllocateParcelInput = z.infer<typeof allocateParcelSchema>;
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type CreateOfficeInput = z.infer<typeof createOfficeSchema>;
+export type UpdateOfficeInput = z.infer<typeof updateOfficeSchema>;
+export type ClientDocumentInput = z.infer<typeof clientDocumentSchema>;
+
