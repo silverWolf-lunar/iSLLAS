@@ -3,9 +3,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useApp } from '../../components/AppContext';
-import { SpatialMap } from '../../components/SpatialMap';
 import { ParcelStatus } from '@sllas/contracts';
+
+const SpatialMap = dynamic(
+  () => import('../../components/SpatialMap').then(module => module.SpatialMap),
+  { ssr: false, loading: () => <div className="glass-panel" style={{ height: 360, display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>Loading spatial map…</div> },
+);
 
 export default function ParcelDetailPage() {
   const params = useParams();
@@ -141,12 +146,12 @@ export default function ParcelDetailPage() {
 
       {/* Tab: Overview */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+        <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
           {/* Left Attributes */}
           <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h2 style={{ fontSize: '1.125rem', color: '#ffffff' }}>Land Characteristics Dossier</h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '8px' }}>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Cadastral Area</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ffffff' }}>
@@ -230,7 +235,7 @@ export default function ParcelDetailPage() {
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h2 style={{ fontSize: '1.125rem', color: '#ffffff' }}>PostGIS Spatial Representation (SRID 4326)</h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>
                 Centroid Coordinates

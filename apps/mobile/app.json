@@ -3,6 +3,7 @@
     "name": "SLLAS Mobile",
     "slug": "sllas-mobile",
     "version": "1.0.0",
+    "scheme": "sllas-mobile",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": ["**/*"],

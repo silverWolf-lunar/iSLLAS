@@ -2,13 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useApp } from './components/AppContext';
-import { SpatialMap } from './components/SpatialMap';
-import { ZIMBABWE_PROVINCES } from './lib/parcel-data';
 import { ParcelStatus } from '@sllas/contracts';
 
+const SpatialMap = dynamic(
+  () => import('./components/SpatialMap').then(module => module.SpatialMap),
+  { ssr: false, loading: () => <div className="glass-panel map-loading">Loading spatial map…</div> },
+);
+
 export default function DashboardPage() {
-  const { parcels } = useApp();
+  const { parcels, provinces } = useApp();
 
   const totalHectares = parcels.reduce((sum, p) => sum + p.areaHectares, 0);
   const availableParcels = parcels.filter(p => p.status === ParcelStatus.AVAILABLE);
@@ -17,7 +21,7 @@ export default function DashboardPage() {
   const leasedParcels = parcels.filter(p => p.status === ParcelStatus.LEASED || p.status === ParcelStatus.ALLOCATED);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div className="page-stack dashboard-page">
       {/* Top Banner / Welcome */}
       <div style={{
         display: 'flex',
@@ -110,7 +114,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Grid: Spatial Map & Provincial Breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '24px' }}>
+      <div className="dashboard-main-grid">
         {/* Spatial Map Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -130,7 +134,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '460px', overflowY: 'auto' }}>
-            {ZIMBABWE_PROVINCES.map(prov => {
+            {provinces.map(prov => {
               const liveProvParcels = parcels.filter(p => p.province.toLowerCase().includes(prov.name.toLowerCase()));
               const liveHa = liveProvParcels.reduce((acc, p) => acc + p.areaHectares, 0);
 

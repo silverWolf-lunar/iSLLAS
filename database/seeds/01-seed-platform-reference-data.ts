@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 import { ZIMBABWE_PROVINCES } from '@sllas/config';
-import { Role, UserStatus, OfficeLevel, AdminAreaLevel } from '@sllas/contracts';
+import { Role, OfficeLevel, AdminAreaLevel } from '@sllas/contracts';
 
 export async function seedPlatformReferenceData(dataSource: DataSource): Promise<void> {
   const queryRunner = dataSource.createQueryRunner();
@@ -150,83 +150,7 @@ export async function seedPlatformReferenceData(dataSource: DataSource): Promise
     }
     console.log('✅ Registry Offices seeded');
 
-    // 5. Seed Test Users (for each role & province)
-    const testUsers = [
-      {
-        email: 'admin@sllas.gov.zw',
-        firstName: 'Farai',
-        lastName: 'Moyo',
-        phone: '+263771112233',
-        role: Role.SYSTEM_ADMIN,
-        officeId: officeIdMap['OFF-NAT-HRE'],
-        provinceId: null,
-      },
-      {
-        email: 'officer.harare@sllas.gov.zw',
-        firstName: 'Tendai',
-        lastName: 'Chikore',
-        phone: '+263772223344',
-        role: Role.REGISTRY_OFFICER,
-        officeId: officeIdMap['OFF-PROV-HRE'],
-        provinceId: harareProvId,
-      },
-      {
-        email: 'officer.midlands@sllas.gov.zw',
-        firstName: 'Kudakwashe',
-        lastName: 'Sibanda',
-        phone: '+263773334455',
-        role: Role.REGISTRY_OFFICER,
-        officeId: officeIdMap['OFF-PROV-MID'],
-        provinceId: midlandsProvId,
-      },
-      {
-        email: 'approver.harare@sllas.gov.zw',
-        firstName: 'Grace',
-        lastName: 'Mutasa',
-        phone: '+263774445566',
-        role: Role.APPROVER,
-        officeId: officeIdMap['OFF-PROV-HRE'],
-        provinceId: harareProvId,
-      },
-      {
-        email: 'auditor@sllas.gov.zw',
-        firstName: 'Nyasha',
-        lastName: 'Ncube',
-        phone: '+263775556677',
-        role: Role.AUDITOR,
-        officeId: officeIdMap['OFF-NAT-HRE'],
-        provinceId: null,
-      },
-      {
-        email: 'client.individual@example.zw',
-        firstName: 'Tinashe',
-        lastName: 'Gumbo',
-        phone: '+263776667788',
-        role: Role.CLIENT,
-        officeId: null,
-        provinceId: harareProvId,
-      },
-      {
-        email: 'client.business@example.zw',
-        firstName: 'Chipo',
-        lastName: 'Musoni',
-        phone: '+263777778899',
-        role: Role.CLIENT,
-        officeId: null,
-        provinceId: midlandsProvId,
-      },
-    ];
-
-    for (const u of testUsers) {
-      await queryRunner.query(
-        `INSERT INTO "users" ("email", "first_name", "last_name", "phone_number", "role", "status", "office_id", "province_id")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT ("email") DO UPDATE SET "role" = EXCLUDED."role", "province_id" = EXCLUDED."province_id";`,
-        [u.email, u.firstName, u.lastName, u.phone, u.role, UserStatus.ACTIVE, u.officeId, u.provinceId],
-      );
-    }
-    console.log('✅ Test users for all 5 roles seeded');
-    console.log('🎉 Seed platform reference data completed successfully!');
+    console.log('✅ Reference data seeded; user accounts must be provisioned through Keycloak and administration workflows.');
   } finally {
     await queryRunner.release();
   }

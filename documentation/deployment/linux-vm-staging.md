@@ -19,6 +19,25 @@ Edit `.env.staging` with the deployment's DNS name, Keycloak client settings, an
 
 Before the first sign-in, pre-provision each operator in the SLLAS database by linking their Keycloak subject (`sub`) to a `users` row in `user_identities` with provider `keycloak`. The API rejects authenticated identities that are not explicitly linked. Ensure each Keycloak account has the realm role matching its SLLAS role, for example `sllas_registry_officer`.
 
+The repository does not ship demo accounts, sample parcels, or sample import data. Run the reference-data seed only after migrations; create real users through the approved identity and administration process, then link their Keycloak subjects.
+
+Use the provisioning command below for each approved user. Set values in the operator shell or secret manager; do not put them in `.env`, source control, or chat:
+
+```sh
+KEYCLOAK_SUBJECT='keycloak-user-sub' \
+USER_EMAIL='person@example.gov.zw' \
+USER_FIRST_NAME='First' \
+USER_LAST_NAME='Last' \
+USER_ROLE='REGISTRY_OFFICER' \
+USER_PHONE='+263...' \
+USER_OFFICE_ID='<organization UUID>' \
+USER_PROVINCE_ID='<province UUID>' \
+USER_DISTRICT_ID='<district UUID>' \
+pnpm user:provision
+```
+
+`USER_PHONE`, `USER_OFFICE_ID`, `USER_PROVINCE_ID`, and `USER_DISTRICT_ID` are optional. The command is idempotent for the same Keycloak subject, rejects conflicting email links, and activates the account in a transaction.
+
 Check and start the stack:
 
 ```sh

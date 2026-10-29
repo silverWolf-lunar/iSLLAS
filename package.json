@@ -22,6 +22,7 @@
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @sllas/api migration:run",
     "db:seed": "pnpm --filter @sllas/api seed:run",
+    "user:provision": "pnpm --filter @sllas/api user:provision",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:staging:up": "docker compose --env-file .env.staging -f docker-compose.staging.yml up -d --build",

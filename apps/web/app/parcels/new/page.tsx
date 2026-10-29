@@ -2,100 +2,50 @@
 
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useApp } from '../../components/AppContext';
-import { SpatialMap } from '../../components/SpatialMap';
 import {
-  ZIMBABWE_PROVINCES,
   calculatePolygonAreaHa,
   calculateCentroid,
   checkBoundingBoxOverlap,
 } from '../../lib/parcel-data';
 import { ParcelStatus, NaturalRegion, SoilType } from '@sllas/contracts';
 
-// Preset valid boundary templates for Zimbabwe provinces
-const SAMPLE_BOUNDARIES: Record<string, { name: string; coords: number[][] }> = {
-  harare_industrial: {
-    name: 'Harare East High-Tech Park',
-    coords: [
-      [31.120, -17.810],
-      [31.140, -17.810],
-      [31.140, -17.830],
-      [31.120, -17.830],
-      [31.120, -17.810],
-    ],
-  },
-  mashonaland_commercial: {
-    name: 'Mazowe Citrus & Grain Valley',
-    coords: [
-      [30.950, -17.520],
-      [30.985, -17.520],
-      [30.985, -17.555],
-      [30.950, -17.555],
-      [30.950, -17.520],
-    ],
-  },
-  midlands_ranch: {
-    name: 'Gweru Savanna Grazing Section C',
-    coords: [
-      [29.720, -19.380],
-      [29.760, -19.380],
-      [29.760, -19.420],
-      [29.720, -19.420],
-      [29.720, -19.380],
-    ],
-  },
-  manicaland_orchard: {
-    name: 'Nyanga Highland Macadamia Zone',
-    coords: [
-      [32.710, -18.210],
-      [32.740, -18.210],
-      [32.740, -18.240],
-      [32.710, -18.240],
-      [32.710, -18.210],
-    ],
-  },
-  overlapping_conflict: {
-    name: 'Conflict Test (Overlaps Banket Estate)',
-    coords: [
-      [30.390, -17.415],
-      [30.415, -17.415],
-      [30.415, -17.440],
-      [30.390, -17.440],
-      [30.390, -17.415],
-    ],
-  },
-};
+const SpatialMap = dynamic(
+  () => import('../../components/SpatialMap').then(module => module.SpatialMap),
+  { ssr: false, loading: () => <div className="glass-panel" style={{ height: 320, display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>Loading spatial map…</div> },
+);
 
 export default function NewParcelPage() {
   const router = useRouter();
-  const { parcels, addParcel } = useApp();
+  const { parcels, provinces, addParcel } = useApp();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Form State
-  const [referenceNumber, setReferenceNumber] = useState(`ZWE-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [referenceNumber, setReferenceNumber] = useState('');
   const [name, setName] = useState('');
-  const [province, setProvince] = useState('Harare');
-  const [district, setDistrict] = useState('Harare North');
-  const [ward, setWard] = useState('Ward 12');
-  const [landCategory, setLandCategory] = useState('State Land');
-  const [naturalRegion, setNaturalRegion] = useState<NaturalRegion>(NaturalRegion.II);
-  const [soilType, setSoilType] = useState<SoilType>(SoilType.LOAM);
-  const [waterSources, setWaterSources] = useState('Municipal Borehole, River Canal');
-  const [roadAccess, setRoadAccess] = useState(true);
-  const [electricityAccess, setElectricityAccess] = useState(true);
-  const [gridProximityKm, setGridProximityKm] = useState(0.8);
-  const [terrain, setTerrain] = useState('Flat Arable');
-  const [currentUse, setCurrentUse] = useState('Idle Fallov');
-  const [permittedUses, setPermittedUses] = useState('Agro-Processing, Horticulture, Commercial');
-  const [knownRestrictions, setKnownRestrictions] = useState('None recorded in deeds registry');
+  const [province, setProvince] = useState('');
+  const [district, setDistrict] = useState('');
+  const [ward, setWard] = useState('');
+  const [landCategory, setLandCategory] = useState('');
+  const [naturalRegion, setNaturalRegion] = useState<NaturalRegion | ''>('');
+  const [soilType, setSoilType] = useState<SoilType | ''>('');
+  const [waterSources, setWaterSources] = useState('');
+  const [roadAccess, setRoadAccess] = useState(false);
+  const [electricityAccess, setElectricityAccess] = useState(false);
+  const [gridProximityKm, setGridProximityKm] = useState<number | ''>('');
+  const [terrain, setTerrain] = useState('');
+  const [currentUse, setCurrentUse] = useState('');
+  const [permittedUses, setPermittedUses] = useState('');
+  const [knownRestrictions, setKnownRestrictions] = useState('');
 
   // Boundary State
   const [boundaryCoords, setBoundaryCoords] = useState<number[][]>(
-    SAMPLE_BOUNDARIES.harare_industrial.coords,
+    [],
   );
   const [rawCoordsText, setRawCoordsText] = useState(
-    JSON.stringify(SAMPLE_BOUNDARIES.harare_industrial.coords, null, 2),
+    '',
   );
 
   // Boundary Geometry Calculations
@@ -136,12 +86,7 @@ export default function NewParcelPage() {
   }, [boundaryCoords, validationErrors, parcels]);
 
   const handleApplyPreset = (key: string) => {
-    const preset = SAMPLE_BOUNDARIES[key];
-    if (preset) {
-      setBoundaryCoords(preset.coords);
-      setRawCoordsText(JSON.stringify(preset.coords, null, 2));
-      if (!name) setName(preset.name);
-    }
+    void key;
   };
 
   const handleCoordsChange = (text: string) => {
@@ -180,12 +125,12 @@ export default function NewParcelPage() {
         coordinates: [boundaryCoords],
       },
       centroid: computedCentroid,
-      naturalRegion,
-      soilType,
+      naturalRegion: naturalRegion || null,
+      soilType: soilType || null,
       waterSources: waterSources.split(',').map(s => s.trim()).filter(Boolean),
       roadAccess,
       electricityAccess,
-      gridProximityKm,
+      gridProximityKm: gridProximityKm === '' ? null : gridProximityKm,
       terrain,
       currentUse,
       permittedUses: permittedUses.split(',').map(s => s.trim()).filter(Boolean),
@@ -200,7 +145,7 @@ export default function NewParcelPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="page-stack registration-page">
       {/* Page Title */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -262,7 +207,7 @@ export default function NewParcelPage() {
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h2 style={{ fontSize: '1.125rem', color: '#ffffff' }}>Step 1: Jurisdiction & Identification</h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+          <div className="form-grid mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
                 Parcel Reference Number *
@@ -299,7 +244,7 @@ export default function NewParcelPage() {
                 value={province}
                 onChange={(e) => setProvince(e.target.value)}
               >
-                {ZIMBABWE_PROVINCES.map(p => (
+                {provinces.map(p => (
                   <option key={p.code} value={p.name}>{p.name}</option>
                 ))}
               </select>
@@ -361,7 +306,7 @@ export default function NewParcelPage() {
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h2 style={{ fontSize: '1.125rem', color: '#ffffff' }}>Step 2: Agro-Ecological & Physical Attributes</h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+          <div className="form-grid mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
                 Natural Region (Agro-Ecological Classification) *
@@ -487,28 +432,7 @@ export default function NewParcelPage() {
             </p>
           </div>
 
-          {/* Quick Presets Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Load Provincial Boundary Presets:</span>
-            {Object.entries(SAMPLE_BOUNDARIES).map(([key, item]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => handleApplyPreset(key)}
-                className="btn btn-outline"
-                style={{
-                  padding: '4px 10px',
-                  fontSize: '0.6875rem',
-                  borderColor: key === 'overlapping_conflict' ? 'rgba(239, 68, 68, 0.5)' : undefined,
-                  color: key === 'overlapping_conflict' ? '#fca5a5' : undefined,
-                }}
-              >
-                {item.name}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div className="form-grid mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             {/* Left: Coordinate Editor & Stats */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
@@ -525,7 +449,7 @@ export default function NewParcelPage() {
               </div>
 
               {/* Spatial Calculations Box */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(15, 23, 42, 0.7)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+              <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(15, 23, 42, 0.7)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
                 <div>
                   <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Computed Cadastral Area</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary-400)' }}>
@@ -624,7 +548,7 @@ export default function NewParcelPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '8px' }}>
+          <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '8px' }}>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Reference Number</div>
               <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--primary-400)' }}>{referenceNumber}</div>

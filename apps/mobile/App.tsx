@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+declare const process: {
+  env: Record<string, string | undefined>;
+};
 
 type TabKey = 'overview' | 'parcels' | 'applications' | 'alerts';
 type StatusFilter =
@@ -82,11 +90,131 @@ const metrics: Metric[] = [
   { label: 'Alerts', value: '2', change: '1 critical', tone: 'red' },
 ];
 
-const API_BASE_URL = Platform.select({
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? Platform.select({
   ios: 'http://localhost:3001',
   android: 'http://10.0.2.2:3001',
   default: 'http://localhost:3001',
 });
+
+const OIDC_ISSUER = process.env.EXPO_PUBLIC_OIDC_ISSUER ?? '';
+const OIDC_CLIENT_ID = process.env.EXPO_PUBLIC_OIDC_CLIENT_ID ?? 'sllas-mobile';
+
+type AuthMode = 'login' | 'register';
+
+function AuthenticationScreen({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
+  const [mode, setMode] = useState<AuthMode>('login');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'sllas-mobile' });
+  const discovery = AuthSession.useAutoDiscovery(OIDC_ISSUER || 'https://identity.example.gov.zw/realms/sllas');
+  const [loginRequest, loginResponse, promptLogin] = AuthSession.useAuthRequest(
+    {
+      clientId: OIDC_CLIENT_ID,
+      redirectUri,
+      responseType: AuthSession.ResponseType.Code,
+      usePKCE: true,
+      scopes: ['openid', 'profile', 'email'],
+    },
+    discovery,
+  );
+  const [registerRequest, registerResponse, promptRegister] = AuthSession.useAuthRequest(
+    {
+      clientId: OIDC_CLIENT_ID,
+      redirectUri,
+      responseType: AuthSession.ResponseType.Code,
+      usePKCE: true,
+      scopes: ['openid', 'profile', 'email'],
+      extraParams: { kc_action: 'register' },
+    },
+    discovery,
+  );
+  const request = mode === 'register' ? registerRequest : loginRequest;
+  const response = mode === 'register' ? registerResponse : loginResponse;
+
+  useEffect(() => {
+    const codeVerifier = request?.codeVerifier;
+    if (response?.type !== 'success' || !discovery || !codeVerifier) {
+      return;
+    }
+
+    let cancelled = false;
+    const exchangeCode = async () => {
+      try {
+        setAuthError(null);
+        const tokenResponse = await AuthSession.exchangeCodeAsync(
+          {
+            clientId: OIDC_CLIENT_ID,
+            code: response.params.code,
+            redirectUri,
+            extraParams: { code_verifier: codeVerifier },
+          },
+          discovery,
+        );
+
+        if (!cancelled) {
+          onAuthenticated(tokenResponse.accessToken);
+        }
+      } catch {
+        if (!cancelled) {
+          setAuthError('Unable to complete sign-in. Please try again.');
+        }
+      }
+    };
+
+    exchangeCode();
+    return () => {
+      cancelled = true;
+    };
+  }, [discovery, onAuthenticated, redirectUri, request?.codeVerifier, response]);
+
+  const startAuthentication = async (nextMode: AuthMode) => {
+    if (!OIDC_ISSUER) {
+      setAuthError('Authentication is not configured. Set EXPO_PUBLIC_OIDC_ISSUER and restart the app.');
+      return;
+    }
+
+    if (!request) {
+      setAuthError('Authentication is still loading. Please try again in a moment.');
+      return;
+    }
+
+    setMode(nextMode);
+    setAuthError(null);
+    if (nextMode === 'register') {
+      await promptRegister();
+    } else {
+      await promptLogin();
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.authSafeArea}>
+      <View style={styles.authCard}>
+        <Text style={styles.govLabel}>GOVERNMENT OF ZIMBABWE</Text>
+        <Text style={styles.eyebrow}>MINISTRY OF LANDS</Text>
+        <Text style={styles.authTitle}>Smart Land Lease and Allocation System</Text>
+        <Text style={styles.authSubtitle}>
+          Secure access to land administration services. Use your approved government identity account.
+        </Text>
+        {authError && <Text style={styles.authError}>{authError}</Text>}
+        <Pressable
+          style={[styles.primaryButton, !request && styles.disabledButton]}
+          onPress={() => startAuthentication('login')}
+          disabled={!request}
+        >
+          <Text style={styles.primaryButtonText}>Log in</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.secondaryButton, !request && styles.disabledButton]}
+          onPress={() => startAuthentication('register')}
+          disabled={!request}
+        >
+          <Text style={styles.secondaryButtonText}>Create an account</Text>
+        </Pressable>
+        <Text style={styles.authHint}>Redirect URI: {redirectUri}</Text>
+      </View>
+    </SafeAreaView>
+  );
+}
 
 const mockParcels: ParcelItem[] = [
   {
@@ -257,6 +385,12 @@ export default function App() {
     parcelRef: mockParcels[0].referenceNumber,
     notes: '',
   });
+
+  const handleAuthenticated = useCallback((token: string) => {
+    setAuthToken(token);
+    setError(null);
+    setIsOfflineMode(false);
+  }, []);
 
   useEffect(() => {
     writeOfflineQueue(offlineQueue);
@@ -857,6 +991,10 @@ export default function App() {
     </View>
   );
 
+  if (!authToken.trim()) {
+    return <AuthenticationScreen onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -998,51 +1136,107 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  authSafeArea: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: '#eef1f4',
+    padding: 24,
+  },
+  authCard: {
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    elevation: 2,
+  },
+  govLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+    color: '#334e68',
+  },
+  authTitle: {
+    marginTop: 10,
+    fontSize: 26,
+    lineHeight: 33,
+    fontWeight: '700',
+    color: '#102a43',
+  },
+  authSubtitle: {
+    marginTop: 12,
+    marginBottom: 24,
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#334e68',
+  },
+  authError: {
+    marginBottom: 16,
+    borderRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#b42318',
+    backgroundColor: '#fef3f2',
+    padding: 12,
+    color: '#8a1c13',
+    fontSize: 14,
+  },
+  authHint: {
+    marginTop: 18,
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#52606d',
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f7fb',
+    backgroundColor: '#eef1f4',
   },
   header: {
+    backgroundColor: '#102a43',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 8,
+    paddingTop: 18,
+    paddingBottom: 16,
   },
   eyebrow: {
     fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 1.5,
-    color: '#2563eb',
+    letterSpacing: 1.2,
+    color: '#d9e2ec',
     textTransform: 'uppercase',
   },
   headerTitle: {
     marginTop: 6,
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#ffffff',
   },
   tabRow: {
     flexDirection: 'row',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    gap: 8,
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#cbd5e1',
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#e2e8f0',
+    borderRadius: 4,
+    backgroundColor: '#f1f5f9',
   },
   tabButtonActive: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#d9e2ec',
+    borderBottomWidth: 3,
+    borderBottomColor: '#007c91',
   },
   tabLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
+    color: '#52606d',
   },
   tabLabelActive: {
-    color: '#1d4ed8',
+    color: '#006778',
   },
   loadingRow: {
     flexDirection: 'row',
@@ -1057,16 +1251,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   warningBanner: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#fed7aa',
+    backgroundColor: '#fff8e6',
+    borderColor: '#f2cc66',
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 4,
     marginHorizontal: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   warningText: {
-    color: '#9a5b00',
+    color: '#7a4b00',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -1090,21 +1284,21 @@ const styles = StyleSheet.create({
   metricCard: {
     width: '48%',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
   blueCard: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#e6f4f1',
   },
   greenCard: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#edf7f2',
   },
   amberCard: {
-    backgroundColor: '#fffbeb',
+    backgroundColor: '#fff8e6',
   },
   redCard: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#fef3f2',
   },
   metricLabel: {
     fontSize: 12,
@@ -1125,7 +1319,7 @@ const styles = StyleSheet.create({
   },
   listCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     padding: 16,
@@ -1148,9 +1342,9 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   badge: {
-    backgroundColor: '#dbeafe',
-    color: '#1d4ed8',
-    borderRadius: 999,
+    backgroundColor: '#d9e2ec',
+    color: '#006778',
+    borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
     fontSize: 10,
@@ -1178,7 +1372,7 @@ const styles = StyleSheet.create({
   },
   alertItem: {
     backgroundColor: '#ffffff',
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#f5d0d0',
     padding: 14,
@@ -1202,7 +1396,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
@@ -1218,11 +1412,11 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#e2e8f0',
+    borderRadius: 4,
+    backgroundColor: '#f1f5f9',
   },
   filterChipActive: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#d9e2ec',
   },
   filterChipText: {
     fontSize: 12,
@@ -1230,7 +1424,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   filterChipTextActive: {
-    color: '#1d4ed8',
+    color: '#006778',
   },
   emptyState: {
     color: '#64748b',
@@ -1239,9 +1433,9 @@ const styles = StyleSheet.create({
   },
   detailCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderColor: '#9fb3c8',
     padding: 16,
     gap: 10,
   },
@@ -1252,8 +1446,8 @@ const styles = StyleSheet.create({
   },
   metaTile: {
     width: '48%',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
+    backgroundColor: '#f5f7fa',
+    borderRadius: 4,
     padding: 10,
   },
   metaLabel: {
@@ -1286,9 +1480,10 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 12,
+    backgroundColor: '#006778',
+    borderRadius: 4,
+    minHeight: 46,
+    paddingVertical: 13,
     alignItems: 'center',
   },
   primaryButtonText: {
@@ -1298,25 +1493,28 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: '#e0f2fe',
-    borderRadius: 12,
-    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#006778',
+    borderRadius: 4,
+    minHeight: 46,
+    paddingVertical: 13,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#0f172a',
+    color: '#006778',
     fontWeight: '700',
     fontSize: 14,
   },
   modalBackdrop: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(16, 42, 67, 0.55)',
     padding: 20,
   },
   modalCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
+    borderRadius: 6,
     padding: 18,
     maxHeight: '90%',
   },

@@ -8,6 +8,7 @@ COPY apps/api apps/api
 COPY packages packages
 COPY database database
 RUN pnpm install --frozen-lockfile
+RUN ln -s ../apps/api/node_modules/typeorm node_modules/typeorm
 RUN pnpm --filter @sllas/api... build
 
 FROM build AS migrate

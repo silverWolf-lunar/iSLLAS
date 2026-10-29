@@ -13,6 +13,7 @@ import * as jwt from 'jsonwebtoken';
 describe('AuthService (Authentication & Session Tokens)', () => {
   let service: AuthService;
   let mockUserRepo: any;
+  let mockIdentityRepo: any;
   let mockAccessControlService: any;
 
   beforeEach(async () => {
@@ -25,6 +26,9 @@ describe('AuthService (Authentication & Session Tokens)', () => {
     mockAccessControlService = {
       getRolePermissions: jest.fn().mockResolvedValue(['parcel:create', 'parcel:verify']),
     };
+    mockIdentityRepo = {
+      findOne: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,7 +39,7 @@ describe('AuthService (Authentication & Session Tokens)', () => {
         },
         {
           provide: getRepositoryToken(UserIdentity),
-          useValue: { findOne: jest.fn() },
+          useValue: mockIdentityRepo,
         },
         {
           provide: AccessControlService,
@@ -84,6 +88,13 @@ describe('AuthService (Authentication & Session Tokens)', () => {
     expect(profile.email).toBe('officer@sllas.gov.zw');
     expect(profile.roles).toContain(Role.REGISTRY_OFFICER);
     expect(profile.permissions).toEqual(['parcel:create', 'parcel:verify']);
+  });
+
+  it('should reject an unprovisioned Keycloak identity with a clean unauthorized error', async () => {
+    mockIdentityRepo.findOne.mockResolvedValue(null);
+
+    await expect(service.getKeycloakProfile('unlinked-keycloak-subject'))
+      .rejects.toThrow('Keycloak identity is not provisioned');
   });
 
   it('should reject tokens signed with a different secret', () => {

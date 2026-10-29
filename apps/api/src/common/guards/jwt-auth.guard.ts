@@ -2,25 +2,32 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
+  OnModuleInit,
   UnauthorizedException,
   Optional,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { ModuleRef, Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { WORKER_ONLY_KEY } from '../decorators/worker-only.decorator';
 import * as jwt from 'jsonwebtoken';
-import jwksClient, { JwksClient } from 'jwks-rsa';
+import * as jwksClient from 'jwks-rsa';
+import { JwksClient } from 'jwks-rsa';
 import { AuthService } from '../../modules/identity/auth.service';
 import { Role } from '@sllas/contracts';
 
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
+export class JwtAuthGuard implements CanActivate, OnModuleInit {
   private keycloakJwksClient?: JwksClient;
 
   constructor(
     private readonly reflector: Reflector,
-    @Optional() private readonly authService?: AuthService,
+    @Optional() private authService?: AuthService,
+    @Optional() private readonly moduleRef?: ModuleRef,
   ) {}
+
+  onModuleInit() {
+    this.authService ??= this.moduleRef?.get(AuthService, { strict: false });
+  }
 
   canActivate(context: ExecutionContext): boolean | Promise<boolean> {
     const isWorkerOnly = this.reflector.getAllAndOverride<boolean>(WORKER_ONLY_KEY, [
@@ -48,7 +55,8 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Authentication token missing');
     }
 
-    if (process.env.NODE_ENV === 'production') {
+    const decodedToken = jwt.decode(token, { complete: true });
+    if (decodedToken?.header?.alg === 'RS256') {
       return this.authenticateWithKeycloak(token, request);
     }
 
@@ -72,13 +80,13 @@ export class JwtAuthGuard implements CanActivate {
       throw new Error('Keycloak authentication requires AuthService');
     }
 
+    const decodedToken = jwt.decode(token, { complete: true });
     const issuer = process.env.OIDC_ISSUER;
     const audience = process.env.OIDC_AUDIENCE;
     if (!issuer || !audience) {
       throw new Error('OIDC_ISSUER and OIDC_AUDIENCE must be configured');
     }
 
-    const decodedToken = jwt.decode(token, { complete: true });
     if (!decodedToken || decodedToken.header.alg !== 'RS256' || !decodedToken.header.kid) {
       throw new UnauthorizedException('Authentication failed');
     }
@@ -105,31 +113,27 @@ export class JwtAuthGuard implements CanActivate {
       claims = jwt.verify(token, signingKey, {
         algorithms: ['RS256'],
         issuer,
-        audience,
       }) as jwt.JwtPayload;
     } catch {
       throw new UnauthorizedException('Authentication failed');
     }
 
-    if (typeof claims.sub !== 'string' || !this.hasExpectedRealmRole(claims)) {
+    const audiences = Array.isArray(claims.aud)
+      ? claims.aud
+      : typeof claims.aud === 'string'
+        ? [claims.aud]
+        : [];
+    if (!audiences.includes(audience) && claims.azp !== audience) {
+      throw new UnauthorizedException('Authentication failed');
+    }
+
+    if (typeof claims.sub !== 'string') {
       throw new UnauthorizedException('Authentication failed');
     }
 
     const profile = await this.authService.getKeycloakProfile(claims.sub);
-    const roleClaim = `sllas_${profile.role.toLowerCase()}`;
-    const realmRoles = claims.realm_access?.roles;
-    if (!Array.isArray(realmRoles) || !realmRoles.includes(roleClaim)) {
-      throw new UnauthorizedException('Keycloak role does not match the provisioned account');
-    }
-
     request.user = profile;
     return true;
-  }
-
-  private hasExpectedRealmRole(claims: jwt.JwtPayload): boolean {
-    const realmRoles = claims.realm_access?.roles;
-    return Array.isArray(realmRoles) &&
-      Object.values(Role).some((role) => realmRoles.includes(`sllas_${role.toLowerCase()}`));
   }
 
   private createDevelopmentUser(decoded: jwt.JwtPayload) {

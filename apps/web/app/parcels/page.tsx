@@ -2,13 +2,18 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useApp } from '../components/AppContext';
-import { SpatialMap } from '../components/SpatialMap';
-import { ParcelRecord, ZIMBABWE_PROVINCES } from '../lib/parcel-data';
+import { ParcelRecord } from '../lib/parcel-data';
 import { ParcelStatus, NaturalRegion } from '@sllas/contracts';
 
+const SpatialMap = dynamic(
+  () => import('../components/SpatialMap').then(module => module.SpatialMap),
+  { ssr: false, loading: () => <div className="glass-panel map-loading">Loading spatial map…</div> },
+);
+
 export default function ParcelsExplorerPage() {
-  const { parcels } = useApp();
+  const { parcels, provinces } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvince, setSelectedProvince] = useState('');
@@ -62,9 +67,9 @@ export default function ParcelsExplorerPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="page-stack parcels-explorer">
       {/* Header & Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+      <div className="explorer-header">
         <div>
           <h1 style={{ fontSize: '1.75rem', color: '#ffffff' }}>Land Parcels Cadastre & Spatial Explorer</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
@@ -72,9 +77,9 @@ export default function ParcelsExplorerPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div className="explorer-actions">
           {/* View Toggle */}
-          <div style={{
+          <div className="view-toggle" style={{
             background: 'var(--bg-input)',
             borderRadius: '8px',
             padding: '3px',
@@ -124,8 +129,8 @@ export default function ParcelsExplorerPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center' }}>
-        <div style={{ flex: '1 1 240px' }}>
+      <div className="glass-panel filter-bar">
+        <div className="filter-search">
           <input
             type="text"
             className="glass-input"
@@ -135,20 +140,20 @@ export default function ParcelsExplorerPage() {
           />
         </div>
 
-        <div style={{ flex: '1 1 180px' }}>
+        <div>
           <select
             className="glass-input"
             value={selectedProvince}
             onChange={(e) => setSelectedProvince(e.target.value)}
           >
             <option value="">All Provinces (10)</option>
-            {ZIMBABWE_PROVINCES.map(p => (
+            {provinces.map(p => (
               <option key={p.code} value={p.name}>{p.name}</option>
             ))}
           </select>
         </div>
 
-        <div style={{ flex: '1 1 180px' }}>
+        <div>
           <select
             className="glass-input"
             value={selectedStatus}
@@ -164,7 +169,7 @@ export default function ParcelsExplorerPage() {
           </select>
         </div>
 
-        <div style={{ flex: '1 1 180px' }}>
+        <div>
           <select
             className="glass-input"
             value={selectedRegion}
@@ -203,16 +208,17 @@ export default function ParcelsExplorerPage() {
 
       {/* Main View Display */}
       {viewMode === 'map' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: selectedParcel ? '1.5fr 1fr' : '1fr', gap: '20px' }}>
+        <div className={`map-layout${selectedParcel ? ' has-selection' : ''}`}>
           <SpatialMap
             parcels={filteredParcels}
             selectedParcelId={selectedParcel?.id}
             onSelectParcel={(p) => setSelectedParcel(p)}
+            onSelectProvince={(province) => setSelectedProvince(province)}
             height={600}
           />
 
           {selectedParcel && (
-            <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '600px', overflowY: 'auto' }}>
+            <div className="glass-panel parcel-detail-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '600px', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className={`badge badge-${selectedParcel.status.toLowerCase().replace('_', '-')}`}>
                   {selectedParcel.status}
@@ -237,7 +243,7 @@ export default function ParcelsExplorerPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '8px' }}>
+              <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '8px' }}>
                 <div>
                   <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Area</div>
                   <div style={{ fontWeight: 700, fontSize: '1.125rem', color: '#ffffff' }}>{selectedParcel.areaHectares} ha</div>
@@ -255,6 +261,12 @@ export default function ParcelsExplorerPage() {
                 <div>
                   <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Soil Classification</div>
                   <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#ffffff' }}>{selectedParcel.soilType}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Centroid (WGS84)</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#ffffff', fontFamily: 'var(--font-mono)' }}>
+                    {selectedParcel.centroid.lat.toFixed(5)}, {selectedParcel.centroid.lng.toFixed(5)}
+                  </div>
                 </div>
               </div>
 
@@ -309,6 +321,7 @@ export default function ParcelsExplorerPage() {
           )}
         </div>
       ) : (
+        <>
         <div className="glass-panel data-table-container">
           <table className="data-table">
             <thead>
@@ -372,6 +385,23 @@ export default function ParcelsExplorerPage() {
             </tbody>
           </table>
         </div>
+        <div className="parcel-card-list">
+          {filteredParcels.length === 0
+            ? <div className="empty-state">No parcels match the selected search criteria.</div>
+            : filteredParcels.map(parcel => (
+              <article className="parcel-card" key={parcel.id}>
+                <div className="parcel-card-heading">
+                  <span className="parcel-reference">{parcel.referenceNumber}</span>
+                  <span className={`badge badge-${parcel.status.toLowerCase().replace('_', '-')}`}>{parcel.status}</span>
+                </div>
+                <h3>{parcel.name}</h3>
+                <p>{parcel.province} · {parcel.district}</p>
+                <div className="parcel-card-meta"><span>{parcel.areaHectares} ha</span><span>Region {parcel.naturalRegion}</span></div>
+                <Link href={`/parcels/${parcel.id}`} className="btn btn-outline">View parcel</Link>
+              </article>
+            ))}
+        </div>
+        </>
       )}
     </div>
   );

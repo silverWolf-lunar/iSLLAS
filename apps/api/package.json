@@ -13,8 +13,9 @@
     "test:integration": "jest --config test/jest-integration.json",
     "typecheck": "tsc --noEmit",
     "typeorm": "typeorm-ts-node-commonjs",
-    "migration:run": "ts-node src/database/scripts/run-migrations.ts",
-    "seed:run": "ts-node src/database/scripts/run-seeds.ts"
+    "migration:run": "ts-node --transpile-only src/database/scripts/run-migrations.ts",
+    "seed:run": "ts-node --transpile-only src/database/scripts/run-seeds.ts",
+    "user:provision": "ts-node --transpile-only src/database/scripts/provision-user.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.10",

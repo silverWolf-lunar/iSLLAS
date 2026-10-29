@@ -1,10 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useApp } from '../../components/AppContext';
-import { SpatialMap } from '../../components/SpatialMap';
 import { ParcelRecord } from '../../lib/parcel-data';
 import { ParcelStatus } from '@sllas/contracts';
+
+const SpatialMap = dynamic(
+  () => import('../../components/SpatialMap').then(module => module.SpatialMap),
+  { ssr: false, loading: () => <div className="glass-panel" style={{ height: 320, display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>Loading spatial map…</div> },
+);
 
 export default function VerificationWorkbenchPage() {
   const { parcels, currentUser, verifyParcel } = useApp();
@@ -24,14 +29,14 @@ export default function VerificationWorkbenchPage() {
   const isOwnParcel = Boolean(currentUser && selectedParcel?.registeredByUserId === currentUser.id);
   const canVerify = !isOwnParcel || currentUser?.role === 'SYSTEM_ADMIN';
 
-  const handleDecision = (decision: 'VERIFY' | 'RETURN_FOR_CORRECTION') => {
+  const handleDecision = async (decision: 'VERIFY' | 'RETURN_FOR_CORRECTION') => {
     if (!selectedParcel) return;
     if (!verifierNotes.trim()) {
       alert('Verifier notes are mandatory to record in the audit trail.');
       return;
     }
 
-    const res = verifyParcel(selectedParcel.id, decision, verifierNotes);
+    const res = await verifyParcel(selectedParcel.id, decision, verifierNotes);
     setActionFeedback(res);
 
     if (res.success) {
@@ -130,7 +135,7 @@ export default function VerificationWorkbenchPage() {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '20px' }}>
+        <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '20px' }}>
           {/* Left Column: Pending List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)' }}>
@@ -223,7 +228,7 @@ export default function VerificationWorkbenchPage() {
               )}
 
               {/* Attributes Card */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(15, 23, 42, 0.6)', padding: '14px', borderRadius: '8px' }}>
+              <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(15, 23, 42, 0.6)', padding: '14px', borderRadius: '8px' }}>
                 <div>
                   <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Cadastral Area</div>
                   <div style={{ fontWeight: 700, fontSize: '1.125rem', color: '#ffffff' }}>{selectedParcel.areaHectares} ha</div>

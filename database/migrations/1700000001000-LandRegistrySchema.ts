@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class LandRegistrySchema1700000001000 implements MigrationInterface {
-  name = 'LandRegistrySchema17000001000';
+  name = 'LandRegistrySchema1700000001000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Enums for Land Registry
