@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { Logo } from '../components/Logo';
+import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Role } from '@sllas/contracts';
 import { getDefaultDashboardForRole } from '../lib/access';
 
@@ -73,6 +74,7 @@ function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -155,8 +157,10 @@ function SignInContent() {
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      background: 'radial-gradient(ellipse at 50% -20%, rgba(22, 101, 52, 0.25) 0%, rgba(10, 15, 29, 0.95) 70%, #060913 100%)',
-      color: '#f8fafc',
+      background: isLight
+        ? 'radial-gradient(ellipse at 50% -20%, rgba(22, 101, 52, 0.12) 0%, rgba(241, 245, 249, 0.95) 70%, #f8fafc 100%)'
+        : 'radial-gradient(ellipse at 50% -20%, rgba(22, 101, 52, 0.25) 0%, rgba(10, 15, 29, 0.95) 70%, #060913 100%)',
+      color: isLight ? '#0f172a' : '#f8fafc',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       padding: '24px 16px',
     }}>
@@ -168,27 +172,33 @@ function SignInContent() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px',
       }}>
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Logo variant="compact" theme={resolvedTheme === 'light' ? 'light' : 'dark'} />
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+          <Logo variant="compact" theme={isLight ? 'light' : 'dark'} />
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: isLight ? '#334155' : 'var(--text-muted)' }}>
             ← Back to Public Land Portal & Process Guide
           </span>
         </Link>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.75rem',
-          color: 'var(--accent-400)',
-          background: 'rgba(245, 158, 11, 0.1)',
-          border: '1px solid rgba(245, 158, 11, 0.25)',
-          padding: '4px 12px',
-          borderRadius: '999px',
-        }}>
-          <span>🇿🇼</span>
-          <span>Republic of Zimbabwe • Ministry of Lands</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <ThemeSwitcher />
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.75rem',
+            color: isLight ? '#b45309' : 'var(--accent-400)',
+            background: isLight ? '#fef3c7' : 'rgba(245, 158, 11, 0.1)',
+            border: isLight ? '1px solid #fde68a' : '1px solid rgba(245, 158, 11, 0.25)',
+            padding: '4px 12px',
+            borderRadius: '999px',
+            fontWeight: 500,
+          }}>
+            <span>🇿🇼</span>
+            <span>Republic of Zimbabwe • Ministry of Lands</span>
+          </div>
         </div>
       </div>
 
@@ -206,17 +216,19 @@ function SignInContent() {
         <div className="glass-panel" style={{
           padding: '36px',
           borderRadius: '16px',
-          background: 'rgba(15, 23, 42, 0.75)',
+          background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
           backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.5)',
+          border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: isLight
+            ? '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)'
+            : '0 20px 40px -15px rgba(0, 0, 0, 0.5)',
         }}>
           <div style={{ marginBottom: '24px' }}>
-            <Logo variant="full" theme={resolvedTheme === 'light' ? 'light' : 'dark'} />
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '16px', marginBottom: '6px', color: '#ffffff' }}>
+            <Logo variant="full" theme={isLight ? 'light' : 'dark'} />
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '16px', marginBottom: '6px', color: isLight ? '#0f172a' : '#ffffff' }}>
               Sign In to SLLAS Portal
             </h1>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.875rem', color: isLight ? '#64748b' : 'var(--text-muted)', lineHeight: 1.5 }}>
               Enter your government or citizen credentials to access cadastral maps, applications, and statutory leases.
             </p>
           </div>
@@ -242,7 +254,7 @@ function SignInContent() {
           <form onSubmit={handleCredentialsLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             {/* Email / Username Input */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#e2e8f0' }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: isLight ? '#334155' : '#e2e8f0' }}>
                 Work Email or National ID Username <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
@@ -256,9 +268,9 @@ function SignInContent() {
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  background: 'rgba(2, 6, 23, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#ffffff',
+                  background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                  color: isLight ? '#0f172a' : '#ffffff',
                   fontSize: '0.875rem',
                 }}
               />
@@ -267,7 +279,7 @@ function SignInContent() {
             {/* Password Input */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#e2e8f0' }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: isLight ? '#334155' : '#e2e8f0' }}>
                   Password <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <button
@@ -276,10 +288,11 @@ function SignInContent() {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: 'var(--primary-400)',
+                    color: isLight ? '#16a34a' : 'var(--primary-400)',
                     fontSize: '0.75rem',
                     cursor: 'pointer',
                     padding: 0,
+                    fontWeight: 600,
                   }}
                 >
                   {showPassword ? 'Hide password' : 'Show password'}
@@ -296,9 +309,9 @@ function SignInContent() {
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  background: 'rgba(2, 6, 23, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#ffffff',
+                  background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                  color: isLight ? '#0f172a' : '#ffffff',
                   fontSize: '0.875rem',
                 }}
               />
@@ -306,7 +319,7 @@ function SignInContent() {
 
             {/* Target Role Selector */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#e2e8f0' }}>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: isLight ? '#334155' : '#e2e8f0' }}>
                 Assigned Role / Department
               </label>
               <select
@@ -317,9 +330,9 @@ function SignInContent() {
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  background: 'rgba(2, 6, 23, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#ffffff',
+                  background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.8)',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                  color: isLight ? '#0f172a' : '#ffffff',
                   fontSize: '0.875rem',
                 }}
               >
@@ -369,14 +382,14 @@ function SignInContent() {
             display: 'flex',
             alignItems: 'center',
             margin: '24px 0 16px',
-            color: 'var(--text-dim)',
+            color: isLight ? '#94a3b8' : 'var(--text-dim)',
             fontSize: '0.75rem',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
+            <div style={{ flex: 1, height: '1px', background: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }} />
             <span style={{ padding: '0 12px' }}>Or single sign-on</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
+            <div style={{ flex: 1, height: '1px', background: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }} />
           </div>
 
           <button
@@ -392,6 +405,9 @@ function SignInContent() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
+              background: isLight ? '#f8fafc' : undefined,
+              borderColor: isLight ? '#cbd5e1' : undefined,
+              color: isLight ? '#1e293b' : undefined,
             }}
           >
             <span>🏛️</span>
@@ -405,8 +421,9 @@ function SignInContent() {
           <div className="glass-panel" style={{
             padding: '28px',
             borderRadius: '16px',
-            background: 'rgba(15, 23, 42, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.6)',
+            border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: isLight ? '0 4px 12px rgba(0, 0, 0, 0.05)' : undefined,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <span style={{
@@ -414,21 +431,21 @@ function SignInContent() {
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: '4px',
-                background: 'rgba(22, 163, 74, 0.2)',
-                color: 'var(--primary-400)',
-                border: '1px solid rgba(22, 163, 74, 0.3)',
+                background: isLight ? '#dcfce7' : 'rgba(22, 163, 74, 0.2)',
+                color: isLight ? '#15803d' : 'var(--primary-400)',
+                border: isLight ? '1px solid #bbf7d0' : '1px solid rgba(22, 163, 74, 0.3)',
               }}>
                 RAPID ACCESS
               </span>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
                 Demonstration & Role Verification
               </span>
             </div>
 
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#ffffff', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '8px' }}>
               Select a Persona to Sign In Directly
             </h2>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.5 }}>
               Click any verified role below to automatically authenticate and launch that role's specialized workbench.
             </p>
 
@@ -445,28 +462,28 @@ function SignInContent() {
                     justifyContent: 'space-between',
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    background: 'rgba(2, 6, 23, 0.5)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)',
+                    border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
                     cursor: 'pointer',
                     textAlign: 'left',
                     transition: 'all 0.15s ease',
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.borderColor = demo.badgeColor;
-                    e.currentTarget.style.background = 'rgba(2, 6, 23, 0.8)';
+                    e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(2, 6, 23, 0.8)';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.background = 'rgba(2, 6, 23, 0.5)';
+                    e.currentTarget.style.borderColor = isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.background = isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)';
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{ fontSize: '1.25rem' }}>{demo.icon}</span>
                     <div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#ffffff' }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff' }}>
                         {demo.label}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
                         {demo.description}
                       </div>
                     </div>
@@ -492,13 +509,13 @@ function SignInContent() {
           <div className="glass-panel" style={{
             padding: '20px 24px',
             borderRadius: '12px',
-            background: 'rgba(15, 23, 42, 0.4)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
+            background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.4)',
+            border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
             fontSize: '0.75rem',
-            color: 'var(--text-dim)',
+            color: isLight ? '#475569' : 'var(--text-dim)',
             lineHeight: 1.6,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#cbd5e1', fontWeight: 600, marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isLight ? '#0f172a' : '#cbd5e1', fontWeight: 600, marginBottom: '4px' }}>
               <span>⚖️</span>
               <span>Statutory Compliance Notice</span>
             </div>
@@ -512,7 +529,7 @@ function SignInContent() {
         marginTop: '36px',
         textAlign: 'center',
         fontSize: '0.75rem',
-        color: 'var(--text-dim)',
+        color: isLight ? '#64748b' : 'var(--text-dim)',
       }}>
         <div>Smart Land Lease and Allocation System (SLLAS) • Republic of Zimbabwe</div>
         <div style={{ marginTop: '4px' }}>Ministry of Lands & Rural Development</div>

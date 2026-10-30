@@ -8,6 +8,7 @@ import { CurrentUser } from './Header';
 import { ROLE_CONFIG, NavItem } from '../lib/access';
 import { Logo } from './Logo';
 import { useTheme } from 'next-themes';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 interface SidebarProps {
   currentUser: CurrentUser | null;
@@ -463,6 +464,30 @@ export function Sidebar({
             </svg>
             {!collapsed && <span>Collapse Sidebar</span>}
           </button>
+
+          {/* Quick Theme Switcher in Sidebar Footer */}
+          <div style={{ padding: '2px 0' }}>
+            {!collapsed ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '4px 6px',
+                borderRadius: '8px',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-subtle)',
+              }}>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Theme
+                </span>
+                <ThemeSwitcher />
+              </div>
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <ThemeSwitcher />
+              </div>
+            )}
+          </div>
 
           {/* User Mini-Profile */}
           <div className="sidebar-user-section">

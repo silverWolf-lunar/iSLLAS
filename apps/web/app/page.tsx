@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Logo } from './components/Logo';
 import { useTheme } from 'next-themes';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { Role } from '@sllas/contracts';
 import { getDefaultDashboardForRole, ROLE_CONFIG } from './lib/access';
 
@@ -13,6 +14,7 @@ export default function LandingPage() {
   const { resolvedTheme } = useTheme();
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
+  const isLight = resolvedTheme === 'light';
   const userRole = (session?.user as any)?.role as Role | undefined;
   const userDashboard = userRole ? getDefaultDashboardForRole(userRole) : null;
   const roleName = userRole ? ROLE_CONFIG[userRole]?.displayName : '';
@@ -47,14 +49,15 @@ export default function LandingPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#060913',
-      color: '#f8fafc',
+      background: isLight ? 'var(--bg-main, #f8fafc)' : '#060913',
+      color: isLight ? 'var(--text-main, #0f172a)' : '#f8fafc',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       overflowX: 'hidden',
+      transition: 'background-color 0.25s ease, color 0.25s ease',
     }}>
       {/* Top Government Ribbon */}
       <div style={{
-        background: 'linear-gradient(90deg, #166534 0%, #064e3b 50%, #854d0e 100%)',
+        background: isLight ? 'linear-gradient(90deg, #15803d 0%, #166534 50%, #92400e 100%)' : 'linear-gradient(90deg, #166534 0%, #064e3b 50%, #854d0e 100%)',
         padding: '7px 20px',
         fontSize: '0.75rem',
         color: '#fef08a',
@@ -85,9 +88,10 @@ export default function LandingPage() {
         zIndex: 50,
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        background: 'rgba(6, 9, 19, 0.88)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(6, 9, 19, 0.88)',
+        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
         padding: '14px 28px',
+        transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}>
         <div style={{
           maxWidth: '1360px',
@@ -97,29 +101,29 @@ export default function LandingPage() {
           alignItems: 'center',
         }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Logo variant="full" theme={resolvedTheme === 'light' ? 'light' : 'dark'} />
+            <Logo variant="full" theme={isLight ? 'light' : 'dark'} />
           </Link>
 
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
-            <a href="#process" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <a href="#process" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               Application Process
             </a>
-            <a href="#cadastre-preview" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+            <a href="#cadastre-preview" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               Spatial Cadastre
             </a>
-            <a href="#schemes" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+            <a href="#schemes" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               Land Schemes
             </a>
-            <a href="#eligibility" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+            <a href="#eligibility" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               Eligibility Checklist
             </a>
-            <a href="#faqs" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+            <a href="#faqs" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               FAQs
             </a>
             <Link
               href="/parcels?status=AVAILABLE&view=map"
               style={{
-                color: 'var(--primary-400)',
+                color: isLight ? '#15803d' : 'var(--primary-400)',
                 textDecoration: 'none',
                 fontSize: '0.875rem',
                 fontWeight: 600,
@@ -128,13 +132,16 @@ export default function LandingPage() {
                 gap: '6px',
                 padding: '6px 12px',
                 borderRadius: '6px',
-                background: 'rgba(34, 197, 94, 0.1)',
-                border: '1px solid rgba(34, 197, 94, 0.25)',
+                background: isLight ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.1)',
+                border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.25)',
               }}
             >
               <span>🗺️</span>
               <span>Cadastre Map</span>
             </Link>
+
+            {/* Quick Theme Switcher Function */}
+            <ThemeSwitcher />
 
             {/* Authentication Action */}
             {session?.user ? (
@@ -211,7 +218,9 @@ export default function LandingPage() {
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg, rgba(6, 9, 19, 0.72) 0%, rgba(6, 9, 19, 0.82) 50%, #060913 100%)',
+          background: isLight
+            ? 'linear-gradient(180deg, rgba(6, 9, 19, 0.6) 0%, rgba(6, 9, 19, 0.76) 45%, rgba(248, 250, 252, 0.9) 85%, #f8fafc 100%)'
+            : 'linear-gradient(180deg, rgba(6, 9, 19, 0.72) 0%, rgba(6, 9, 19, 0.82) 50%, #060913 100%)',
         }} />
         <div style={{
           position: 'absolute',
@@ -294,10 +303,11 @@ export default function LandingPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                background: 'rgba(15, 23, 42, 0.65)',
+                background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(15, 23, 42, 0.65)',
                 backdropFilter: 'blur(10px)',
-                borderColor: 'rgba(255, 255, 255, 0.3)',
-                color: '#ffffff',
+                borderColor: isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.3)',
+                color: isLight ? '#0f172a' : '#ffffff',
+                boxShadow: isLight ? '0 4px 12px rgba(0,0,0,0.06)' : 'none',
               }}
             >
               <span>📝</span>
@@ -313,10 +323,10 @@ export default function LandingPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                background: 'rgba(15, 23, 42, 0.65)',
+                background: isLight ? 'rgba(255, 255, 255, 0.88)' : 'rgba(15, 23, 42, 0.65)',
                 backdropFilter: 'blur(10px)',
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-                color: '#cbd5e1',
+                borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.2)',
+                color: isLight ? '#334155' : '#cbd5e1',
               }}
             >
               <span>📘</span>
@@ -334,17 +344,18 @@ export default function LandingPage() {
             <div className="glass-panel" style={{
               padding: '22px 24px',
               borderRadius: '14px',
-              background: 'rgba(15, 23, 42, 0.8)',
+              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
               backdropFilter: 'blur(18px)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
             }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Verified State Farmland
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '6px 0 2px' }}>
-                1,240,000+ <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>ha</span>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '6px 0 2px' }}>
+                1,240,000+ <span style={{ fontSize: '0.9rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>ha</span>
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--primary-400)', fontWeight: 500 }}>
+              <div style={{ fontSize: '0.8125rem', color: isLight ? '#15803d' : 'var(--primary-400)', fontWeight: 500 }}>
                 Boundaries digitally surveyed
               </div>
             </div>
@@ -352,17 +363,18 @@ export default function LandingPage() {
             <div className="glass-panel" style={{
               padding: '22px 24px',
               borderRadius: '14px',
-              background: 'rgba(15, 23, 42, 0.8)',
+              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
               backdropFilter: 'blur(18px)',
-              border: '1px solid rgba(34, 197, 94, 0.35)',
+              border: isLight ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(34, 197, 94, 0.35)',
+              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
             }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Available Idle Parcels
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary-400)', margin: '6px 0 2px' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#16a34a' : 'var(--primary-400)', margin: '6px 0 2px' }}>
                 420+ Parcels
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--primary-400)', fontWeight: 500 }}>
+              <div style={{ fontSize: '0.8125rem', color: isLight ? '#15803d' : 'var(--primary-400)', fontWeight: 500 }}>
                 Open for immediate application
               </div>
             </div>
@@ -370,17 +382,18 @@ export default function LandingPage() {
             <div className="glass-panel" style={{
               padding: '22px 24px',
               borderRadius: '14px',
-              background: 'rgba(15, 23, 42, 0.8)',
+              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
               backdropFilter: 'blur(18px)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
+              border: isLight ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(245, 158, 11, 0.3)',
+              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
             }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Bankable 99-Year Leases
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-400)', margin: '6px 0 2px' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#d97706' : 'var(--accent-400)', margin: '6px 0 2px' }}>
                 1,850+ Issued
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--accent-400)', fontWeight: 500 }}>
+              <div style={{ fontSize: '0.8125rem', color: isLight ? '#b45309' : 'var(--accent-400)', fontWeight: 500 }}>
                 Collateral-eligible legal tenure
               </div>
             </div>
@@ -388,17 +401,18 @@ export default function LandingPage() {
             <div className="glass-panel" style={{
               padding: '22px 24px',
               borderRadius: '14px',
-              background: 'rgba(15, 23, 42, 0.8)',
+              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
               backdropFilter: 'blur(18px)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
             }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Jurisdictional Stations
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '6px 0 2px' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '6px 0 2px' }}>
                 10 Provinces
               </div>
-              <div style={{ fontSize: '0.8125rem', color: '#60a5fa', fontWeight: 500 }}>
+              <div style={{ fontSize: '0.8125rem', color: isLight ? '#2563eb' : '#60a5fa', fontWeight: 500 }}>
                 60 District Land Registry Offices
               </div>
             </div>
@@ -417,8 +431,11 @@ export default function LandingPage() {
         <div className="glass-panel" style={{
           padding: '48px 36px',
           borderRadius: '24px',
-          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(6, 78, 59, 0.25) 100%)',
-          border: '1px solid rgba(34, 197, 94, 0.25)',
+          background: isLight
+            ? 'linear-gradient(135deg, #ffffff 0%, rgba(220, 252, 231, 0.45) 100%)'
+            : 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(6, 78, 59, 0.25) 100%)',
+          border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.25)',
+          boxShadow: isLight ? '0 12px 36px rgba(15, 23, 42, 0.08)' : undefined,
           overflow: 'hidden',
           position: 'relative',
         }}>
@@ -430,28 +447,28 @@ export default function LandingPage() {
           }}>
             {/* Left Content */}
             <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '6px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', color: 'var(--primary-400)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '14px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '6px', background: isLight ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.15)', border: isLight ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(34, 197, 94, 0.3)', color: isLight ? '#15803d' : 'var(--primary-400)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '14px' }}>
                 <span>🛰️</span>
                 <span>POSTGIS SPATIAL INTELLIGENCE (SRID 4326)</span>
               </div>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 800, color: '#ffffff', lineHeight: 1.25, margin: '0 0 16px' }}>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', lineHeight: 1.25, margin: '0 0 16px' }}>
                 Next-Generation National Cadastre & Satellite Land Explorer
               </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9375rem', lineHeight: 1.65, marginBottom: '24px' }}>
+              <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.9375rem', lineHeight: 1.65, marginBottom: '24px' }}>
                 Every agricultural land parcel in Zimbabwe is surveyed with high-precision GPS coordinates, boundary polygon vectors, and environmental topography. Our automated spatial engine mathematically verifies that boundaries never overlap.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: '#e2e8f0' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.1rem' }}>✓</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: isLight ? '#334155' : '#e2e8f0' }}>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.1rem' }}>✓</span>
                   <span><strong>Zero Overlaps:</strong> Automated PostGIS intersection tests prevent double leasing.</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: '#e2e8f0' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.1rem' }}>✓</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: isLight ? '#334155' : '#e2e8f0' }}>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.1rem' }}>✓</span>
                   <span><strong>Agro-Ecological Classification:</strong> Filter regions I to V for soil fertility and rainfall.</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: '#e2e8f0' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.1rem' }}>✓</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem', color: isLight ? '#334155' : '#e2e8f0' }}>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.1rem' }}>✓</span>
                   <span><strong>Direct Farmer Selection:</strong> Click any available parcel on the map to apply directly.</span>
                 </div>
               </div>
@@ -551,16 +568,16 @@ export default function LandingPage() {
             fontWeight: 700,
             padding: '4px 12px',
             borderRadius: '4px',
-            background: 'rgba(22, 163, 74, 0.2)',
-            color: 'var(--primary-400)',
+            background: isLight ? 'rgba(22, 163, 74, 0.15)' : 'rgba(22, 163, 74, 0.2)',
+            color: isLight ? '#15803d' : 'var(--primary-400)',
             letterSpacing: '0.06em',
           }}>
             STATUTORY WORKFLOW
           </span>
-          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: '#ffffff', marginTop: '14px', marginBottom: '12px' }}>
+          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', marginTop: '14px', marginBottom: '12px' }}>
             How to Apply for Agricultural Land in Zimbabwe
           </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+          <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: '0.9375rem', lineHeight: 1.6 }}>
             From identifying an idle parcel on the spatial cadastre to receiving an authenticated 99-Year Lease agreement, follow the six statutory milestones.
           </p>
         </div>
@@ -571,13 +588,20 @@ export default function LandingPage() {
           gap: '24px',
         }}>
           {/* Step 1 */}
-          <div className="glass-panel" style={{ padding: '32px 28px', borderRadius: '16px', position: 'relative' }}>
+          <div className="glass-panel" style={{
+            padding: '32px 28px',
+            borderRadius: '16px',
+            position: 'relative',
+            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
+            border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.05)' : undefined,
+          }}>
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'rgba(34, 197, 94, 0.2)',
-              color: 'var(--primary-400)',
+              background: isLight ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isLight ? '#15803d' : 'var(--primary-400)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -588,27 +612,34 @@ export default function LandingPage() {
             }}>
               1
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '10px' }}>
               Spatial Cadastre Search
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
+            <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
               Open the interactive cadastre map. Filter parcels by <strong>Natural Agro-Ecological Region (I to V)</strong>, available hectares, water rights (dams/boreholes), and soil classification. Select any parcel marked as <em>AVAILABLE</em>.
             </p>
             <div style={{ marginTop: '18px' }}>
-              <Link href="/parcels?status=AVAILABLE&view=map" style={{ color: 'var(--primary-400)', fontSize: '0.8125rem', fontWeight: 600, textDecoration: 'none' }}>
+              <Link href="/parcels?status=AVAILABLE&view=map" style={{ color: isLight ? '#15803d' : 'var(--primary-400)', fontSize: '0.8125rem', fontWeight: 600, textDecoration: 'none' }}>
                 Open Spatial Map →
               </Link>
             </div>
           </div>
 
           {/* Step 2 */}
-          <div className="glass-panel" style={{ padding: '32px 28px', borderRadius: '16px', position: 'relative' }}>
+          <div className="glass-panel" style={{
+            padding: '32px 28px',
+            borderRadius: '16px',
+            position: 'relative',
+            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
+            border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.05)' : undefined,
+          }}>
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'rgba(59, 130, 246, 0.2)',
-              color: '#60a5fa',
+              background: isLight ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.2)',
+              color: isLight ? '#2563eb' : '#60a5fa',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -619,22 +650,29 @@ export default function LandingPage() {
             }}>
               2
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '10px' }}>
               Digital Application & Business Plan
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
+            <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
               Submit your formal application through the Citizen Portal. Specify your farming activity (Tobacco, Grain, Horticulture, Dairy, Cattle), declare projected capital investments, and attach your 5-Year Farm Development Plan and National ID.
             </p>
           </div>
 
           {/* Step 3 */}
-          <div className="glass-panel" style={{ padding: '32px 28px', borderRadius: '16px', position: 'relative' }}>
+          <div className="glass-panel" style={{
+            padding: '32px 28px',
+            borderRadius: '16px',
+            position: 'relative',
+            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
+            border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.05)' : undefined,
+          }}>
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'rgba(245, 158, 11, 0.2)',
-              color: 'var(--accent-400)',
+              background: isLight ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+              color: isLight ? '#d97706' : 'var(--accent-400)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -645,22 +683,29 @@ export default function LandingPage() {
             }}>
               3
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '10px' }}>
               District Physical Inspection & Verification
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
+            <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
               The District Land Registry Officer inspects the target boundaries on the ground, conducts environmental assessment (EMA guidelines), verifies applicant identity, and ensures the parcel has zero tenure disputes.
             </p>
           </div>
 
           {/* Step 4 */}
-          <div className="glass-panel" style={{ padding: '32px 28px', borderRadius: '16px', position: 'relative' }}>
+          <div className="glass-panel" style={{
+            padding: '32px 28px',
+            borderRadius: '16px',
+            position: 'relative',
+            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
+            border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.05)' : undefined,
+          }}>
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'rgba(168, 85, 247, 0.2)',
-              color: '#c084fc',
+              background: isLight ? 'rgba(168, 85, 247, 0.15)' : 'rgba(168, 85, 247, 0.2)',
+              color: isLight ? '#9333ea' : '#c084fc',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -671,22 +716,29 @@ export default function LandingPage() {
             }}>
               4
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '10px' }}>
               Provincial Land Board Evaluation
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
+            <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
               The Provincial Land Committee convenes to evaluate technical capability, agricultural productivity scores, and local economic impact. The board issues an affirmative recommendation to the national executive.
             </p>
           </div>
 
           {/* Step 5 */}
-          <div className="glass-panel" style={{ padding: '32px 28px', borderRadius: '16px', position: 'relative' }}>
+          <div className="glass-panel" style={{
+            padding: '32px 28px',
+            borderRadius: '16px',
+            position: 'relative',
+            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
+            border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.05)' : undefined,
+          }}>
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'rgba(239, 68, 68, 0.2)',
-              color: '#f87171',
+              background: isLight ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+              color: isLight ? '#dc2626' : '#f87171',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -697,22 +749,29 @@ export default function LandingPage() {
             }}>
               5
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '10px' }}>
               Ministerial Approval & Offer Letter
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
+            <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
               The National Approver / Minister executes the statutory allocation. An official, cryptographically verifiable <strong>Offer Letter</strong> with a secure QR code is automatically generated and delivered to your portal.
             </p>
           </div>
 
           {/* Step 6 */}
-          <div className="glass-panel" style={{ padding: '32px 28px', borderRadius: '16px', position: 'relative', borderColor: 'rgba(34, 197, 94, 0.4)' }}>
+          <div className="glass-panel" style={{
+            padding: '32px 28px',
+            borderRadius: '16px',
+            position: 'relative',
+            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.75)',
+            border: isLight ? '1px solid rgba(34, 197, 94, 0.45)' : '1px solid rgba(34, 197, 94, 0.4)',
+            boxShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.05)' : undefined,
+          }}>
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'rgba(34, 197, 94, 0.2)',
-              color: 'var(--primary-400)',
+              background: isLight ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+              color: isLight ? '#15803d' : 'var(--primary-400)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -723,10 +782,10 @@ export default function LandingPage() {
             }}>
               6
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '10px' }}>
               Cadastral Survey & 99-Year Lease
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
+            <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65 }}>
               The Department of the Surveyor-General fixes official GPS corner beacons. The Estates Directorate issues the legal, notarized <strong>99-Year Lease Agreement</strong> with bankable financial tenure rights.
             </p>
           </div>
@@ -741,8 +800,8 @@ export default function LandingPage() {
         padding: '90px 24px',
         margin: '60px 0',
         overflow: 'hidden',
-        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        borderTop: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+        borderBottom: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
       }}>
         {/* Harvest Background Image Layer */}
         <div style={{
@@ -751,14 +810,16 @@ export default function LandingPage() {
           backgroundImage: 'url(/images/harvest-field.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          filter: 'brightness(0.38) contrast(1.15)',
+          filter: isLight ? 'brightness(0.55) contrast(1.05)' : 'brightness(0.38) contrast(1.15)',
         }} />
 
         {/* Ambient Dark Gradient Overlays */}
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg, #060913 0%, rgba(6, 9, 19, 0.75) 50%, #060913 100%)',
+          background: isLight
+            ? 'linear-gradient(180deg, #f8fafc 0%, rgba(6, 9, 19, 0.72) 30%, rgba(6, 9, 19, 0.78) 70%, #ffffff 100%)'
+            : 'linear-gradient(180deg, #060913 0%, rgba(6, 9, 19, 0.75) 50%, #060913 100%)',
         }} />
 
         {/* Content Container */}
@@ -780,10 +841,10 @@ export default function LandingPage() {
             }}>
               TENURE CATEGORIES
             </span>
-            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: '#ffffff', marginTop: '14px', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: '#ffffff', marginTop: '14px', marginBottom: '12px', textShadow: '0 2px 14px rgba(0,0,0,0.8)' }}>
               Zimbabwe Agricultural Resettlement Models
             </h2>
-            <p style={{ color: '#cbd5e1', maxWidth: '720px', margin: '0 auto', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+            <p style={{ color: '#e2e8f0', maxWidth: '720px', margin: '0 auto', fontSize: '0.9375rem', lineHeight: 1.6, textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>
               Choose the agricultural tenure model that matches your enterprise scale, capital availability, and farming experience.
             </p>
           </div>
@@ -800,22 +861,23 @@ export default function LandingPage() {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              background: 'rgba(15, 23, 42, 0.85)',
+              background: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.85)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: isLight ? '0 8px 24px rgba(0, 0, 0, 0.08)' : undefined,
             }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--primary-400)', fontWeight: 700, textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.75rem', color: isLight ? '#15803d' : 'var(--primary-400)', fontWeight: 700, textTransform: 'uppercase' }}>
                   Model A1
                 </div>
-                <h3 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#ffffff', margin: '8px 0 14px' }}>
+                <h3 style={{ fontSize: '1.6rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', margin: '8px 0 14px' }}>
                   Smallholder Family Farm
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '22px' }}>
+                <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '22px' }}>
                   Designed for small-scale self-sufficiency, household food security, and surplus production of maize, grains, groundnuts, and horticulture.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: isLight ? '#334155' : '#cbd5e1' }}>
                   <div><strong>Standard Area:</strong> 5 to 50 Hectares</div>
                   <div><strong>Target:</strong> Rural families, master farmers, agricultural graduates</div>
                   <div><strong>Tenure:</strong> Settlement Permit / 99-Year Lease</div>
@@ -838,9 +900,9 @@ export default function LandingPage() {
               flexDirection: 'column',
               justifyContent: 'space-between',
               borderColor: 'rgba(34, 197, 94, 0.45)',
-              background: 'rgba(15, 23, 42, 0.9)',
+              background: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.9)',
               backdropFilter: 'blur(20px)',
-              boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.6)',
+              boxShadow: isLight ? '0 12px 30px rgba(22, 163, 74, 0.12)' : '0 20px 40px -10px rgba(0, 0, 0, 0.6)',
             }}>
               <div>
                 <span style={{
@@ -849,21 +911,21 @@ export default function LandingPage() {
                   padding: '3px 9px',
                   borderRadius: '4px',
                   background: 'rgba(34, 197, 94, 0.25)',
-                  color: 'var(--primary-400)',
+                  color: isLight ? '#15803d' : 'var(--primary-400)',
                 }}>
                   POPULAR FOR BUSINESS
                 </span>
-                <div style={{ fontSize: '0.75rem', color: 'var(--primary-400)', fontWeight: 700, textTransform: 'uppercase', marginTop: '10px' }}>
+                <div style={{ fontSize: '0.75rem', color: isLight ? '#15803d' : 'var(--primary-400)', fontWeight: 700, textTransform: 'uppercase', marginTop: '10px' }}>
                   Model A2
                 </div>
-                <h3 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#ffffff', margin: '8px 0 14px' }}>
+                <h3 style={{ fontSize: '1.6rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', margin: '8px 0 14px' }}>
                   Commercial Farmland
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '22px' }}>
+                <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '22px' }}>
                   Intensive commercial farming for domestic supply and foreign currency export. Focus on tobacco, wheat, soya beans, citrus, and dairy.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: isLight ? '#334155' : '#cbd5e1' }}>
                   <div><strong>Standard Area:</strong> 50 to 500+ Hectares</div>
                   <div><strong>Target:</strong> Agribusinesses, commercial farmers, corporates</div>
                   <div><strong>Tenure:</strong> Bankable 99-Year Lease (Mortgageable)</div>
@@ -885,22 +947,23 @@ export default function LandingPage() {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              background: 'rgba(15, 23, 42, 0.85)',
+              background: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.85)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: isLight ? '0 8px 24px rgba(0, 0, 0, 0.08)' : undefined,
             }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-400)', fontWeight: 700, textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.75rem', color: isLight ? '#d97706' : 'var(--accent-400)', fontWeight: 700, textTransform: 'uppercase' }}>
                   Model Specialized
                 </div>
-                <h3 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#ffffff', margin: '8px 0 14px' }}>
+                <h3 style={{ fontSize: '1.6rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', margin: '8px 0 14px' }}>
                   Livestock & Ranching
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '22px' }}>
+                <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '22px' }}>
                   Allocated primarily in Natural Regions IV & V (Matabeleland, Midlands, Masvingo) for commercial cattle breeding, goat production, and wildlife ranching.
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: '#cbd5e1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: isLight ? '#334155' : '#cbd5e1' }}>
                   <div><strong>Standard Area:</strong> Up to 2,000 Hectares</div>
                   <div><strong>Target:</strong> Pastoralists, livestock breeders</div>
                   <div><strong>Tenure:</strong> 99-Year Commercial Grazing Lease</div>
@@ -929,8 +992,11 @@ export default function LandingPage() {
         <div className="glass-panel" style={{
           padding: '52px 40px',
           borderRadius: '24px',
-          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(6, 78, 59, 0.3) 100%)',
-          border: '1px solid rgba(34, 197, 94, 0.3)',
+          background: isLight
+            ? 'linear-gradient(135deg, #ffffff 0%, rgba(220, 252, 231, 0.4) 100%)'
+            : 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(6, 78, 59, 0.3) 100%)',
+          border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.3)',
+          boxShadow: isLight ? '0 12px 36px rgba(15, 23, 42, 0.08)' : undefined,
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '48px', alignItems: 'center' }}>
             <div>
@@ -939,75 +1005,76 @@ export default function LandingPage() {
                 fontWeight: 700,
                 padding: '4px 12px',
                 borderRadius: '4px',
-                background: 'rgba(34, 197, 94, 0.2)',
-                color: 'var(--primary-400)',
+                background: isLight ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.2)',
+                color: isLight ? '#15803d' : 'var(--primary-400)',
               }}>
                 CHECKLIST & MANDATORY DOCUMENTS
               </span>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)', fontWeight: 800, color: '#ffffff', margin: '14px 0 16px' }}>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '14px 0 16px' }}>
                 What You Need Before Applying
               </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9375rem', lineHeight: 1.65, marginBottom: '28px' }}>
+              <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.9375rem', lineHeight: 1.65, marginBottom: '28px' }}>
                 To ensure rapid verification by District Land Registry Officers and the Provincial Land Committee, please have digital copies of these required documents ready:
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
                   <div>
-                    <strong style={{ color: '#ffffff' }}>National Identity Document:</strong> Valid Zimbabwean Metal/Plastic ID or Passport.
+                    <strong style={{ color: isLight ? '#0f172a' : '#ffffff' }}>National Identity Document:</strong> <span style={{ color: isLight ? '#334155' : 'inherit' }}>Valid Zimbabwean Metal/Plastic ID or Passport.</span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
                   <div>
-                    <strong style={{ color: '#ffffff' }}>Proof of Agricultural Training or Capability:</strong> Master Farmer Certificate, Agricultural College Diploma, or 3-year record of crop/livestock delivery (GMB/TIMB receipts).
+                    <strong style={{ color: isLight ? '#0f172a' : '#ffffff' }}>Proof of Agricultural Training or Capability:</strong> <span style={{ color: isLight ? '#334155' : 'inherit' }}>Master Farmer Certificate, Agricultural College Diploma, or 3-year record of crop/livestock delivery (GMB/TIMB receipts).</span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
                   <div>
-                    <strong style={{ color: '#ffffff' }}>5-Year Farm Development Proposal:</strong> Planned land utilization, crop rotation schedule, mechanization plans, and employment creation projections.
+                    <strong style={{ color: isLight ? '#0f172a' : '#ffffff' }}>5-Year Farm Development Proposal:</strong> <span style={{ color: isLight ? '#334155' : 'inherit' }}>Planned land utilization, crop rotation schedule, mechanization plans, and employment creation projections.</span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
                   <div>
-                    <strong style={{ color: '#ffffff' }}>Tax Clearance Certificate (ZIMRA):</strong> Mandatory for all commercial A2 and corporate applicants.
+                    <strong style={{ color: isLight ? '#0f172a' : '#ffffff' }}>Tax Clearance Certificate (ZIMRA):</strong> <span style={{ color: isLight ? '#334155' : 'inherit' }}>Mandatory for all commercial A2 and corporate applicants.</span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                  <span style={{ color: 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
+                  <span style={{ color: isLight ? '#16a34a' : 'var(--primary-400)', fontSize: '1.25rem', fontWeight: 800 }}>✓</span>
                   <div>
-                    <strong style={{ color: '#ffffff' }}>Proof of Capital or Asset Ownership:</strong> Bank statement, tractor/machinery logbook, or AFC/commercial loan pre-approval letter.
+                    <strong style={{ color: isLight ? '#0f172a' : '#ffffff' }}>Proof of Capital or Asset Ownership:</strong> <span style={{ color: isLight ? '#334155' : 'inherit' }}>Bank statement, tractor/machinery logbook, or AFC/commercial loan pre-approval letter.</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <div style={{
-              background: 'rgba(2, 6, 23, 0.75)',
+              background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.75)',
               padding: '36px',
               borderRadius: '20px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: isLight ? '0 4px 16px rgba(0, 0, 0, 0.04)' : undefined,
             }}>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#ffffff', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '16px' }}>
                 ⚖️ Anti-Corruption & Single Allocation Rule
               </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '20px' }}>
+              <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '20px' }}>
                 In accordance with statutory policy, <strong>the one-person-one-farm principle is strictly enforced</strong>. SLLAS automatically checks national registries to reject applications from individuals or corporate entities who already hold an allocated agricultural farm parcel.
               </p>
 
               <div style={{
                 padding: '18px 20px',
                 borderRadius: '10px',
-                background: 'rgba(245, 158, 11, 0.12)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                color: 'var(--accent-400)',
+                background: isLight ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                color: isLight ? '#b45309' : 'var(--accent-400)',
                 fontSize: '0.8125rem',
                 lineHeight: 1.6,
               }}>
@@ -1032,16 +1099,16 @@ export default function LandingPage() {
             fontWeight: 700,
             padding: '4px 12px',
             borderRadius: '4px',
-            background: 'rgba(59, 130, 246, 0.2)',
-            color: '#60a5fa',
+            background: isLight ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.2)',
+            color: isLight ? '#2563eb' : '#60a5fa',
             letterSpacing: '0.06em',
           }}>
             FREQUENT QUESTIONS
           </span>
-          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, color: '#ffffff', marginTop: '14px', marginBottom: '12px' }}>
+          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', marginTop: '14px', marginBottom: '12px' }}>
             Frequently Asked Questions
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9375rem' }}>
+          <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.9375rem' }}>
             Everything you need to know about the digital land allocation process and leaseholder rights.
           </p>
         </div>
@@ -1056,7 +1123,11 @@ export default function LandingPage() {
                 style={{
                   borderRadius: '14px',
                   overflow: 'hidden',
-                  border: isOpen ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.6)',
+                  border: isOpen
+                    ? (isLight ? '1px solid rgba(34, 197, 94, 0.5)' : '1px solid rgba(34, 197, 94, 0.4)')
+                    : (isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)'),
+                  boxShadow: isLight ? '0 2px 8px rgba(0, 0, 0, 0.04)' : undefined,
                   transition: 'all 0.2s ease',
                 }}
               >
@@ -1069,7 +1140,7 @@ export default function LandingPage() {
                     textAlign: 'left',
                     background: 'none',
                     border: 'none',
-                    color: '#ffffff',
+                    color: isLight ? '#0f172a' : '#ffffff',
                     fontSize: '1rem',
                     fontWeight: 600,
                     display: 'flex',
@@ -1081,7 +1152,7 @@ export default function LandingPage() {
                   <span style={{ paddingRight: '16px' }}>{faq.q}</span>
                   <span style={{
                     fontSize: '1.35rem',
-                    color: isOpen ? 'var(--primary-400)' : 'var(--text-muted)',
+                    color: isOpen ? (isLight ? '#16a34a' : 'var(--primary-400)') : (isLight ? '#94a3b8' : 'var(--text-muted)'),
                     transform: isOpen ? 'rotate(45deg)' : 'none',
                     transition: 'transform 0.2s ease',
                   }}>
@@ -1092,10 +1163,10 @@ export default function LandingPage() {
                 {isOpen && (
                   <div style={{
                     padding: '0 26px 22px',
-                    color: 'var(--text-muted)',
+                    color: isLight ? '#475569' : 'var(--text-muted)',
                     fontSize: '0.875rem',
                     lineHeight: 1.65,
-                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderTop: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.06)',
                     paddingTop: '18px',
                   }}>
                     {faq.a}
@@ -1111,10 +1182,11 @@ export default function LandingPage() {
       {/* 7. FOOTER & MINISTRY DIRECTORY                                */}
       {/* ───────────────────────────────────────────────────────────── */}
       <footer style={{
-        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-        background: 'rgba(4, 7, 15, 0.98)',
+        borderTop: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+        background: isLight ? '#f1f5f9' : 'rgba(4, 7, 15, 0.98)',
         padding: '60px 24px 28px',
-        color: 'var(--text-muted)',
+        color: isLight ? '#475569' : 'var(--text-muted)',
+        transition: 'background-color 0.25s ease, border-color 0.25s ease',
       }}>
         <div style={{
           maxWidth: '1360px',
@@ -1125,37 +1197,37 @@ export default function LandingPage() {
           marginBottom: '44px',
         }}>
           <div>
-            <Logo variant="full" theme="dark" />
-            <p style={{ fontSize: '0.8125rem', marginTop: '16px', lineHeight: 1.65 }}>
+            <Logo variant="full" theme={isLight ? 'light' : 'dark'} />
+            <p style={{ fontSize: '0.8125rem', marginTop: '16px', lineHeight: 1.65, color: isLight ? '#64748b' : undefined }}>
               Smart Land Lease and Allocation System (SLLAS). Official national digital land governance platform for the Government of Zimbabwe.
             </p>
           </div>
 
           <div>
-            <h4 style={{ color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, marginBottom: '16px' }}>
+            <h4 style={{ color: isLight ? '#0f172a' : '#ffffff', fontSize: '0.875rem', fontWeight: 600, marginBottom: '16px' }}>
               Statutory Quick Links
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem' }}>
-              <Link href="/parcels?status=AVAILABLE&view=map" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+              <Link href="/parcels?status=AVAILABLE&view=map" style={{ color: isLight ? '#334155' : 'var(--text-muted)', textDecoration: 'none' }}>
                 Spatial Cadastre Map
               </Link>
-              <Link href="/signin" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+              <Link href="/signin" style={{ color: isLight ? '#334155' : 'var(--text-muted)', textDecoration: 'none' }}>
                 Citizen Application Portal
               </Link>
-              <a href="#schemes" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+              <a href="#schemes" style={{ color: isLight ? '#334155' : 'var(--text-muted)', textDecoration: 'none' }}>
                 A1 & A2 Scheme Guidelines
               </a>
-              <a href="#eligibility" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+              <a href="#eligibility" style={{ color: isLight ? '#334155' : 'var(--text-muted)', textDecoration: 'none' }}>
                 Documentation Requirements
               </a>
             </div>
           </div>
 
           <div>
-            <h4 style={{ color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, marginBottom: '16px' }}>
+            <h4 style={{ color: isLight ? '#0f172a' : '#ffffff', fontSize: '0.875rem', fontWeight: 600, marginBottom: '16px' }}>
               Ministry Headquarters
             </h4>
-            <div style={{ fontSize: '0.8125rem', lineHeight: 1.65 }}>
+            <div style={{ fontSize: '0.8125rem', lineHeight: 1.65, color: isLight ? '#475569' : undefined }}>
               Ministry of Lands & Rural Development<br />
               Block 2 Makombe Complex<br />
               Harare, Republic of Zimbabwe<br />
@@ -1165,10 +1237,10 @@ export default function LandingPage() {
           </div>
 
           <div>
-            <h4 style={{ color: '#ffffff', fontSize: '0.875rem', fontWeight: 600, marginBottom: '16px' }}>
+            <h4 style={{ color: isLight ? '#0f172a' : '#ffffff', fontSize: '0.875rem', fontWeight: 600, marginBottom: '16px' }}>
               Provincial Registry Stations
             </h4>
-            <div style={{ fontSize: '0.8125rem', lineHeight: 1.65 }}>
+            <div style={{ fontSize: '0.8125rem', lineHeight: 1.65, color: isLight ? '#475569' : undefined }}>
               • Mashonaland West (Chinhoyi)<br />
               • Mashonaland East (Marondera)<br />
               • Mashonaland Central (Bindura)<br />
@@ -1184,7 +1256,7 @@ export default function LandingPage() {
         <div style={{
           maxWidth: '1360px',
           margin: '0 auto',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          borderTop: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
           paddingTop: '24px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -1192,6 +1264,7 @@ export default function LandingPage() {
           flexWrap: 'wrap',
           gap: '12px',
           fontSize: '0.75rem',
+          color: isLight ? '#64748b' : undefined,
         }}>
           <div>© {new Date().getFullYear()} Government of Zimbabwe. All rights reserved. SLLAS Phase 2 Cadastre Engine.</div>
           <div>PostGIS Spatial SRID 4326 • Strict Segregation of Duties Enforced</div>
