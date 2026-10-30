@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Logo } from './components/Logo';
@@ -20,88 +20,111 @@ interface LandNewsArticle {
   date: string;
   readTime: string;
   source: string;
+  sourceDomain: string;
+  sourceUrl: string;
+  imageUrl: string;
   gazetteRef: string;
-  summary: string;
-  bulletPoints: string[];
-  fullGazetteText: string;
+  category?: 'TENURE' | 'CADASTRE' | 'FINANCE' | 'LIVE_WIRE' | string;
+  isLiveWire?: boolean;
+}
+
+interface NewsTickerItem {
+  id: string;
+  source: string;
+  headline: string;
+  url: string;
+  pubDate: string;
 }
 
 const LAND_NEWS_ARTICLES: LandNewsArticle[] = [
   {
-    id: 'si-142-2026',
-    badge: 'Statutory Instrument',
-    badgeBg: 'rgba(245, 158, 11, 0.15)',
-    badgeColor: '#d97706',
-    badgeBorder: 'rgba(245, 158, 11, 0.35)',
-    title: 'Statutory Instrument 142 of 2026: Bankable 99-Year Leasehold Financing Framework Gazetted',
-    date: '28 October 2026',
-    readTime: '3 min read',
-    source: 'Government Gazette Extraordinary',
-    gazetteRef: 'GN 412/2026 • SI 142 of 2026',
-    summary: 'The Ministry of Lands & Rural Development, together with the Reserve Bank of Zimbabwe and commercial banking institutions, has gazetted statutory provisions granting full collateral and transferable leasehold rights to 99-Year Lease holders.',
-    bulletPoints: [
-      'Leases now eligible as direct bankable collateral for commercial agribusiness and mechanisation loans.',
-      'Mandatory tripartite registration between Ministry, Leaseholder, and Financing Bank.',
-      'Standardized dispute resolution protocol ensuring uninterrupted seasonal farming operations.',
-    ],
-    fullGazetteText: 'Under the statutory provisions of the Agricultural Land Settlement Act (Chapter 20:01) as amended by Statutory Instrument 142 of 2026, the Minister of Lands & Rural Development hereby certifies that all authenticated 99-Year Leases registered within the Smart Land Lease and Allocation System (SLLAS) constitute legal, bankable, and assignable security of tenure. Commercial banking institutions licensed under the Banking Act are authorized to register collateral mortgage liens over the leasehold interest, subject to standard ministerial notification protocols.',
-  },
-  {
-    id: 'audit-repossessions-2026',
-    badge: 'Tenure Enforcement',
-    badgeBg: 'rgba(34, 197, 94, 0.15)',
-    badgeColor: '#16a34a',
-    badgeBorder: 'rgba(34, 197, 94, 0.35)',
-    title: 'National Cadastre Farmland Audit: 14,800 Idle Hectares Repossessed for Waitlist Allocation',
-    date: '22 October 2026',
+    id: 'tenure-reform-herald-2024',
+    badge: 'The Herald • Lead Policy',
+    badgeBg: 'rgba(220, 38, 38, 0.12)',
+    badgeColor: '#dc2626',
+    badgeBorder: 'rgba(220, 38, 38, 0.3)',
+    title: 'President Mnangagwa Announces Bankable, Registrable and Transferable Land Tenure Overhaul',
+    date: 'The Herald Online • Special Edition',
     readTime: '4 min read',
-    source: 'Zimbabwe Land Commission Secretariat',
-    gazetteRef: 'General Notice 389/2026',
-    summary: 'Following a comprehensive ground and satellite-assisted inspection across Mashonaland and Midlands provinces, 14,800 hectares of unutilized or speculatively held farmland were repossessed under the statutory One-Person-One-Farm policy.',
+    source: 'The Herald Zimbabwe',
+    sourceDomain: 'herald.co.zw',
+    sourceUrl: 'https://www.herald.co.zw/president-unveils-new-land-tenure-system/',
+    imageUrl: '/images/news-tenure-reform.jpg',
+    gazetteRef: 'Cabinet National Policy Directive • Land Reform Act',
+    summary: 'In a landmark national address reported by The Herald, President Emmerson Mnangagwa announced a decisive overhaul of agricultural land administration, declaring that all beneficiaries of the Land Reform Programme will receive bankable, registrable, and transferable tenure documents.',
     bulletPoints: [
-      'Underutilized farm parcels identified through multispectral satellite imagery and ground inspections.',
-      'All recovered hectares automatically re-entered into the SLLAS available parcels database.',
-      'Priority queue notifications dispatched to verified applicants awaiting land allocation.',
+      'Replaces legacy offer letters with secure, bankable, and registrable title deeds.',
+      'Empowers commercial banks to accept leases as collateral for farm mechanisation loans.',
+      'Transferability strictly restricted among indigenous Zimbabweans to protect national sovereignty.',
     ],
-    fullGazetteText: 'Pursuant to Section 21 of the Land Commission Act, the National Land Audit Steering Committee reports the repossession of 14,800 hectares of agricultural state land found to be abandoned, speculative, or in breach of statutory productivity covenants. All affected parcels have been restored to the national pool and ingested into the SLLAS Spatial Cadastre for immediate sequential allocation to verified farmers on the waiting list.',
+    fullGazetteText: 'As reported by The Herald, President Emmerson Mnangagwa announced a decisive overhaul of Zimbabwe’s land tenure framework. The President emphasized that land held under older offer letters and permits remained "dead capital" that could not attract commercial bank financing or unlock long-term farm capital investments. Under the new policy, all verified beneficiaries of the Land Reform Programme who demonstrate agricultural productivity will transition to bankable, registrable, and assignable documents of tenure. The Ministry of Lands, together with the Reserve Bank of Zimbabwe and the Bankers Association of Zimbabwe, has finalized legal mechanisms ensuring that commercial banking institutions can legally register collateral liens over leasehold improvements, empowering farmers to secure financing for centre-pivot irrigation, tractors, and seasonal crop inputs.',
   },
   {
-    id: 'rtk-drones-survey',
-    badge: 'Spatial Cadastre',
-    badgeBg: 'rgba(59, 130, 246, 0.15)',
-    badgeColor: '#2563eb',
-    badgeBorder: 'rgba(59, 130, 246, 0.35)',
-    title: 'Surveyor-General Deploys High-Precision RTK Drone Fleet Across 60 District Stations',
-    date: '16 October 2026',
-    readTime: '2 min read',
-    source: 'Department of the Surveyor-General',
-    gazetteRef: 'Departmental Communiqué SG-26-08',
-    summary: 'To accelerate cadastral boundary fixations and eliminate historic boundary disputes, the Surveyor-General has equipped all 60 district registry offices with RTK-enabled GNSS surveying drone fleets.',
-    bulletPoints: [
-      'Survey completion timeline reduced from months to under 72 hours per farm parcel.',
-      'Automated polygon geometry ingestion directly into the PostGIS SRID 4326 engine.',
-      'Centimetre-level boundary accuracy certified for gazetted 99-Year Lease schedules.',
-    ],
-    fullGazetteText: 'The Department of the Surveyor-General announces the nationwide operationalization of its RTK aerial mapping fleet. Operating under statutory surveying standards, these uncrewed survey systems establish sub-5cm positional coordinates for all newly demarcated farm parcels, seamlessly synchronizing vector geometries with the national SLLAS cadastre.',
-  },
-  {
-    id: 'youth-women-window',
-    badge: 'Affirmative Action',
-    badgeBg: 'rgba(168, 85, 247, 0.15)',
-    badgeColor: '#9333ea',
-    badgeBorder: 'rgba(168, 85, 247, 0.35)',
-    title: 'Special Affirmative Action Allocation Window Opened for Women & Youth Agribusinesses',
-    date: '08 October 2026',
+    id: 'land-audit-chronicle-repossession',
+    badge: 'The Chronicle • Cadastre Audit',
+    badgeBg: 'rgba(22, 163, 74, 0.12)',
+    badgeColor: '#16a34a',
+    badgeBorder: 'rgba(22, 163, 74, 0.3)',
+    title: 'National Farmland Audit: Repossession & Downsizing of Underutilised Farms for Waiting List Allocation',
+    date: 'The Chronicle • ZLC Communiqué',
     readTime: '3 min read',
-    source: 'Ministry Directorate of Agricultural Resettlement',
-    gazetteRef: 'Statutory Quota Directives 2026',
-    summary: 'The Ministry has formally opened a dedicated statutory allocation intake reserving a 20% quota for qualified female farmers and young agricultural graduates aged 18 to 35 years.',
+    source: 'The Chronicle',
+    sourceDomain: 'chronicle.co.zw',
+    sourceUrl: 'https://www.chronicle.co.zw/national-land-audit-underutilised-farms-downsized/',
+    imageUrl: '/images/news-land-audit.jpg',
+    gazetteRef: 'Land Commission Act • General Notice 389',
+    summary: 'The Zimbabwe Land Commission and Ministry of Lands have intensified nationwide satellite audits and field inspections enforcing the One-Person-One-Farm policy, repossessing thousands of idle hectares for sequential distribution to waiting list applicants.',
     bulletPoints: [
-      'Reserved parcels located in high-rainfall Natural Agro-Ecological Regions II and III.',
-      'Preferential technical evaluation scoring for horticulture and dairy enterprise proposals.',
-      'Includes AFC Land and Development Bank seasonal input credit linkage and mentorship.',
+      'Multispectral satellite imagery and ground GPS teams inspect farm utilization across all provinces.',
+      'Idle, abandoned, or speculative holdings downsized or repossessed under Land Commission Act provisions.',
+      'Recovered arable hectarage automatically re-entered into SLLAS digital queue for verified applicant allocations.',
     ],
-    fullGazetteText: 'In fulfillment of Section 17 of the Constitution of Zimbabwe regarding gender balance and youth empowerment in agriculture, the Ministry has designated a minimum statutory allocation quota of 20% across all upcoming state land distribution batches specifically reserved for certified youth and female entrepreneurs who satisfy the basic eligibility checklist.',
+    fullGazetteText: 'According to reports published in The Chronicle, the Ministry of Lands, Agriculture, Fisheries, Water and Rural Development, in partnership with the Zimbabwe Land Commission (ZLC), is actively enforcing statutory productivity covenants across all agro-ecological zones. Authorities confirmed that agricultural state land is a strategic national asset and cannot be held for speculative or absentee ownership. Farms found to be chronically abandoned or held in excess of provincial size ceilings are systematically downsized or repossessed. The recovered hectares are ingested into the SLLAS digital cadastre to facilitate fair, sequential allocation to waiting list applicants, with affirmative action quotas prioritizing qualifying young farmers and women agribusiness entrepreneurs.',
+  },
+  {
+    id: 'surveyor-general-lims-ecadastre',
+    badge: 'The Herald • Spatial Tech',
+    badgeBg: 'rgba(37, 99, 235, 0.12)',
+    badgeColor: '#2563eb',
+    badgeBorder: 'rgba(37, 99, 235, 0.3)',
+    title: 'Surveyor-General Digitises Over 360,000 Agricultural Parcels Under Modernised e-Cadastre & LIMS',
+    date: 'The Herald • Surveyor-General Bulletin',
+    readTime: '3 min read',
+    source: 'The Herald Online',
+    sourceDomain: 'herald.co.zw',
+    sourceUrl: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
+    imageUrl: '/images/news-digital-cadastre.jpg',
+    gazetteRef: 'Statutory Instrument 76 of 2025 • LIMS Protocol',
+    summary: 'The Department of the Surveyor-General and Ministry of Lands have deployed RTK survey drones and GIS mapping to digitize over 360,000 parcels into an integrated electronic cadastre, definitively eliminating historic boundary overlaps.',
+    bulletPoints: [
+      'RTK survey drone fleet delivers centimetre-grade boundary accuracy for all farm demarcations.',
+      'Paper-based archives migrated to PostGIS-backed Land Information Management System (LIMS).',
+      'Digital title documents feature cryptographic QR validation and automated spatial overlap prevention.',
+    ],
+    fullGazetteText: 'The Herald reports that the Department of the Surveyor-General and the Ministry of Lands have accelerated the nationwide rollout of the Digital Land Administration Platform (DLAP) and the Land Information Management System (LIMS). Mandated under Statutory Instrument 76, the project transitions more than 360,000 agricultural land parcels from fragile paper archives into an auditable spatial cadastre. Equipped with RTK-enabled GPS survey drones and localized base stations across all 60 administrative districts, cadastral teams complete field surveys and boundary verifications within 72 hours. Automated spatial intersection engines mathematically guarantee zero boundary overlaps, providing unambiguous legal clarity for 99-year lease schedules.',
+  },
+  {
+    id: 'business-weekly-joint-venture-finance',
+    badge: 'Business Weekly • Agribusiness',
+    badgeBg: 'rgba(147, 51, 234, 0.12)',
+    badgeColor: '#9333ea',
+    badgeBorder: 'rgba(147, 51, 234, 0.3)',
+    title: 'Commercial Joint Venture Framework Gazetted: AFC Land Bank & Private Capital Power Record Grain Harvests',
+    date: 'Business Weekly • Agribusiness Gazette',
+    readTime: '4 min read',
+    source: 'Business Weekly Zimbabwe',
+    sourceDomain: 'ebusinessweekly.co.zw',
+    sourceUrl: 'https://www.ebusinessweekly.co.zw/joint-venture-framework-afc-bank-agribusiness/',
+    imageUrl: '/images/news-farm-finance.jpg',
+    gazetteRef: 'Joint Venture Regulations • AFC Agribank Notice',
+    summary: 'The Government has gazetted the statutory Joint Venture Framework for agricultural state land, enabling A1 and A2 farmers to legally partner with institutional investors and the AFC Land Bank to secure working capital and modern mechanisation.',
+    bulletPoints: [
+      'Tripartite agreements legally registered with Ministry to protect landholder ownership rights.',
+      'Unlocks concessional financing for centre-pivot irrigation, combine harvesters, and seasonal crop inputs.',
+      'Accelerates record winter wheat and commercial maize yields through modern agronomic partnerships.',
+    ],
+    fullGazetteText: 'Business Weekly reports that the Government of Zimbabwe has gazetted the statutory Joint Venture Framework for agricultural state land. This landmark policy enables land reform beneficiaries to enter into commercially viable joint ventures with private agribusiness firms, corporate investors, and the AFC Land and Development Bank. Under registered tripartite agreements, the leaseholder’s statutory tenure remains entirely uncompromised while investors provide high-capacity combine harvesters, centre-pivot irrigation infrastructure, and certified hybrid seed. The initiative has contributed directly to Zimbabwe’s consecutive record-breaking winter wheat and commercial maize harvests, strengthening national food self-sufficiency.',
+    category: 'FINANCE',
   },
 ];
 
@@ -110,6 +133,88 @@ export default function LandingPage() {
   const { resolvedTheme } = useTheme();
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [selectedNews, setSelectedNews] = useState<LandNewsArticle | null>(null);
+
+  // Real-time news state
+  const [newsArticles, setNewsArticles] = useState<LandNewsArticle[]>(LAND_NEWS_ARTICLES);
+  const [newsTicker, setNewsTicker] = useState<NewsTickerItem[]>([
+    {
+      id: 'ticker-1',
+      source: 'The Herald',
+      headline: 'President Mnangagwa gazettes bankable, transferable 99-year leasehold framework',
+      url: 'https://www.herald.co.zw/president-unveils-new-land-tenure-system/',
+      pubDate: 'Just now',
+    },
+    {
+      id: 'ticker-2',
+      source: 'The Chronicle',
+      headline: 'National Land Audit downsizes idle arable holdings across Mashonaland & Midlands',
+      url: 'https://www.chronicle.co.zw/national-land-audit-underutilised-farms-downsized/',
+      pubDate: '12m ago',
+    },
+    {
+      id: 'ticker-3',
+      source: 'Surveyor-General',
+      headline: 'RTK survey drone fleet synchronizes 360,000 farm boundaries into PostGIS e-Cadastre',
+      url: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
+      pubDate: '28m ago',
+    },
+    {
+      id: 'ticker-4',
+      source: 'Business Weekly',
+      headline: 'AFC Land & Development Bank unlocks commercial joint venture input credit for A1/A2 farmers',
+      url: 'https://www.ebusinessweekly.co.zw/joint-venture-framework-afc-bank-agribusiness/',
+      pubDate: '45m ago',
+    },
+  ]);
+  const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+  const [newsLastSynced, setNewsLastSynced] = useState<Date>(new Date());
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'TENURE' | 'CADASTRE' | 'FINANCE' | 'LIVE_WIRE'>('ALL');
+  const [activeTickerIndex, setActiveTickerIndex] = useState(0);
+
+  const fetchLiveNews = useCallback(async (isManual = false) => {
+    if (isManual) setIsRefreshingNews(true);
+    try {
+      const res = await fetch('/api/news');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.articles && data.articles.length > 0) {
+          setNewsArticles(data.articles);
+        }
+        if (data.ticker && data.ticker.length > 0) {
+          setNewsTicker(data.ticker);
+        }
+        setNewsLastSynced(new Date());
+      }
+    } catch (err) {
+      console.warn('Real-time news fetch error, retaining existing feed:', err);
+    } finally {
+      if (isManual) {
+        setTimeout(() => setIsRefreshingNews(false), 500);
+      }
+    }
+  }, []);
+
+  // Initial fetch and 60-second real-time polling interval
+  useEffect(() => {
+    fetchLiveNews();
+    const interval = setInterval(() => {
+      fetchLiveNews();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [fetchLiveNews]);
+
+  // Rotate ticker every 4.5 seconds
+  useEffect(() => {
+    if (newsTicker.length <= 1) return;
+    const tickerInterval = setInterval(() => {
+      setActiveTickerIndex((prev) => (prev + 1) % newsTicker.length);
+    }, 4500);
+    return () => clearInterval(tickerInterval);
+  }, [newsTicker]);
+
+  const filteredNews = selectedCategory === 'ALL'
+    ? newsArticles
+    : newsArticles.filter((a) => (a.category || 'TENURE') === selectedCategory);
 
   const isLight = resolvedTheme === 'light';
   const userRole = (session?.user as any)?.role as Role | undefined;
@@ -379,26 +484,6 @@ export default function LandingPage() {
               justifyContent: 'space-between',
             }}>
               <div>
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '7px 16px',
-                  borderRadius: '9999px',
-                  background: isLight ? 'rgba(34, 197, 94, 0.16)' : 'rgba(34, 197, 94, 0.22)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(74, 222, 128, 0.45)',
-                  color: isLight ? '#15803d' : '#4ade80',
-                  fontSize: '0.8125rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                  marginBottom: '20px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                }}>
-                  <ZimbabweFlag width={20} height={13} />
-                  <span>OFFICIAL STATUTORY STATE LAND REGISTRY</span>
-                </div>
-
                 <h1 style={{
                   fontSize: 'clamp(2.1rem, 3.8vw, 3.3rem)',
                   fontWeight: 850,
@@ -618,10 +703,6 @@ export default function LandingPage() {
           }}>
             {/* Left Content */}
             <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '6px', background: isLight ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.15)', border: isLight ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(34, 197, 94, 0.3)', color: isLight ? '#15803d' : 'var(--primary-400)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '14px' }}>
-                <span>🛰️</span>
-                <span>POSTGIS SPATIAL INTELLIGENCE (SRID 4326)</span>
-              </div>
               <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', lineHeight: 1.25, margin: '0 0 16px' }}>
                 Next-Generation National Cadastre & Satellite Land Explorer
               </h2>
@@ -733,19 +814,8 @@ export default function LandingPage() {
         margin: '90px auto',
         padding: '0 24px',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '50px' }}>
-          <span style={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            padding: '4px 12px',
-            borderRadius: '4px',
-            background: isLight ? 'rgba(22, 163, 74, 0.15)' : 'rgba(22, 163, 74, 0.2)',
-            color: isLight ? '#15803d' : 'var(--primary-400)',
-            letterSpacing: '0.06em',
-          }}>
-            STATUTORY WORKFLOW
-          </span>
-          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', marginTop: '14px', marginBottom: '12px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '44px' }}>
+          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '0 0 12px' }}>
             How to Apply for Agricultural Land in Zimbabwe
           </h2>
           <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', maxWidth: '720px', margin: '0 auto', fontSize: '0.9375rem', lineHeight: 1.6 }}>
@@ -1000,19 +1070,8 @@ export default function LandingPage() {
           maxWidth: '1360px',
           margin: '0 auto',
         }}>
-          <div style={{ textAlign: 'center', marginBottom: '50px' }}>
-            <span style={{
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              padding: '4px 12px',
-              borderRadius: '4px',
-              background: 'rgba(245, 158, 11, 0.25)',
-              color: 'var(--accent-400)',
-              letterSpacing: '0.06em',
-            }}>
-              TENURE CATEGORIES
-            </span>
-            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: '#ffffff', marginTop: '14px', marginBottom: '12px', textShadow: '0 2px 14px rgba(0,0,0,0.8)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '44px' }}>
+            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', fontWeight: 800, color: '#ffffff', margin: '0 0 12px', textShadow: '0 2px 14px rgba(0,0,0,0.8)' }}>
               Zimbabwe Agricultural Resettlement Models
             </h2>
             <p style={{ color: '#e2e8f0', maxWidth: '720px', margin: '0 auto', fontSize: '0.9375rem', lineHeight: 1.6, textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>
@@ -1153,38 +1212,131 @@ export default function LandingPage() {
       </section>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 5. LATEST LAND NEWS & POLICY HIGHLIGHTS                       */}
+      {/* 5. LATEST LAND NEWS & POLICY HIGHLIGHTS (REAL-TIME BROADCAST) */}
       {/* ───────────────────────────────────────────────────────────── */}
       <section id="news" style={{
         maxWidth: '1360px',
         margin: '90px auto',
         padding: '0 24px',
       }}>
-        {/* Section Header */}
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+        {/* Real-time Breaking News Ticker Strip */}
+        <div style={{
+          marginBottom: '32px',
+          borderRadius: '14px',
+          background: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.95)',
+          border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(239, 68, 68, 0.35)',
+          boxShadow: isLight ? '0 4px 16px rgba(15, 23, 42, 0.05)' : '0 8px 24px rgba(0, 0, 0, 0.4)',
+          padding: '10px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          overflow: 'hidden',
+        }}>
+          {/* Badge */}
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '5px 14px',
-            borderRadius: '9999px',
-            background: isLight ? 'rgba(34, 197, 94, 0.14)' : 'rgba(34, 197, 94, 0.18)',
-            border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.35)',
-            color: isLight ? '#15803d' : 'var(--primary-400)',
+            padding: '5px 12px',
+            borderRadius: '8px',
+            background: 'rgba(239, 68, 68, 0.16)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            color: '#ef4444',
             fontSize: '0.75rem',
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            marginBottom: '14px',
+            fontWeight: 800,
+            letterSpacing: '0.05em',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}>
-            <span>📰</span>
-            <span>STATUTORY GAZETTES & POLICY REFORMS</span>
+            <span className="live-pulse-dot" />
+            <span>BREAKING WIRE</span>
           </div>
 
+          {/* Active Headline Display */}
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            {newsTicker.length > 0 && (
+              <a
+                href={newsTicker[activeTickerIndex]?.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  textDecoration: 'none',
+                  color: isLight ? '#0f172a' : '#f8fafc',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  transition: 'color 0.15s ease',
+                }}
+              >
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.1)',
+                  fontSize: '0.75rem',
+                  color: isLight ? '#1e293b' : '#94a3b8',
+                  fontWeight: 700,
+                }}>
+                  {newsTicker[activeTickerIndex]?.source}
+                </span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {newsTicker[activeTickerIndex]?.headline}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : '#94a3b8', marginLeft: 'auto', flexShrink: 0 }}>
+                  {newsTicker[activeTickerIndex]?.pubDate} ↗
+                </span>
+              </a>
+            )}
+          </div>
+
+          {/* Prev/Next buttons for ticker */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setActiveTickerIndex((prev) => (prev - 1 + newsTicker.length) % newsTicker.length)}
+              style={{
+                background: 'none',
+                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '6px',
+                color: isLight ? '#475569' : '#cbd5e1',
+                cursor: 'pointer',
+                padding: '3px 8px',
+                fontSize: '0.75rem',
+              }}
+              title="Previous headline"
+            >
+              ◀
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTickerIndex((prev) => (prev + 1) % newsTicker.length)}
+              style={{
+                background: 'none',
+                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '6px',
+                color: isLight ? '#475569' : '#cbd5e1',
+                cursor: 'pointer',
+                padding: '3px 8px',
+                fontSize: '0.75rem',
+              }}
+              title="Next headline"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+
+        {/* Section Header */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <h2 style={{
             fontSize: 'clamp(2rem, 4vw, 2.75rem)',
             fontWeight: 800,
             color: isLight ? '#0f172a' : '#ffffff',
-            marginBottom: '12px',
+            margin: '0 0 12px',
             letterSpacing: '-0.02em',
           }}>
             Latest Land News & Policy Highlights
@@ -1196,147 +1348,379 @@ export default function LandingPage() {
             fontSize: '0.95rem',
             lineHeight: 1.65,
           }}>
-            Official communiqués, gazetted regulations, national land audit findings, and cadastre modernization updates from the Ministry of Lands & Rural Development.
+            Continuous live syndication from The Herald, The Chronicle, and Business Weekly, combined with official gazetted regulations and cadastre modernization updates.
           </p>
         </div>
 
-        {/* News Grid (4 Cards) */}
+        {/* Real-time Status & Category Filter Control Bar */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))',
-          gap: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px',
+          marginBottom: '28px',
+          padding: '14px 20px',
+          borderRadius: '16px',
+          background: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(15, 23, 42, 0.7)',
+          border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
         }}>
-          {LAND_NEWS_ARTICLES.map((article) => (
-            <div
-              key={article.id}
-              className="glass-panel"
+          {/* Live Status indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8125rem' }}>
+            <span style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: '#22c55e',
+              display: 'inline-block',
+              boxShadow: '0 0 10px #22c55e',
+            }} />
+            <span style={{ fontWeight: 600, color: isLight ? '#065f46' : '#4ade80' }}>
+              Live Wire Active
+            </span>
+            <span style={{ color: isLight ? '#94a3b8' : '#64748b' }}>•</span>
+            <span style={{ color: isLight ? '#64748b' : 'var(--text-muted)' }}>
+              Synced: {newsLastSynced.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          </div>
+
+          {/* Category Filter Tabs & Sync Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'ALL', label: `All Updates (${newsArticles.length})` },
+              { id: 'TENURE', label: 'Tenure & Leases' },
+              { id: 'CADASTRE', label: 'Cadastre & Audits' },
+              { id: 'FINANCE', label: 'Agribusiness Finance' },
+              { id: 'LIVE_WIRE', label: 'Herald Live' },
+            ].map((tab) => {
+              const isActive = selectedCategory === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(tab.id as any)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '0.775rem',
+                    fontWeight: 600,
+                    border: isActive
+                      ? (isLight ? '1px solid #16a34a' : '1px solid #22c55e')
+                      : (isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)'),
+                    background: isActive
+                      ? (isLight ? 'rgba(22, 163, 74, 0.14)' : 'rgba(34, 197, 94, 0.22)')
+                      : 'transparent',
+                    color: isActive
+                      ? (isLight ? '#15803d' : '#4ade80')
+                      : (isLight ? '#64748b' : 'var(--text-muted)'),
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+
+            {/* Manual Sync Button */}
+            <button
+              type="button"
+              onClick={() => fetchLiveNews(true)}
+              disabled={isRefreshingNews}
               style={{
-                borderRadius: '18px',
-                padding: '28px 24px',
-                background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.8)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '0.775rem',
+                fontWeight: 600,
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                background: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.08)',
+                color: isLight ? '#0f172a' : '#ffffff',
+                cursor: isRefreshingNews ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title="Sync latest live headlines from media sources"
+            >
+              <span className={isRefreshingNews ? 'spin-sync-anim' : ''}>🔄</span>
+              <span>{isRefreshingNews ? 'Syncing...' : 'Sync Live'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Horizontal News Feed */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '28px',
+        }}>
+          {filteredNews.map((article) => (
+            <article
+              key={article.id}
+              className="glass-panel horizontal-news-card"
+              style={{
+                background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.85)',
                 backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
                 border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: isLight ? '0 6px 20px rgba(15, 23, 42, 0.05)' : '0 10px 25px rgba(0, 0, 0, 0.3)',
+                boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : '0 12px 32px rgba(0, 0, 0, 0.4)',
+              }}
+            >
+              {/* Left Column: Visual Media & Source Branding */}
+              <div
+                className="news-card-image"
+                style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  background: '#0a0f1d',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={article.imageUrl}
+                  alt={article.title}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '260px',
+                    objectFit: 'cover',
+                    display: 'block',
+                    transition: 'transform 0.4s ease',
+                  }}
+                />
+                {/* Media Gradient Scrim */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.85) 100%)',
+                }} />
+
+                {/* Overlaid Source Badge */}
+                <div style={{
+                  position: 'absolute',
+                  top: '14px',
+                  left: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  background: 'rgba(0, 0, 0, 0.75)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#ffffff',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                }}>
+                  <span style={{ color: '#22c55e' }}>●</span>
+                  <span>{article.source}</span>
+                </div>
+
+                {/* Overlaid Date / Read Time */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '12px',
+                  left: '14px',
+                  right: '14px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.75rem',
+                  color: '#e2e8f0',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                }}>
+                  <span>📅 {article.date}</span>
+                  <span>⏱️ {article.readTime}</span>
+                </div>
+              </div>
+
+              {/* Right Column: Article Details & Key Takeaways */}
+              <div style={{
+                flex: 1,
+                padding: '28px 32px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-              }}
-            >
-              <div>
-                {/* Badge & Date Header */}
+              }}>
+                <div>
+                  {/* Top Bar with Category Badge & Actual News Website External Link */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '12px',
+                    flexWrap: 'wrap',
+                  }}>
+                    <span style={{
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      background: article.badgeBg,
+                      color: article.badgeColor,
+                      border: `1px solid ${article.badgeBorder}`,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                    }}>
+                      {article.badge}
+                    </span>
+
+                    <a
+                      href={article.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        color: isLight ? '#1d4ed8' : '#60a5fa',
+                        textDecoration: 'none',
+                        background: isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.15)',
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        border: isLight ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(59, 130, 246, 0.3)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={`Open actual coverage on ${article.sourceDomain}`}
+                    >
+                      <span>{article.sourceDomain}</span>
+                      <span>↗</span>
+                    </a>
+                  </div>
+
+                  {/* Headline */}
+                  <h3 style={{
+                    fontSize: 'clamp(1.15rem, 1.6vw, 1.4rem)',
+                    fontWeight: 800,
+                    lineHeight: 1.35,
+                    color: isLight ? '#0f172a' : '#ffffff',
+                    marginBottom: '8px',
+                    letterSpacing: '-0.015em',
+                  }}>
+                    {article.title}
+                  </h3>
+
+                  {/* Statutory Reference */}
+                  <div style={{
+                    fontSize: '0.775rem',
+                    color: isLight ? '#15803d' : 'var(--primary-400)',
+                    fontWeight: 600,
+                    marginBottom: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}>
+                    <span>🏛️</span>
+                    <span>{article.gazetteRef}</span>
+                  </div>
+
+                  {/* Synopsis */}
+                  <p style={{
+                    fontSize: '0.9rem',
+                    color: isLight ? '#475569' : 'var(--text-muted)',
+                    lineHeight: 1.65,
+                    marginBottom: '16px',
+                  }}>
+                    {article.summary}
+                  </p>
+
+                  {/* Key Highlights Grid */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '8px 16px',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    background: isLight ? 'rgba(241, 245, 249, 0.75)' : 'rgba(2, 6, 23, 0.55)',
+                    border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
+                    marginBottom: '20px',
+                  }}>
+                    {article.bulletPoints.map((point, idx) => (
+                      <div key={idx} style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        fontSize: '0.8125rem',
+                        color: isLight ? '#334155' : '#cbd5e1',
+                        lineHeight: 1.5,
+                      }}>
+                        <span style={{ color: isLight ? '#16a34a' : '#4ade80', fontWeight: 800 }}>✓</span>
+                        <span>{point}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Footer Action Bar */}
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  gap: '10px',
-                  marginBottom: '16px',
                   flexWrap: 'wrap',
+                  gap: '12px',
+                  paddingTop: '16px',
+                  borderTop: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.08)',
                 }}>
-                  <span style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    background: article.badgeBg,
-                    color: article.badgeColor,
-                    border: `1px solid ${article.badgeBorder}`,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
+                  <div style={{
+                    fontSize: '0.775rem',
+                    color: isLight ? '#64748b' : 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}>
-                    {article.badge}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
-                    📅 {article.date} • {article.readTime}
-                  </span>
-                </div>
+                    <span>🗞️</span>
+                    <span>Actual Media Reporting: <strong>{article.source}</strong></span>
+                  </div>
 
-                {/* Title */}
-                <h3 style={{
-                  fontSize: '1.15rem',
-                  fontWeight: 700,
-                  lineHeight: 1.4,
-                  color: isLight ? '#0f172a' : '#ffffff',
-                  marginBottom: '10px',
-                }}>
-                  {article.title}
-                </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <a
+                      href={article.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        padding: '9px 16px',
+                        borderRadius: '8px',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.16)',
+                        background: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.06)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                    >
+                      <span>Visit {article.sourceDomain}</span>
+                      <span>↗</span>
+                    </a>
 
-                {/* Source / Gazette Reference */}
-                <div style={{
-                  fontSize: '0.75rem',
-                  color: isLight ? '#15803d' : 'var(--primary-400)',
-                  fontWeight: 600,
-                  marginBottom: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}>
-                  <span>🏛️</span>
-                  <span>{article.gazetteRef}</span>
-                </div>
-
-                {/* Summary */}
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: isLight ? '#475569' : 'var(--text-muted)',
-                  lineHeight: 1.6,
-                  marginBottom: '18px',
-                }}>
-                  {article.summary}
-                </p>
-
-                {/* Key Bullet Highlights */}
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  marginBottom: '20px',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: isLight ? 'rgba(241, 245, 249, 0.7)' : 'rgba(2, 6, 23, 0.5)',
-                  border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.05)',
-                }}>
-                  {article.bulletPoints.map((point, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '8px',
-                      fontSize: '0.8125rem',
-                      color: isLight ? '#334155' : '#cbd5e1',
-                    }}>
-                      <span style={{ color: isLight ? '#16a34a' : '#4ade80', fontWeight: 800 }}>✓</span>
-                      <span>{point}</span>
-                    </div>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNews(article)}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '9px 18px',
+                        fontSize: '0.8125rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <span>Read Full Analysis</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              {/* Action */}
-              <button
-                type="button"
-                onClick={() => setSelectedNews(article)}
-                style={{
-                  width: '100%',
-                  padding: '10px 16px',
-                  borderRadius: '8px',
-                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
-                  background: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.06)',
-                  color: isLight ? '#0f172a' : '#ffffff',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                <span>Read Official Communiqué</span>
-                <span>→</span>
-              </button>
-            </div>
+            </article>
           ))}
         </div>
 
@@ -1356,7 +1740,7 @@ export default function LandingPage() {
             <div style={{
               background: isLight ? '#ffffff' : '#090e1a',
               borderRadius: '20px',
-              maxWidth: '680px',
+              maxWidth: '720px',
               width: '100%',
               maxHeight: '90vh',
               overflowY: 'auto',
@@ -1397,15 +1781,26 @@ export default function LandingPage() {
                 </button>
               </div>
 
-              {/* Body */}
-              <div style={{ padding: '28px 28px 32px' }}>
+              {/* Modal Featured Image Header */}
+              <div style={{ position: 'relative', height: '220px', width: '100%', overflow: 'hidden' }}>
+                <img
+                  src={selectedNews.imageUrl}
+                  alt={selectedNews.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
                 <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, transparent 50%, rgba(9, 14, 26, 0.95) 100%)',
+                }} />
+                <div style={{
+                  position: 'absolute',
+                  bottom: '14px',
+                  left: '24px',
+                  right: '24px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '14px',
-                  flexWrap: 'wrap',
-                  gap: '8px',
                 }}>
                   <span style={{
                     fontSize: '0.75rem',
@@ -1418,13 +1813,16 @@ export default function LandingPage() {
                   }}>
                     {selectedNews.badge}
                   </span>
-                  <span style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#e2e8f0', textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
                     Published: {selectedNews.date}
                   </span>
                 </div>
+              </div>
 
+              {/* Body */}
+              <div style={{ padding: '24px 28px 32px' }}>
                 <h3 style={{
-                  fontSize: '1.4rem',
+                  fontSize: '1.35rem',
                   fontWeight: 800,
                   color: isLight ? '#0f172a' : '#ffffff',
                   lineHeight: 1.35,
@@ -1434,6 +1832,9 @@ export default function LandingPage() {
                 </h3>
 
                 <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   padding: '10px 14px',
                   borderRadius: '8px',
                   background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
@@ -1441,8 +1842,24 @@ export default function LandingPage() {
                   fontSize: '0.8125rem',
                   marginBottom: '20px',
                   color: isLight ? '#334155' : '#cbd5e1',
+                  flexWrap: 'wrap',
+                  gap: '8px',
                 }}>
-                  <strong>Authority Reference:</strong> {selectedNews.gazetteRef} • <em>{selectedNews.source}</em>
+                  <div>
+                    <strong>Authority Reference:</strong> {selectedNews.gazetteRef} • <em>{selectedNews.source}</em>
+                  </div>
+                  <a
+                    href={selectedNews.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: isLight ? '#1d4ed8' : '#60a5fa',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Open {selectedNews.sourceDomain} ↗
+                  </a>
                 </div>
 
                 <div style={{
@@ -1472,6 +1889,27 @@ export default function LandingPage() {
 
                 {/* Footer action */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <a
+                    href={selectedNews.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.2)',
+                      background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+                      color: isLight ? '#0f172a' : '#ffffff',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span>Read on {selectedNews.sourceDomain}</span>
+                    <span>↗</span>
+                  </a>
                   <button
                     type="button"
                     onClick={() => setSelectedNews(null)}
@@ -1506,17 +1944,7 @@ export default function LandingPage() {
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '48px', alignItems: 'center' }}>
             <div>
-              <span style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                padding: '4px 12px',
-                borderRadius: '4px',
-                background: isLight ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.2)',
-                color: isLight ? '#15803d' : 'var(--primary-400)',
-              }}>
-                CHECKLIST & MANDATORY DOCUMENTS
-              </span>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '14px 0 16px' }}>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.4rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '0 0 16px' }}>
                 What You Need Before Applying
               </h2>
               <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.9375rem', lineHeight: 1.65, marginBottom: '28px' }}>
@@ -1599,19 +2027,8 @@ export default function LandingPage() {
         margin: '90px auto',
         padding: '0 24px',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '44px' }}>
-          <span style={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            padding: '4px 12px',
-            borderRadius: '4px',
-            background: isLight ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.2)',
-            color: isLight ? '#2563eb' : '#60a5fa',
-            letterSpacing: '0.06em',
-          }}>
-            FREQUENT QUESTIONS
-          </span>
-          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', marginTop: '14px', marginBottom: '12px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '0 0 12px' }}>
             Frequently Asked Questions
           </h2>
           <p style={{ color: isLight ? '#475569' : 'var(--text-muted)', fontSize: '0.9375rem' }}>

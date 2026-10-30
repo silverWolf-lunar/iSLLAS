@@ -1473,3 +1473,81 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * Horizontal News Cards
+ * ───────────────────────────────────────────────────────────── */
+.horizontal-news-card {
+  display: flex;
+  flex-direction: row;
+  border-radius: 20px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.horizontal-news-card:hover {
+  transform: translateY(-3px);
+}
+
+.horizontal-news-card .news-card-image {
+  width: 340px;
+  min-width: 300px;
+  max-width: 380px;
+}
+
+@media (max-width: 860px) {
+  .horizontal-news-card {
+    flex-direction: column;
+  }
+  .horizontal-news-card .news-card-image {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 220px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Real-time News Ticker & Live Pulse
+ * ───────────────────────────────────────────────────────────── */
+@keyframes liveRadarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.live-pulse-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  display: inline-block;
+  animation: liveRadarPulse 2s infinite ease-in-out;
+}
+
+@keyframes spinSync {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-sync-anim {
+  animation: spinSync 0.9s linear infinite;
+}
+
+.news-ticker-container {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.news-ticker-container::-webkit-scrollbar {
+  display: none;
+}
+
