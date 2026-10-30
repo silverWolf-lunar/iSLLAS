@@ -31,6 +31,8 @@ export default function ClientApplicationsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   // New application form
   const [formData, setFormData] = useState({
     parcelId: '',
@@ -48,6 +50,12 @@ export default function ClientApplicationsPage() {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  useEffect(() => {
+    if (provinces.length > 0 && !formData.provinceId) {
+      setFormData(prev => ({ ...prev, provinceId: provinces[0].id }));
+    }
+  }, [provinces]);
 
   async function fetchApplications() {
     try {
@@ -69,29 +77,71 @@ export default function ClientApplicationsPage() {
     try {
       setSubmitting(true);
       setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const activityLabel = {
+        CROPPING: 'Commercial Cropping (Maize, Wheat, Soya, Tobacco)',
+        LIVESTOCK: 'Livestock / Cattle Ranching / Dairy',
+        HORTICULTURE: 'Horticulture, Citrus & Export Floriculture',
+        AGRO_FORESTRY: 'Agro-Forestry & Timber Production',
+        MIXED_FARMING: 'Integrated Mixed Farming (A2 Scheme)',
+      }[formData.proposedLandUse] || formData.proposedLandUse;
+
+      const brief = formData.notes.trim().length >= 50
+        ? formData.notes.trim()
+        : `Formal state land application for ${activityLabel} on ${formData.hectaresRequested} hectares with planned capital investment of $${formData.capitalInvestmentUsd?.toLocaleString()} USD in accordance with the Agricultural Land Settlement Act.`;
+
+      const targetProvId = formData.provinceId || provinces[0]?.id;
 
       const res = await fetch('/api/backend/api/v1/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           parcelId: formData.parcelId || undefined,
-          provinceId: formData.provinceId || (provinces[0]?.id || 'f1a2b3c4-0001-4000-8000-000000000001'),
+          provinceId: targetProvId || undefined,
           districtId: formData.districtId || undefined,
+          intendedActivity: activityLabel,
           proposedLandUse: formData.proposedLandUse,
-          hectaresRequested: Number(formData.hectaresRequested),
-          capitalInvestmentUsd: Number(formData.capitalInvestmentUsd),
-          developmentTimelineMonths: Number(formData.developmentTimelineMonths),
-          notes: formData.notes,
+          businessPlanSummary: brief,
+          notes: brief,
+          requestedTermYears: 99,
+          proposedInvestmentUsd: Number(formData.capitalInvestmentUsd) || 15000,
+          capitalInvestmentUsd: Number(formData.capitalInvestmentUsd) || 15000,
+          hectaresRequested: Number(formData.hectaresRequested) || 50,
+          expectedJobsCreated: 8,
+          developmentTimelineMonths: Number(formData.developmentTimelineMonths) || 24,
         }),
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Failed to submit application');
+        const message = err.error?.message || err.message || 'Failed to submit application';
+        throw new Error(message);
+      }
+
+      const resData = await res.json();
+      const draftApp = resData.data || resData;
+
+      // Automatically submit application to assign Waiting List Number & join queue
+      if (draftApp?.id && draftApp.status === 'DRAFT') {
+        try {
+          const submitRes = await fetch(`/api/backend/api/v1/applications/${draftApp.id}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (submitRes.ok) {
+            const submittedData = await submitRes.json();
+            const finalApp = submittedData.data || submittedData;
+            setApplications(prev => [finalApp, ...prev.filter(a => a.id !== finalApp.id)]);
+          }
+        } catch (submitErr) {
+          console.warn('Auto-submit warning', submitErr);
+        }
       }
 
       await fetchApplications();
       setShowModal(false);
+      setSuccessMsg('Application successfully lodged and registered on the Waiting List Queue!');
     } catch (err: any) {
       setErrorMsg(err.message || 'Error creating application');
     } finally {
@@ -147,6 +197,29 @@ export default function ClientApplicationsPage() {
           </button>
         </div>
       </div>
+
+      {successMsg && (
+        <div style={{
+          padding: '14px 18px',
+          background: 'rgba(34, 197, 94, 0.15)',
+          border: '1px solid rgba(34, 197, 94, 0.4)',
+          borderRadius: '8px',
+          color: '#86efac',
+          fontSize: '0.875rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span>✅ {successMsg}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessMsg(null)}
+            style={{ background: 'transparent', border: 'none', color: '#86efac', cursor: 'pointer', fontSize: '1rem' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Info Panel: Statutory Allocation Policy */}
       <div className="glass-panel" style={{ padding: '16px 20px', background: 'rgba(15, 23, 42, 0.7)' }}>

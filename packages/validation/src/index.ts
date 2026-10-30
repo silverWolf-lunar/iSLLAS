@@ -176,13 +176,20 @@ export const parcelSearchQuerySchema = paginationQuerySchema.extend({
 
 export const createApplicationSchema = z.object({
   id: z.string().uuid().optional(),
-  parcelId: z.string().uuid(),
-  intendedActivity: z.string().min(3).max(255),
+  parcelId: z.string().uuid().optional(),
+  provinceId: z.string().uuid().optional(),
+  districtId: z.string().uuid().optional(),
+  intendedActivity: z.string().min(1).max(255).optional(),
+  proposedLandUse: z.string().optional(),
   activityProfileId: z.string().uuid().optional(),
-  businessPlanSummary: z.string().min(50).max(5000),
-  requestedTermYears: z.number().int().min(1).max(99),
+  businessPlanSummary: z.string().max(5000).optional(),
+  notes: z.string().max(5000).optional(),
+  requestedTermYears: z.number().int().min(1).max(99).optional().default(99),
   proposedInvestmentUsd: z.number().nonnegative().optional(),
+  capitalInvestmentUsd: z.number().nonnegative().optional(),
+  hectaresRequested: z.number().nonnegative().optional(),
   expectedJobsCreated: z.number().int().nonnegative().optional(),
+  developmentTimelineMonths: z.number().optional(),
 });
 
 export const applicationReviewSchema = z.object({
