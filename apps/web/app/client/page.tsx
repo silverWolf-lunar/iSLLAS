@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useApp } from '../components/AppContext';
+import { ZimbabweFlag } from '../components/ZimbabweFlag';
 
 interface ClientProfile {
   id: string;
@@ -316,9 +317,10 @@ export default function ClientDashboardPage() {
             }}>
               FARMER DASHBOARD
             </span>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-              Republic of Zimbabwe • Ministry of Lands &amp; Rural Development
-            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <ZimbabweFlag width={16} height={10} />
+              <span>Republic of Zimbabwe • Ministry of Lands &amp; Rural Development</span>
+            </div>
           </div>
           <h1 style={{ fontSize: '1.875rem', color: 'var(--text-main)', margin: '0 0 6px' }}>
             Welcome, {currentUser?.name || 'Applicant'}
@@ -329,16 +331,17 @@ export default function ClientDashboardPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <Link href="/parcels?status=AVAILABLE&view=map" className="btn btn-accent">
-            🗺️ Browse Free Land on Map
+          <Link href="/parcels?status=AVAILABLE&view=map" className="btn btn-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+            Browse Free Land on Map
           </Link>
-          <Link href="/client/kyc" className="btn btn-primary">
+          <Link href="/client/kyc" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             {isVerified ? 'View KYC Profile' : 'Complete KYC Verification'}
           </Link>
-          <Link href="/client/applications" className="btn btn-outline">
+          <Link href="/client/applications" className="btn btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -359,8 +362,19 @@ export default function ClientDashboardPage() {
           gap: '16px',
           flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '8px',
+              background: 'rgba(245, 158, 11, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="20" height="20" fill="none" stroke="#f59e0b" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
             <div>
               <h4 style={{ color: 'var(--accent-400)', fontSize: '0.9375rem', marginBottom: '2px', fontWeight: 600 }}>
                 Identity Verification Required
@@ -445,7 +459,7 @@ export default function ClientDashboardPage() {
           }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '1.25rem' }}>🧭</span>
+                <svg width="20" height="20" fill="none" stroke="#38bdf8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
                   Application Progress Tracker
                 </h2>

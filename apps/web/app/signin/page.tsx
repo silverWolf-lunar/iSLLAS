@@ -9,6 +9,7 @@ import { Logo } from '../components/Logo';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Role } from '@sllas/contracts';
 import { getDefaultDashboardForRole } from '../lib/access';
+import { ZimbabweFlag } from '../components/ZimbabweFlag';
 
 interface DemoAccount {
   label: string;
@@ -196,7 +197,7 @@ function SignInContent() {
             borderRadius: '999px',
             fontWeight: 500,
           }}>
-            <span>🇿🇼</span>
+            <ZimbabweFlag width={18} height={12} />
             <span>Republic of Zimbabwe • Ministry of Lands</span>
           </div>
         </div>

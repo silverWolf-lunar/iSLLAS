@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '../components/AppContext';
+import { ZimbabweFlag } from '../components/ZimbabweFlag';
 
 interface UserCountSummary {
   total: number;
@@ -70,14 +71,15 @@ export default function AdminDashboardPage() {
             }}>
               SYSTEM ADMINISTRATOR CONSOLE
             </span>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-              National Governance & Security Oversight
-            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <ZimbabweFlag width={16} height={10} />
+              <span>National Governance &amp; Security Oversight</span>
+            </div>
           </div>
-          <h1 style={{ fontSize: '1.875rem', color: '#ffffff' }}>
+          <h1 style={{ fontSize: '1.875rem', color: 'var(--text-main)', margin: '0 0 6px' }}>
             Executive Platform Administration
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '640px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '640px', margin: 0 }}>
             Manage staff identities, provincial registry offices, PostGIS spatial data integrity, and compliance policies across Zimbabwe.
           </p>
         </div>

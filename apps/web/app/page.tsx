@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { Role } from '@sllas/contracts';
 import { getDefaultDashboardForRole, ROLE_CONFIG } from './lib/access';
+import { ZimbabweFlag } from './components/ZimbabweFlag';
 
 interface LandNewsArticle {
   id: string;
@@ -165,7 +166,7 @@ export default function LandingPage() {
         borderBottom: '1px solid rgba(254, 240, 138, 0.25)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.9rem' }}>🇿🇼</span>
+          <ZimbabweFlag width={20} height={13} />
           <strong style={{ letterSpacing: '0.04em' }}>REPUBLIC OF ZIMBABWE</strong>
           <span>•</span>
           <span>Ministry of Lands & Rural Development</span>
@@ -257,16 +258,54 @@ export default function LandingPage() {
       {/* Authenticated Floating Quick Access Bar */}
       {session?.user && (
         <div style={{
-          background: 'linear-gradient(90deg, rgba(22, 101, 52, 0.25) 0%, rgba(15, 23, 42, 0.6) 100%)',
+          background: isLight ? 'rgba(236, 253, 245, 0.95)' : 'rgba(6, 30, 20, 0.88)',
+          backdropFilter: 'blur(16px)',
           borderBottom: '1px solid rgba(34, 197, 94, 0.3)',
           padding: '10px 24px',
-          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          flexWrap: 'wrap',
           fontSize: '0.875rem',
-          color: 'var(--primary-400)',
         }}>
-          <span>Signed in as <strong>{(session.user as any)?.name || session.user.email}</strong> ({roleName}).</span>{' '}
-          <Link href={userDashboard || '/client'} style={{ color: '#ffffff', textDecoration: 'underline', fontWeight: 600, marginLeft: '8px' }}>
-            Open Your Assigned Dashboard Console →
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: isLight ? '#065f46' : '#a7f3d0',
+            fontWeight: 500,
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 8px #22c55e' }} />
+            Active Session: <strong>{(session.user as any)?.name || session.user.email}</strong>
+            <span style={{
+              background: 'rgba(34, 197, 94, 0.2)',
+              color: isLight ? '#047857' : '#4ade80',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+            }}>{roleName}</span>
+          </span>
+          <Link
+            href={userDashboard || '/client'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#ffffff',
+              background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              padding: '5px 16px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              boxShadow: '0 2px 8px rgba(22, 163, 74, 0.35)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Launch Assigned Dashboard Console →
           </Link>
         </div>
       )}
@@ -280,7 +319,7 @@ export default function LandingPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '90px 24px 80px',
+        padding: '80px 24px 80px',
         overflow: 'hidden',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
       }}>
@@ -300,8 +339,8 @@ export default function LandingPage() {
           position: 'absolute',
           inset: 0,
           background: isLight
-            ? 'linear-gradient(180deg, rgba(6, 9, 19, 0.30) 0%, rgba(6, 9, 19, 0.46) 55%, rgba(248, 250, 252, 0.95) 90%, #f8fafc 100%)'
-            : 'linear-gradient(180deg, rgba(6, 9, 19, 0.35) 0%, rgba(6, 9, 19, 0.50) 55%, #060913 100%)',
+            ? 'linear-gradient(180deg, rgba(6, 9, 19, 0.28) 0%, rgba(6, 9, 19, 0.44) 55%, rgba(248, 250, 252, 0.95) 90%, #f8fafc 100%)'
+            : 'linear-gradient(180deg, rgba(6, 9, 19, 0.32) 0%, rgba(6, 9, 19, 0.48) 55%, #060913 100%)',
         }} />
         <div style={{
           position: 'absolute',
@@ -317,190 +356,234 @@ export default function LandingPage() {
           margin: '0 auto',
           width: '100%',
         }}>
-          {/* x2 Grid Layout for Heading & Subheading */}
+          {/* Twin Frosted Glass Command Grid Layout */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-            gap: '48px',
-            alignItems: 'center',
+            gap: '36px',
+            alignItems: 'stretch',
           }}>
-            {/* Left Column: Statutory Badge & Main Heading */}
-            <div>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 14px',
-                borderRadius: '9999px',
-                background: 'rgba(34, 197, 94, 0.24)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(74, 222, 128, 0.45)',
-                color: '#4ade80',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                letterSpacing: '0.05em',
-                marginBottom: '18px',
-                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)',
-              }}>
-                <span>🇿🇼</span>
-                <span>OFFICIAL STATUTORY STATE LAND REGISTRY</span>
-              </div>
-
-              <h1 style={{
-                fontSize: 'clamp(2.3rem, 4.2vw, 3.8rem)',
-                fontWeight: 800,
-                lineHeight: 1.15,
-                color: '#ffffff',
-                letterSpacing: '-0.025em',
-                textShadow: '0 4px 30px rgba(0, 0, 0, 0.95), 0 2px 6px rgba(0, 0, 0, 0.85)',
-                margin: '0 0 20px',
-              }}>
-                Fair, Transparent & Digital <br />
-                <span style={{
-                  background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #facc15 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
+            {/* Left Column: Statutory Identity & Main Heading Card */}
+            <div style={{
+              background: isLight ? 'rgba(255, 255, 255, 0.90)' : 'rgba(8, 14, 26, 0.80)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              padding: '38px 34px',
+              borderRadius: '24px',
+              border: isLight ? '1px solid rgba(255, 255, 255, 0.9)' : '1px solid rgba(255, 255, 255, 0.14)',
+              boxShadow: isLight
+                ? '0 20px 45px -10px rgba(15, 23, 42, 0.12)'
+                : '0 24px 50px -12px rgba(0, 0, 0, 0.75)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}>
+              <div>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '7px 16px',
+                  borderRadius: '9999px',
+                  background: isLight ? 'rgba(34, 197, 94, 0.16)' : 'rgba(34, 197, 94, 0.22)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(74, 222, 128, 0.45)',
+                  color: isLight ? '#15803d' : '#4ade80',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  marginBottom: '20px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 }}>
-                  Agricultural Land Allocation
-                </span>
-              </h1>
+                  <ZimbabweFlag width={20} height={13} />
+                  <span>OFFICIAL STATUTORY STATE LAND REGISTRY</span>
+                </div>
+
+                <h1 style={{
+                  fontSize: 'clamp(2.1rem, 3.8vw, 3.3rem)',
+                  fontWeight: 850,
+                  lineHeight: 1.14,
+                  color: isLight ? '#064e3b' : '#ffffff',
+                  letterSpacing: '-0.03em',
+                  margin: '0 0 22px',
+                }}>
+                  Fair, Transparent &amp; Digital <br />
+                  <span style={{
+                    display: 'inline-block',
+                    background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #facc15 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    filter: 'drop-shadow(0 2px 12px rgba(34, 197, 94, 0.4))',
+                  }}>
+                    Agricultural Land Allocation
+                  </span>
+                </h1>
+              </div>
 
               {/* Pillars / Trust Badges */}
               <div style={{
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: '10px',
+                marginTop: '16px',
               }}>
                 <span style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   fontSize: '0.8125rem',
                   fontWeight: 600,
-                  color: '#e2e8f0',
-                  background: 'rgba(6, 9, 19, 0.65)',
+                  color: isLight ? '#334155' : '#e2e8f0',
+                  background: isLight ? 'rgba(241, 245, 249, 0.9)' : 'rgba(15, 23, 42, 0.75)',
                   backdropFilter: 'blur(10px)',
-                  padding: '6px 14px',
+                  padding: '7px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.14)',
                 }}>
-                  <span style={{ color: '#4ade80' }}>✓</span> PostGIS Geovalidation
+                  <svg width="14" height="14" fill="none" stroke="#22c55e" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  PostGIS Geovalidation
                 </span>
                 <span style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   fontSize: '0.8125rem',
                   fontWeight: 600,
-                  color: '#e2e8f0',
-                  background: 'rgba(6, 9, 19, 0.65)',
+                  color: isLight ? '#334155' : '#e2e8f0',
+                  background: isLight ? 'rgba(241, 245, 249, 0.9)' : 'rgba(15, 23, 42, 0.75)',
                   backdropFilter: 'blur(10px)',
-                  padding: '6px 14px',
+                  padding: '7px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.14)',
                 }}>
-                  <span style={{ color: '#4ade80' }}>✓</span> Bankable 99-Year Leases
+                  <svg width="14" height="14" fill="none" stroke="#22c55e" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  Bankable 99-Year Leases
                 </span>
                 <span style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   fontSize: '0.8125rem',
                   fontWeight: 600,
-                  color: '#e2e8f0',
-                  background: 'rgba(6, 9, 19, 0.65)',
+                  color: isLight ? '#334155' : '#e2e8f0',
+                  background: isLight ? 'rgba(241, 245, 249, 0.9)' : 'rgba(15, 23, 42, 0.75)',
                   backdropFilter: 'blur(10px)',
-                  padding: '6px 14px',
+                  padding: '7px 14px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.14)',
                 }}>
-                  <span style={{ color: '#4ade80' }}>✓</span> Segregation of Duties
+                  <svg width="14" height="14" fill="none" stroke="#22c55e" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  Segregation of Duties
                 </span>
               </div>
             </div>
 
-            {/* Right Column: Subheading & Action Buttons in a Glass Card */}
+            {/* Right Column: Subheading & Action Buttons in a Matching Glass Card */}
             <div style={{
-              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.82)',
+              background: isLight ? 'rgba(255, 255, 255, 0.90)' : 'rgba(8, 14, 26, 0.80)',
               backdropFilter: 'blur(24px)',
-              padding: '36px 32px',
-              borderRadius: '20px',
-              border: isLight ? '1px solid rgba(255, 255, 255, 0.8)' : '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: isLight ? '0 20px 40px -10px rgba(15, 23, 42, 0.16)' : '0 24px 50px -12px rgba(0, 0, 0, 0.75)',
+              WebkitBackdropFilter: 'blur(24px)',
+              padding: '38px 34px',
+              borderRadius: '24px',
+              border: isLight ? '1px solid rgba(255, 255, 255, 0.9)' : '1px solid rgba(255, 255, 255, 0.14)',
+              boxShadow: isLight
+                ? '0 20px 45px -10px rgba(15, 23, 42, 0.12)'
+                : '0 24px 50px -12px rgba(0, 0, 0, 0.75)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}>
-              <p style={{
-                fontSize: 'clamp(1.05rem, 1.8vw, 1.25rem)',
-                color: isLight ? '#1e293b' : '#f1f5f9',
-                margin: '0 0 28px',
-                lineHeight: 1.65,
-                fontWeight: 450,
-              }}>
-                Apply for verified state farmland, track land board evaluations in real time, and obtain bankable 99-year leases secured by GIS spatial mapping across Zimbabwe's 10 administrative provinces.
-              </p>
+              <div>
+                <p style={{
+                  fontSize: 'clamp(1.05rem, 1.6vw, 1.2rem)',
+                  color: isLight ? '#334155' : '#e2e8f0',
+                  margin: '0 0 28px',
+                  lineHeight: 1.68,
+                  fontWeight: 450,
+                }}>
+                  Apply for verified state farmland, track land board evaluations in real time, and obtain bankable 99-year leases secured by GIS spatial mapping across Zimbabwe's 10 administrative provinces.
+                </p>
 
-              {/* Hero Action Buttons (Explore Available Farmland removed) */}
-              <div style={{
-                display: 'flex',
-                gap: '14px',
-                flexWrap: 'wrap',
-                marginBottom: '24px',
-              }}>
-                <Link
-                  href="/signin"
-                  className="btn btn-primary"
-                  style={{
-                    padding: '16px 28px',
-                    fontSize: '1.05rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    boxShadow: '0 8px 24px rgba(22, 163, 74, 0.45)',
-                    flex: '1 1 200px',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <span>📝</span>
-                  <span>Start Land Application</span>
-                </Link>
+                {/* Hero Action Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '14px',
+                  flexWrap: 'wrap',
+                  marginBottom: '26px',
+                }}>
+                  <Link
+                    href="/signin"
+                    className="btn btn-primary"
+                    style={{
+                      padding: '16px 28px',
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      boxShadow: '0 8px 24px rgba(22, 163, 74, 0.45)',
+                      flex: '1 1 200px',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    <span>Start Land Application</span>
+                  </Link>
 
-                <a
-                  href="#process"
-                  className="btn btn-outline"
-                  style={{
-                    padding: '16px 24px',
-                    fontSize: '1.05rem',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: isLight ? 'rgba(241, 245, 249, 0.85)' : 'rgba(255, 255, 255, 0.08)',
-                    backdropFilter: 'blur(10px)',
-                    borderColor: isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.25)',
-                    color: isLight ? '#0f172a' : '#ffffff',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <span>📘</span>
-                  <span>6-Step Guide</span>
-                </a>
+                  <a
+                    href="#process"
+                    className="btn btn-outline"
+                    style={{
+                      padding: '16px 24px',
+                      fontSize: '1.05rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      background: isLight ? 'rgba(241, 245, 249, 0.85)' : 'rgba(255, 255, 255, 0.08)',
+                      backdropFilter: 'blur(10px)',
+                      borderColor: isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.22)',
+                      color: isLight ? '#0f172a' : '#ffffff',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                    <span>6-Step Guide</span>
+                  </a>
+                </div>
               </div>
 
               {/* Intake Status Notice */}
               <div style={{
                 padding: '14px 18px',
                 borderRadius: '12px',
-                background: isLight ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.15)',
-                border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.35)',
+                background: isLight ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.14)',
+                border: '1px solid rgba(34, 197, 94, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 fontSize: '0.8125rem',
                 color: isLight ? '#15803d' : '#e2e8f0',
               }}>
-                <span style={{ fontSize: '1.25rem' }}>🏛️</span>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  background: 'rgba(34, 197, 94, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  color: '#22c55e',
+                }}>
+                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                </div>
                 <div>
-                  <strong style={{ color: isLight ? '#166534' : '#4ade80' }}>Open Intake Cycle:</strong> Active allocation rounds are ongoing for A1 Smallholder and A2 Commercial farmland across all provinces.
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 8px #22c55e' }} />
+                    <strong style={{ color: isLight ? '#166534' : '#4ade80' }}>Open Intake Cycle Active:</strong>
+                  </div>
+                  <div>Allocation rounds currently open for A1 Smallholder and A2 Commercial farmland across all 10 provinces.</div>
                 </div>
               </div>
             </div>
@@ -1294,7 +1377,7 @@ export default function LandingPage() {
                 borderTopRightRadius: '19px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🇿🇼</span>
+                  <ZimbabweFlag width={20} height={13} />
                   <strong>REPUBLIC OF ZIMBABWE • STATUTORY COMMUNIQUÉ</strong>
                 </div>
                 <button

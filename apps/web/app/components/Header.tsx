@@ -9,6 +9,8 @@ import { ThemeSwitcher } from './ThemeSwitcher';
 import { ROLE_CONFIG, getDefaultDashboardForRole } from '../lib/access';
 import { useApp } from './AppContext';
 
+import { ZimbabweFlag } from './ZimbabweFlag';
+
 export interface CurrentUser {
   id: string;
   name: string;
@@ -111,7 +113,7 @@ export function Header({
       <div className="header-account">
         {/* Government Badge (Hidden on very narrow screens) */}
         <div className="header-govt-badge">
-          <span>🇿🇼</span>
+          <ZimbabweFlag width={18} height={12} />
           <span>Ministry of Lands</span>
         </div>
 

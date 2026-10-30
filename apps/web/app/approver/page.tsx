@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '../components/AppContext';
+import { ZimbabweFlag } from '../components/ZimbabweFlag';
 
 interface ApplicationForApproval {
   id: string;
@@ -151,14 +152,15 @@ export default function ApproverDashboardPage() {
             }}>
               PROVINCIAL LAND APPROVAL BOARD
             </span>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-              Approver Authority: {currentUser?.name}
-            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <ZimbabweFlag width={16} height={10} />
+              <span>Approver Authority: {currentUser?.name}</span>
+            </div>
           </div>
-          <h1 style={{ fontSize: '1.875rem', color: '#ffffff' }}>
+          <h1 style={{ fontSize: '1.875rem', color: 'var(--text-main)', margin: '0 0 6px' }}>
             Statutory Land Allocation Approvals
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '640px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '640px', margin: 0 }}>
             Final review authority for state land allocations. Validates cadastre boundaries, applicant KYC credentials, and enforces strict Segregation of Duties.
           </p>
         </div>
@@ -166,19 +168,33 @@ export default function ApproverDashboardPage() {
 
       {/* Segregation of Duties Banner */}
       <div className="glass-panel" style={{
-        padding: '16px 20px',
+        padding: '18px 22px',
         background: 'rgba(34, 197, 94, 0.08)',
         borderColor: 'rgba(34, 197, 94, 0.25)',
         display: 'flex',
         alignItems: 'center',
-        gap: '14px',
+        gap: '16px',
       }}>
-        <span style={{ fontSize: '1.5rem' }}>🛡️</span>
+        <div style={{
+          width: '42px',
+          height: '42px',
+          borderRadius: '10px',
+          background: 'rgba(34, 197, 94, 0.18)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          color: '#22c55e',
+        }}>
+          <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
         <div>
-          <h4 style={{ color: 'var(--primary-400)', fontSize: '0.9375rem', marginBottom: '2px' }}>
-            Statutory Anti-Corruption & Segregation of Duties Policy
+          <h4 style={{ color: 'var(--primary-400)', fontSize: '0.9375rem', marginBottom: '2px', fontWeight: 600 }}>
+            Statutory Anti-Corruption &amp; Segregation of Duties Policy
           </h4>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', margin: 0 }}>
             Officers who register, review, or allocate a parcel cannot act as its Approver. Any conflict of interest is automatically detected and blocks authorization.
           </p>
         </div>
