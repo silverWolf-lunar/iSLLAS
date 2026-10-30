@@ -27,7 +27,14 @@ export function Logo({
     : isDark
       ? '#C9CED6'
       : '#4A4A4A';
-  const green = monochrome ?? '#006B3F';
+  const isMonochrome = Boolean(monochrome);
+  const badgeBg = isMonochrome ? 'transparent' : '#FFFFFF';
+  const badgeBorder = isMonochrome
+    ? (monochrome === 'white' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)')
+    : (isDark ? 'rgba(255, 255, 255, 0.2)' : '#e2e8f0');
+  const leafColor = isMonochrome ? (monochrome === 'white' ? '#FFFFFF' : '#000000') : '#2785a1';
+  const stemColor = isMonochrome ? (monochrome === 'white' ? '#FFFFFF' : '#000000') : '#0a4b69';
+
   const stripeColors = monochrome ? [monochrome, monochrome, monochrome, monochrome] : ['#006B3F', '#FFD200', '#D40000', '#000000'];
   const iconSize = variant === 'icon' ? 32 : variant === 'compact' ? 40 : 48;
 
@@ -51,11 +58,59 @@ export function Logo({
         viewBox="0 0 48 48"
         aria-hidden="true"
         focusable="false"
+        style={{
+          flexShrink: 0,
+          borderRadius: variant === 'icon' ? '8px' : '10px',
+          boxShadow: !isMonochrome
+            ? (isDark ? '0 4px 14px rgba(0, 0, 0, 0.45)' : '0 2px 8px rgba(0, 0, 0, 0.08)')
+            : undefined,
+        }}
       >
-        <rect x="1" y="1" width="46" height="46" rx="2" fill={green} />
+        {/* Rounded Squircle Badge Base */}
+        <rect
+          x="1"
+          y="1"
+          width="46"
+          height="46"
+          rx="10"
+          fill={badgeBg}
+          stroke={badgeBorder}
+          strokeWidth="1.2"
+        />
+
+        {/* Top Central Leaf */}
         <path
-          d="M31.5 14.5c-2.2-1.6-4.8-2.4-7.7-2.4-5.3 0-8.8 2.7-8.8 6.7 0 4.2 3.5 5.7 8.5 6.8 3.4.8 5.2 1.4 5.2 3.2 0 1.8-1.7 2.8-4.7 2.8-3 0-5.8-1-8-2.9l-2.1 3.8c2.8 2.2 6.2 3.3 10.1 3.3 5.8 0 9.5-2.7 9.5-7.2 0-4.1-3.1-5.8-8.3-7-3.6-.8-5.4-1.3-5.4-3 0-1.5 1.5-2.4 4.1-2.4 2.5 0 4.7.7 6.4 2.1l1.2-3.8Z"
-          fill="#FFFFFF"
+          d="M 24.00 5.29 Q 25.62 6.91 27.06 9.11 Q 27.82 10.92 28.20 13.12 Q 28.01 15.79 27.44 17.51 Q 26.39 19.51 24.10 22.19 Q 22.85 21.14 21.33 19.23 Q 20.37 17.41 19.80 15.03 Q 19.99 12.16 20.75 9.96 Q 22.38 7.20 24.00 5.29 Z"
+          fill={leafColor}
+        />
+
+        {/* Left Leaf with negative-space vein */}
+        <path
+          d="M 11.11 19.13 Q 14.55 19.42 16.46 19.99 Q 18.37 21.04 19.61 22.19 Q 20.56 23.62 21.23 25.34 Q 21.61 27.82 21.52 29.92 Q 20.18 27.63 18.84 26.10 Q 17.22 24.86 15.60 24.10 Q 15.22 24.29 15.22 24.67 Q 18.37 28.11 19.80 30.30 Q 19.99 30.97 17.89 30.97 Q 15.88 30.59 13.97 29.73 Q 12.16 28.11 10.54 25.34 Q 9.68 21.99 9.49 19.32 Q 11.02 19.23 11.11 19.13 Z"
+          fill={leafColor}
+        />
+
+        {/* Right Leaf with negative-space vein */}
+        <path
+          d="M 36.79 21.04 Q 37.94 21.04 37.56 23.90 Q 36.32 27.44 35.08 29.35 Q 33.83 30.59 32.40 31.45 Q 30.59 32.02 28.58 32.12 Q 29.44 30.11 30.21 28.96 Q 32.50 26.48 32.59 26.01 Q 32.21 25.72 30.97 26.29 Q 29.63 27.25 28.01 28.96 Q 26.20 31.73 26.10 29.54 Q 26.58 27.15 27.34 25.53 Q 28.20 24.38 29.35 23.33 Q 31.35 22.19 34.41 21.33 Q 36.70 21.14 36.79 21.04 Z"
+          fill={leafColor}
+        />
+
+        {/* Stem Trunk */}
+        <path
+          d="M 22.28 30.11 Q 23.33 32.69 24.00 35.46 Q 24.57 40.04 24.57 41.85 Q 24.29 42.05 23.90 41.85 Q 23.62 37.18 23.05 34.12 Q 22.09 31.26 22.19 30.21 Z"
+          fill={stemColor}
+        />
+        {/* Stem Branch to right leaf */}
+        <path
+          d="M 25.43 32.12 Q 25.91 32.40 25.91 32.59 Q 24.76 35.65 24.48 34.03 Q 25.43 32.21 25.43 32.12 Z"
+          fill={stemColor}
+        />
+
+        {/* Soil Base / Ground Lobes */}
+        <path
+          d="M 28.11 40.90 Q 29.54 40.90 30.59 41.19 Q 31.83 41.85 33.07 43.00 Q 24.14 43.00 15.22 43.00 Q 15.88 42.24 16.74 41.66 Q 18.56 40.99 20.18 40.99 Q 21.80 41.47 24.29 43.00 Q 26.58 41.38 28.01 40.99 Z"
+          fill={stemColor}
         />
       </svg>
 
