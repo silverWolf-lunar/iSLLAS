@@ -882,7 +882,7 @@ export default function LandingPage() {
             </h4>
             <div style={{ fontSize: '0.8125rem', lineHeight: 1.6 }}>
               Ministry of Lands & Rural Development<br />
-              Ngungunyana Building, 1 Borrowdale Road<br />
+              Block 2 Makombe Complex<br />
               Harare, Republic of Zimbabwe<br />
               Hotline: +263 242 706081 / 706082<br />
               Email: info@lands.gov.zw
