@@ -204,7 +204,7 @@ export default function OfficerAllocationWorkbenchPage() {
                     >
                       {applications.map(app => (
                         <option key={app.id} value={app.id}>
-                          {app.waitingListNumber || app.applicationNumber} — {app.proposedLandUse} ({app.hectaresRequested || 50} ha)
+                          {app.waitingListNumber || app.applicationNumber} — {(app.proposedLandUse || (app as any).intendedActivity || 'Commercial Agriculture')?.replace(/_/g, ' ')} ({app.hectaresRequested || 50} ha)
                         </option>
                       ))}
                     </select>
@@ -220,7 +220,7 @@ export default function OfficerAllocationWorkbenchPage() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Proposed Land Use:</span>
-                        <span style={{ fontWeight: 600 }}>{selectedApp.proposedLandUse}</span>
+                        <span style={{ fontWeight: 600 }}>{(selectedApp.proposedLandUse || (selectedApp as any).intendedActivity || 'Commercial Agriculture')?.replace(/_/g, ' ')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Requested Area:</span>

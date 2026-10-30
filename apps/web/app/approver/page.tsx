@@ -247,7 +247,7 @@ export default function ApproverDashboardPage() {
                         {app.parcel ? (
                           <div>
                             <span style={{ fontWeight: 600, color: 'var(--primary-400)' }}>{app.parcel.referenceNumber}</span>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{app.parcel.areaHectares} ha • {app.proposedLandUse}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{app.parcel.areaHectares} ha • {(app.proposedLandUse || (app as any).intendedActivity || 'Commercial Agriculture')?.replace(/_/g, ' ')}</div>
                           </div>
                         ) : (
                           <span style={{ color: 'var(--text-dim)', fontSize: '0.8125rem' }}>Parcel Pending</span>

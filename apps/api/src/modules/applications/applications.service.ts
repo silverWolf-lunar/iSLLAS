@@ -504,7 +504,13 @@ export class ApplicationsService {
     } else if (user.role !== Role.SYSTEM_ADMIN && user.role !== Role.AUDITOR) {
       throw new ForbiddenException('You are not permitted to view applications');
     }
-    return qb.getMany();
+    const apps = await qb.getMany();
+    return apps.map(app => {
+      (app as any).proposedLandUse = app.intendedActivity;
+      (app as any).capitalInvestmentUsd = app.proposedInvestmentUsd ? Number(app.proposedInvestmentUsd) : null;
+      (app as any).hectaresRequested = app.parcel?.areaHectares ? Number(app.parcel.areaHectares) : 50;
+      return app;
+    });
   }
 
   /**
@@ -646,7 +652,9 @@ export class ApplicationsService {
       registrationNumber: app.clientProfile?.registrationNumber,
       companyName: app.clientProfile?.companyName,
       intendedActivity: app.intendedActivity,
+      proposedLandUse: app.intendedActivity,
       parcelId: app.parcelId,
+      hectaresRequested: Number(app.parcel?.areaHectares || 0),
       parcelReference: app.parcel?.referenceNumber || '',
       parcelName: app.parcel ? `Parcel ${app.parcel.referenceNumber}` : '',
       provinceId: app.parcel?.provinceId || '',

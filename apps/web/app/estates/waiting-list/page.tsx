@@ -221,7 +221,7 @@ export default function EstatesWaitingListPage() {
                         {provinceName}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem' }}>
-                        {item.proposedLandUse.replace('_', ' ')}
+                        {(item.proposedLandUse || (item as any).intendedActivity || 'Commercial Agriculture')?.replace(/_/g, ' ')}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem' }}>
                         {item.hectaresRequested ? `${item.hectaresRequested} ha` : '—'}

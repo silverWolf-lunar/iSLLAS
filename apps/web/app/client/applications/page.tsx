@@ -11,15 +11,17 @@ interface Application {
   status: string;
   provinceId?: string;
   districtId?: string;
-  proposedLandUse: string;
+  proposedLandUse?: string;
+  intendedActivity?: string;
   hectaresRequested?: number;
   capitalInvestmentUsd?: number;
+  proposedInvestmentUsd?: number | string;
   createdAt: string;
   parcel?: {
     id: string;
     referenceNumber: string;
     areaHectares: number;
-    provinceId: string;
+    provinceId?: string;
   };
 }
 
@@ -63,7 +65,15 @@ export default function ClientApplicationsPage() {
       const res = await fetch('/api/backend/api/v1/applications/my');
       if (res.ok) {
         const data = await res.json();
-        setApplications(Array.isArray(data) ? data : data.data || []);
+        const rawList = Array.isArray(data) ? data : data.data || [];
+        const normalized: Application[] = rawList.map((item: any) => ({
+          ...item,
+          proposedLandUse: item.proposedLandUse || item.intendedActivity || 'Commercial Agriculture',
+          intendedActivity: item.intendedActivity || item.proposedLandUse || 'Commercial Agriculture',
+          hectaresRequested: item.hectaresRequested || item.parcel?.areaHectares || 50,
+          capitalInvestmentUsd: item.capitalInvestmentUsd ?? (item.proposedInvestmentUsd ? Number(item.proposedInvestmentUsd) : 15000),
+        }));
+        setApplications(normalized);
       }
     } catch (err) {
       console.error('Failed to load applications', err);
@@ -286,12 +296,12 @@ export default function ClientApplicationsPage() {
                         )}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem' }}>
-                        {app.proposedLandUse.replace('_', ' ')}
+                        {(app.proposedLandUse || app.intendedActivity || 'Commercial Agriculture')?.replace(/_/g, ' ')}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem' }}>
-                        <div>{app.hectaresRequested ? `${app.hectaresRequested} ha` : 'Unspecified'}</div>
+                        <div>{app.hectaresRequested || app.parcel?.areaHectares ? `${app.hectaresRequested || app.parcel?.areaHectares} ha` : 'Unspecified'}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {app.capitalInvestmentUsd ? `$${app.capitalInvestmentUsd.toLocaleString()} USD` : ''}
+                          {(app.capitalInvestmentUsd ?? app.proposedInvestmentUsd) ? `$${Number(app.capitalInvestmentUsd ?? app.proposedInvestmentUsd).toLocaleString()} USD` : ''}
                         </div>
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem' }}>
