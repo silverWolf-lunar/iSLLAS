@@ -183,23 +183,6 @@ export default function LandingPage() {
         padding: '72px 24px 48px',
         textAlign: 'center',
       }}>
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '6px 16px',
-          borderRadius: '999px',
-          background: 'rgba(34, 197, 94, 0.1)',
-          border: '1px solid rgba(34, 197, 94, 0.25)',
-          color: 'var(--primary-400)',
-          fontSize: '0.8125rem',
-          fontWeight: 600,
-          marginBottom: '24px',
-        }}>
-          <span>🏛️</span>
-          <span>Official National Agricultural Cadastre & Digital Lease Registry</span>
-        </div>
-
         <h1 style={{
           fontSize: 'clamp(2.2rem, 5vw, 3.75rem)',
           fontWeight: 800,
