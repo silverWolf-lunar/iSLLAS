@@ -323,7 +323,6 @@ export default function LandingPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
             gap: '48px',
             alignItems: 'center',
-            marginBottom: '54px',
           }}>
             {/* Left Column: Statutory Badge & Main Heading */}
             <div>
@@ -503,90 +502,6 @@ export default function LandingPage() {
                 <div>
                   <strong style={{ color: isLight ? '#166534' : '#4ade80' }}>Open Intake Cycle:</strong> Active allocation rounds are ongoing for A1 Smallholder and A2 Commercial farmland across all provinces.
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Floating Live Metric Cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '18px',
-            textAlign: 'left',
-          }}>
-            <div className="glass-panel" style={{
-              padding: '22px 24px',
-              borderRadius: '14px',
-              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
-              backdropFilter: 'blur(18px)',
-              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
-              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
-            }}>
-              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Verified State Farmland
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '6px 0 2px' }}>
-                1,240,000+ <span style={{ fontSize: '0.9rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>ha</span>
-              </div>
-              <div style={{ fontSize: '0.8125rem', color: isLight ? '#15803d' : 'var(--primary-400)', fontWeight: 500 }}>
-                Boundaries digitally surveyed
-              </div>
-            </div>
-
-            <div className="glass-panel" style={{
-              padding: '22px 24px',
-              borderRadius: '14px',
-              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
-              backdropFilter: 'blur(18px)',
-              border: isLight ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(34, 197, 94, 0.35)',
-              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
-            }}>
-              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Available Idle Parcels
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#16a34a' : 'var(--primary-400)', margin: '6px 0 2px' }}>
-                420+ Parcels
-              </div>
-              <div style={{ fontSize: '0.8125rem', color: isLight ? '#15803d' : 'var(--primary-400)', fontWeight: 500 }}>
-                Open for immediate application
-              </div>
-            </div>
-
-            <div className="glass-panel" style={{
-              padding: '22px 24px',
-              borderRadius: '14px',
-              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
-              backdropFilter: 'blur(18px)',
-              border: isLight ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(245, 158, 11, 0.3)',
-              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
-            }}>
-              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Bankable 99-Year Leases
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#d97706' : 'var(--accent-400)', margin: '6px 0 2px' }}>
-                1,850+ Issued
-              </div>
-              <div style={{ fontSize: '0.8125rem', color: isLight ? '#b45309' : 'var(--accent-400)', fontWeight: 500 }}>
-                Collateral-eligible legal tenure
-              </div>
-            </div>
-
-            <div className="glass-panel" style={{
-              padding: '22px 24px',
-              borderRadius: '14px',
-              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.8)',
-              backdropFilter: 'blur(18px)',
-              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
-              boxShadow: isLight ? '0 8px 24px rgba(15, 23, 42, 0.06)' : undefined,
-            }}>
-              <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Jurisdictional Stations
-              </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, color: isLight ? '#0f172a' : '#ffffff', margin: '6px 0 2px' }}>
-                10 Provinces
-              </div>
-              <div style={{ fontSize: '0.8125rem', color: isLight ? '#2563eb' : '#60a5fa', fontWeight: 500 }}>
-                60 District Land Registry Offices
               </div>
             </div>
           </div>
