@@ -5,7 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useApp } from '../components/AppContext';
 import { ParcelRecord } from '../lib/parcel-data';
-import { ParcelStatus, NaturalRegion } from '@sllas/contracts';
+import { ParcelStatus, NaturalRegion, Role } from '@sllas/contracts';
 import { ApplyForParcelModal } from '../components/ApplyForParcelModal';
 
 const SpatialMap = dynamic(
@@ -14,7 +14,7 @@ const SpatialMap = dynamic(
 );
 
 export default function ParcelsExplorerPage() {
-  const { parcels, provinces } = useApp();
+  const { parcels, provinces, currentUser } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvince, setSelectedProvince] = useState('');
@@ -140,9 +140,11 @@ export default function ParcelsExplorerPage() {
           <button onClick={handleExportCSV} className="btn btn-outline" style={{ fontSize: '0.75rem' }}>
             Export CSV
           </button>
-          <Link href="/parcels/new" className="btn btn-primary" style={{ fontSize: '0.75rem' }}>
-            + Register Parcel
-          </Link>
+          {currentUser?.role !== Role.CLIENT && (
+            <Link href="/parcels/new" className="btn btn-primary" style={{ fontSize: '0.75rem' }}>
+              + Register Parcel
+            </Link>
+          )}
         </div>
       </div>
 

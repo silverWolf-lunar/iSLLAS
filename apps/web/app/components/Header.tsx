@@ -115,25 +115,27 @@ export function Header({
           <span>Ministry of Lands</span>
         </div>
 
-        {/* Development Role Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.6875rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Portal:
-          </span>
-          <select
-            value={role}
-            disabled={switchingRole}
-            onChange={(e) => handleRoleChange(e.target.value as Role)}
-            className="header-role-select"
-          >
-            <option value={Role.CLIENT}>Farmer / Client</option>
-            <option value={Role.REGISTRY_OFFICER}>Registry Officer</option>
-            <option value={Role.APPROVER}>Board Approver</option>
-            <option value={Role.ESTATES_OFFICER}>Estates Officer</option>
-            <option value={Role.SYSTEM_ADMIN}>System Admin</option>
-            <option value={Role.AUDITOR}>Auditor</option>
-          </select>
-        </div>
+        {/* Development Role Switcher (Hidden on Farmer Portal) */}
+        {role !== Role.CLIENT && !pathname.startsWith('/client') && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Portal:
+            </span>
+            <select
+              value={role}
+              disabled={switchingRole}
+              onChange={(e) => handleRoleChange(e.target.value as Role)}
+              className="header-role-select"
+            >
+              <option value={Role.CLIENT}>Farmer / Client</option>
+              <option value={Role.REGISTRY_OFFICER}>Registry Officer</option>
+              <option value={Role.APPROVER}>Board Approver</option>
+              <option value={Role.ESTATES_OFFICER}>Estates Officer</option>
+              <option value={Role.SYSTEM_ADMIN}>System Admin</option>
+              <option value={Role.AUDITOR}>Auditor</option>
+            </select>
+          </div>
+        )}
 
         <ThemeSwitcher />
 
