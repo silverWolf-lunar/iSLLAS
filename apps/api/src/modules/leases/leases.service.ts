@@ -88,8 +88,8 @@ export class LeasesService {
       leaseNumber: detail.leaseNumber,
       title: 'STATE LAND LEASE AND ALLOCATION AGREEMENT',
       jurisdiction: `${detail.parcel?.district ?? 'District'}, ${detail.parcel?.province ?? 'Province'}, Republic of Zimbabwe`,
-      republicHeader: 'GOVERNMENT OF THE REPUBLIC OF ZIMBABWE\nMINISTRY OF LANDS, AGRICULTURE, FISHERIES, WATER AND RURAL DEVELOPMENT',
-      lessor: 'The President of the Republic of Zimbabwe, represented by the Minister of Lands, Agriculture, Fisheries, Water and Rural Development',
+      republicHeader: 'GOVERNMENT OF THE REPUBLIC OF ZIMBABWE\nMINISTRY OF LANDS & RURAL DEVELOPMENT',
+      lessor: 'The President of the Republic of Zimbabwe, represented by the Minister of Lands & Rural Development',
       lessee: {
         name: clientName,
         type: detail.client?.clientType || 'INDIVIDUAL',
@@ -123,7 +123,7 @@ export class LeasesService {
         '6. DISPUTE RESOLUTION: Any dispute arising out of or in connection with this agreement shall be referred to the Zimbabwe Land Commission for determination pursuant to Section 297 of the Constitution of Zimbabwe.',
       ],
       signatories: {
-        lessorTitle: 'For and on behalf of the Minister of Lands, Agriculture, Fisheries, Water and Rural Development',
+        lessorTitle: 'For and on behalf of the Minister of Lands & Rural Development',
         lessorRepresentative: 'Chief Land Registrar / Secretary for Lands',
         lesseeRepresentative: clientName,
         witnessOne: 'Registry Officer / District Land Officer',

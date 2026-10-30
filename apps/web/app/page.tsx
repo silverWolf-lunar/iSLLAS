@@ -69,7 +69,7 @@ export default function LandingPage() {
           <span>🇿🇼</span>
           <strong>REPUBLIC OF ZIMBABWE</strong>
           <span>•</span>
-          <span>Ministry of Lands, Agriculture, Fisheries, Water and Rural Development</span>
+          <span>Ministry of Lands & Rural Development</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span>Agricultural Land Settlement Act (Cap 20:01)</span>
@@ -881,7 +881,7 @@ export default function LandingPage() {
               Ministry Headquarters
             </h4>
             <div style={{ fontSize: '0.8125rem', lineHeight: 1.6 }}>
-              Ministry of Lands, Agriculture, Fisheries, Water and Rural Development<br />
+              Ministry of Lands & Rural Development<br />
               Ngungunyana Building, 1 Borrowdale Road<br />
               Harare, Republic of Zimbabwe<br />
               Hotline: +263 242 706081 / 706082<br />

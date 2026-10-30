@@ -91,7 +91,7 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
           <div className="app-footer-group">
             <span style={{ color: 'var(--primary-400)', fontWeight: 600 }}>SLLAS v0.2.0</span>
             <span>•</span>
-            <span>Ministry of Lands, Agriculture, Fisheries, Water and Rural Development</span>
+            <span>Ministry of Lands & Rural Development</span>
             <span>•</span>
             <span>Government of Zimbabwe</span>
           </div>

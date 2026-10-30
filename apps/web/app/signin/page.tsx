@@ -515,7 +515,7 @@ function SignInContent() {
         color: 'var(--text-dim)',
       }}>
         <div>Smart Land Lease and Allocation System (SLLAS) • Republic of Zimbabwe</div>
-        <div style={{ marginTop: '4px' }}>Ministry of Lands, Agriculture, Fisheries, Water and Rural Development</div>
+        <div style={{ marginTop: '4px' }}>Ministry of Lands & Rural Development</div>
       </footer>
     </div>
   );
