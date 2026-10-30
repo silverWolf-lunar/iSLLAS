@@ -9,10 +9,106 @@ import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { Role } from '@sllas/contracts';
 import { getDefaultDashboardForRole, ROLE_CONFIG } from './lib/access';
 
+interface LandNewsArticle {
+  id: string;
+  badge: string;
+  badgeBg: string;
+  badgeColor: string;
+  badgeBorder: string;
+  title: string;
+  date: string;
+  readTime: string;
+  source: string;
+  gazetteRef: string;
+  summary: string;
+  bulletPoints: string[];
+  fullGazetteText: string;
+}
+
+const LAND_NEWS_ARTICLES: LandNewsArticle[] = [
+  {
+    id: 'si-142-2026',
+    badge: 'Statutory Instrument',
+    badgeBg: 'rgba(245, 158, 11, 0.15)',
+    badgeColor: '#d97706',
+    badgeBorder: 'rgba(245, 158, 11, 0.35)',
+    title: 'Statutory Instrument 142 of 2026: Bankable 99-Year Leasehold Financing Framework Gazetted',
+    date: '28 October 2026',
+    readTime: '3 min read',
+    source: 'Government Gazette Extraordinary',
+    gazetteRef: 'GN 412/2026 • SI 142 of 2026',
+    summary: 'The Ministry of Lands & Rural Development, together with the Reserve Bank of Zimbabwe and commercial banking institutions, has gazetted statutory provisions granting full collateral and transferable leasehold rights to 99-Year Lease holders.',
+    bulletPoints: [
+      'Leases now eligible as direct bankable collateral for commercial agribusiness and mechanisation loans.',
+      'Mandatory tripartite registration between Ministry, Leaseholder, and Financing Bank.',
+      'Standardized dispute resolution protocol ensuring uninterrupted seasonal farming operations.',
+    ],
+    fullGazetteText: 'Under the statutory provisions of the Agricultural Land Settlement Act (Chapter 20:01) as amended by Statutory Instrument 142 of 2026, the Minister of Lands & Rural Development hereby certifies that all authenticated 99-Year Leases registered within the Smart Land Lease and Allocation System (SLLAS) constitute legal, bankable, and assignable security of tenure. Commercial banking institutions licensed under the Banking Act are authorized to register collateral mortgage liens over the leasehold interest, subject to standard ministerial notification protocols.',
+  },
+  {
+    id: 'audit-repossessions-2026',
+    badge: 'Tenure Enforcement',
+    badgeBg: 'rgba(34, 197, 94, 0.15)',
+    badgeColor: '#16a34a',
+    badgeBorder: 'rgba(34, 197, 94, 0.35)',
+    title: 'National Cadastre Farmland Audit: 14,800 Idle Hectares Repossessed for Waitlist Allocation',
+    date: '22 October 2026',
+    readTime: '4 min read',
+    source: 'Zimbabwe Land Commission Secretariat',
+    gazetteRef: 'General Notice 389/2026',
+    summary: 'Following a comprehensive ground and satellite-assisted inspection across Mashonaland and Midlands provinces, 14,800 hectares of unutilized or speculatively held farmland were repossessed under the statutory One-Person-One-Farm policy.',
+    bulletPoints: [
+      'Underutilized farm parcels identified through multispectral satellite imagery and ground inspections.',
+      'All recovered hectares automatically re-entered into the SLLAS available parcels database.',
+      'Priority queue notifications dispatched to verified applicants awaiting land allocation.',
+    ],
+    fullGazetteText: 'Pursuant to Section 21 of the Land Commission Act, the National Land Audit Steering Committee reports the repossession of 14,800 hectares of agricultural state land found to be abandoned, speculative, or in breach of statutory productivity covenants. All affected parcels have been restored to the national pool and ingested into the SLLAS Spatial Cadastre for immediate sequential allocation to verified farmers on the waiting list.',
+  },
+  {
+    id: 'rtk-drones-survey',
+    badge: 'Spatial Cadastre',
+    badgeBg: 'rgba(59, 130, 246, 0.15)',
+    badgeColor: '#2563eb',
+    badgeBorder: 'rgba(59, 130, 246, 0.35)',
+    title: 'Surveyor-General Deploys High-Precision RTK Drone Fleet Across 60 District Stations',
+    date: '16 October 2026',
+    readTime: '2 min read',
+    source: 'Department of the Surveyor-General',
+    gazetteRef: 'Departmental Communiqué SG-26-08',
+    summary: 'To accelerate cadastral boundary fixations and eliminate historic boundary disputes, the Surveyor-General has equipped all 60 district registry offices with RTK-enabled GNSS surveying drone fleets.',
+    bulletPoints: [
+      'Survey completion timeline reduced from months to under 72 hours per farm parcel.',
+      'Automated polygon geometry ingestion directly into the PostGIS SRID 4326 engine.',
+      'Centimetre-level boundary accuracy certified for gazetted 99-Year Lease schedules.',
+    ],
+    fullGazetteText: 'The Department of the Surveyor-General announces the nationwide operationalization of its RTK aerial mapping fleet. Operating under statutory surveying standards, these uncrewed survey systems establish sub-5cm positional coordinates for all newly demarcated farm parcels, seamlessly synchronizing vector geometries with the national SLLAS cadastre.',
+  },
+  {
+    id: 'youth-women-window',
+    badge: 'Affirmative Action',
+    badgeBg: 'rgba(168, 85, 247, 0.15)',
+    badgeColor: '#9333ea',
+    badgeBorder: 'rgba(168, 85, 247, 0.35)',
+    title: 'Special Affirmative Action Allocation Window Opened for Women & Youth Agribusinesses',
+    date: '08 October 2026',
+    readTime: '3 min read',
+    source: 'Ministry Directorate of Agricultural Resettlement',
+    gazetteRef: 'Statutory Quota Directives 2026',
+    summary: 'The Ministry has formally opened a dedicated statutory allocation intake reserving a 20% quota for qualified female farmers and young agricultural graduates aged 18 to 35 years.',
+    bulletPoints: [
+      'Reserved parcels located in high-rainfall Natural Agro-Ecological Regions II and III.',
+      'Preferential technical evaluation scoring for horticulture and dairy enterprise proposals.',
+      'Includes AFC Land and Development Bank seasonal input credit linkage and mentorship.',
+    ],
+    fullGazetteText: 'In fulfillment of Section 17 of the Constitution of Zimbabwe regarding gender balance and youth empowerment in agriculture, the Ministry has designated a minimum statutory allocation quota of 20% across all upcoming state land distribution batches specifically reserved for certified youth and female entrepreneurs who satisfy the basic eligibility checklist.',
+  },
+];
+
 export default function LandingPage() {
   const { data: session } = useSession();
   const { resolvedTheme } = useTheme();
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [selectedNews, setSelectedNews] = useState<LandNewsArticle | null>(null);
 
   const isLight = resolvedTheme === 'light';
   const userRole = (session?.user as any)?.role as Role | undefined;
@@ -114,31 +210,15 @@ export default function LandingPage() {
             <a href="#schemes" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               Land Schemes
             </a>
+            <a href="#news" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+              Land News
+            </a>
             <a href="#eligibility" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               Eligibility Checklist
             </a>
             <a href="#faqs" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               FAQs
             </a>
-            <Link
-              href="/parcels?status=AVAILABLE&view=map"
-              style={{
-                color: isLight ? '#15803d' : 'var(--primary-400)',
-                textDecoration: 'none',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                background: isLight ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.1)',
-                border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.25)',
-              }}
-            >
-              <span>🗺️</span>
-              <span>Cadastre Map</span>
-            </Link>
 
             {/* Quick Theme Switcher Function */}
             <ThemeSwitcher />
@@ -204,134 +284,227 @@ export default function LandingPage() {
         overflow: 'hidden',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
       }}>
-        {/* Background Image Layer */}
+        {/* Background Image Layer - High Visibility */}
         <div style={{
           position: 'absolute',
           inset: 0,
           backgroundImage: 'url(/images/hero-farmland.jpg)',
           backgroundSize: 'cover',
-          backgroundPosition: 'center 35%',
+          backgroundPosition: 'center 38%',
+          filter: isLight ? 'brightness(1.06) contrast(1.08) saturate(1.18)' : 'brightness(0.96) contrast(1.12) saturate(1.22)',
           transform: 'scale(1.02)',
         }} />
 
-        {/* Ambient Dark Gradient Overlays for Readability & Drama */}
+        {/* Ambient Overlays for Readability while Keeping Landscape Visible */}
         <div style={{
           position: 'absolute',
           inset: 0,
           background: isLight
-            ? 'linear-gradient(180deg, rgba(6, 9, 19, 0.6) 0%, rgba(6, 9, 19, 0.76) 45%, rgba(248, 250, 252, 0.9) 85%, #f8fafc 100%)'
-            : 'linear-gradient(180deg, rgba(6, 9, 19, 0.72) 0%, rgba(6, 9, 19, 0.82) 50%, #060913 100%)',
+            ? 'linear-gradient(180deg, rgba(6, 9, 19, 0.30) 0%, rgba(6, 9, 19, 0.46) 55%, rgba(248, 250, 252, 0.95) 90%, #f8fafc 100%)'
+            : 'linear-gradient(180deg, rgba(6, 9, 19, 0.35) 0%, rgba(6, 9, 19, 0.50) 55%, #060913 100%)',
         }} />
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(ellipse at 50% 30%, rgba(34, 197, 94, 0.18) 0%, transparent 75%)',
+          background: 'radial-gradient(ellipse at 50% 30%, rgba(34, 197, 94, 0.16) 0%, transparent 75%)',
         }} />
 
         {/* Hero Foreground Content */}
         <div style={{
           position: 'relative',
           zIndex: 2,
-          maxWidth: '1240px',
+          maxWidth: '1360px',
           margin: '0 auto',
-          textAlign: 'center',
           width: '100%',
         }}>
-          <h1 style={{
-            fontSize: 'clamp(2.4rem, 5.5vw, 4.25rem)',
-            fontWeight: 800,
-            lineHeight: 1.15,
-            color: '#ffffff',
-            maxWidth: '980px',
-            margin: '0 auto 22px',
-            letterSpacing: '-0.025em',
-            textShadow: '0 4px 30px rgba(0, 0, 0, 0.85)',
-          }}>
-            Fair, Transparent & Digital <br />
-            <span style={{
-              background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #facc15 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              Agricultural Land Allocation
-            </span>
-          </h1>
-
-          <p style={{
-            fontSize: 'clamp(1.05rem, 2vw, 1.3rem)',
-            color: '#e2e8f0',
-            maxWidth: '820px',
-            margin: '0 auto 40px',
-            lineHeight: 1.65,
-            textShadow: '0 2px 16px rgba(0, 0, 0, 0.9)',
-          }}>
-            Apply for verified state farmland, track land board evaluations in real time, and obtain bankable 99-year leases secured by GIS spatial mapping across Zimbabwe's 10 administrative provinces.
-          </p>
-
-          {/* Hero Action Buttons */}
+          {/* x2 Grid Layout for Heading & Subheading */}
           <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '16px',
-            flexWrap: 'wrap',
-            marginBottom: '64px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+            gap: '48px',
+            alignItems: 'center',
+            marginBottom: '54px',
           }}>
-            <Link
-              href="/parcels?status=AVAILABLE&view=map"
-              className="btn btn-primary"
-              style={{
-                padding: '16px 32px',
-                fontSize: '1.05rem',
+            {/* Left Column: Statutory Badge & Main Heading */}
+            <div>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                background: 'rgba(34, 197, 94, 0.24)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(74, 222, 128, 0.45)',
+                color: '#4ade80',
+                fontSize: '0.8125rem',
                 fontWeight: 700,
+                letterSpacing: '0.05em',
+                marginBottom: '18px',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)',
+              }}>
+                <span>🇿🇼</span>
+                <span>OFFICIAL STATUTORY STATE LAND REGISTRY</span>
+              </div>
+
+              <h1 style={{
+                fontSize: 'clamp(2.3rem, 4.2vw, 3.8rem)',
+                fontWeight: 800,
+                lineHeight: 1.15,
+                color: '#ffffff',
+                letterSpacing: '-0.025em',
+                textShadow: '0 4px 30px rgba(0, 0, 0, 0.95), 0 2px 6px rgba(0, 0, 0, 0.85)',
+                margin: '0 0 20px',
+              }}>
+                Fair, Transparent & Digital <br />
+                <span style={{
+                  background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #facc15 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>
+                  Agricultural Land Allocation
+                </span>
+              </h1>
+
+              {/* Pillars / Trust Badges */}
+              <div style={{
                 display: 'flex',
-                alignItems: 'center',
+                flexWrap: 'wrap',
                 gap: '10px',
-                boxShadow: '0 8px 24px rgba(22, 163, 74, 0.45)',
-              }}
-            >
-              <span>🗺️</span>
-              <span>Explore Available Farmland (Cadastre)</span>
-            </Link>
+              }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  background: 'rgba(6, 9, 19, 0.65)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                }}>
+                  <span style={{ color: '#4ade80' }}>✓</span> PostGIS Geovalidation
+                </span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  background: 'rgba(6, 9, 19, 0.65)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                }}>
+                  <span style={{ color: '#4ade80' }}>✓</span> Bankable 99-Year Leases
+                </span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  background: 'rgba(6, 9, 19, 0.65)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                }}>
+                  <span style={{ color: '#4ade80' }}>✓</span> Segregation of Duties
+                </span>
+              </div>
+            </div>
 
-            <Link
-              href="/signin"
-              className="btn btn-outline"
-              style={{
-                padding: '16px 30px',
-                fontSize: '1.05rem',
-                fontWeight: 600,
+            {/* Right Column: Subheading & Action Buttons in a Glass Card */}
+            <div style={{
+              background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.82)',
+              backdropFilter: 'blur(24px)',
+              padding: '36px 32px',
+              borderRadius: '20px',
+              border: isLight ? '1px solid rgba(255, 255, 255, 0.8)' : '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: isLight ? '0 20px 40px -10px rgba(15, 23, 42, 0.16)' : '0 24px 50px -12px rgba(0, 0, 0, 0.75)',
+            }}>
+              <p style={{
+                fontSize: 'clamp(1.05rem, 1.8vw, 1.25rem)',
+                color: isLight ? '#1e293b' : '#f1f5f9',
+                margin: '0 0 28px',
+                lineHeight: 1.65,
+                fontWeight: 450,
+              }}>
+                Apply for verified state farmland, track land board evaluations in real time, and obtain bankable 99-year leases secured by GIS spatial mapping across Zimbabwe's 10 administrative provinces.
+              </p>
+
+              {/* Hero Action Buttons (Explore Available Farmland removed) */}
+              <div style={{
+                display: 'flex',
+                gap: '14px',
+                flexWrap: 'wrap',
+                marginBottom: '24px',
+              }}>
+                <Link
+                  href="/signin"
+                  className="btn btn-primary"
+                  style={{
+                    padding: '16px 28px',
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 8px 24px rgba(22, 163, 74, 0.45)',
+                    flex: '1 1 200px',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span>📝</span>
+                  <span>Start Land Application</span>
+                </Link>
+
+                <a
+                  href="#process"
+                  className="btn btn-outline"
+                  style={{
+                    padding: '16px 24px',
+                    fontSize: '1.05rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: isLight ? 'rgba(241, 245, 249, 0.85)' : 'rgba(255, 255, 255, 0.08)',
+                    backdropFilter: 'blur(10px)',
+                    borderColor: isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.25)',
+                    color: isLight ? '#0f172a' : '#ffffff',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span>📘</span>
+                  <span>6-Step Guide</span>
+                </a>
+              </div>
+
+              {/* Intake Status Notice */}
+              <div style={{
+                padding: '14px 18px',
+                borderRadius: '12px',
+                background: isLight ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.15)',
+                border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(15, 23, 42, 0.65)',
-                backdropFilter: 'blur(10px)',
-                borderColor: isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.3)',
-                color: isLight ? '#0f172a' : '#ffffff',
-                boxShadow: isLight ? '0 4px 12px rgba(0,0,0,0.06)' : 'none',
-              }}
-            >
-              <span>📝</span>
-              <span>Start Land Application</span>
-            </Link>
-
-            <a
-              href="#process"
-              className="btn btn-outline"
-              style={{
-                padding: '16px 24px',
-                fontSize: '1.05rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: isLight ? 'rgba(255, 255, 255, 0.88)' : 'rgba(15, 23, 42, 0.65)',
-                backdropFilter: 'blur(10px)',
-                borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.2)',
-                color: isLight ? '#334155' : '#cbd5e1',
-              }}
-            >
-              <span>📘</span>
-              <span>6-Step Guide</span>
-            </a>
+                gap: '12px',
+                fontSize: '0.8125rem',
+                color: isLight ? '#15803d' : '#e2e8f0',
+              }}>
+                <span style={{ fontSize: '1.25rem' }}>🏛️</span>
+                <div>
+                  <strong style={{ color: isLight ? '#166534' : '#4ade80' }}>Open Intake Cycle:</strong> Active allocation rounds are ongoing for A1 Smallholder and A2 Commercial farmland across all provinces.
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Floating Live Metric Cards */}
@@ -803,23 +976,23 @@ export default function LandingPage() {
         borderTop: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
         borderBottom: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
       }}>
-        {/* Harvest Background Image Layer */}
+        {/* Harvest Background Image Layer - High Visibility */}
         <div style={{
           position: 'absolute',
           inset: 0,
           backgroundImage: 'url(/images/harvest-field.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          filter: isLight ? 'brightness(0.55) contrast(1.05)' : 'brightness(0.38) contrast(1.15)',
+          filter: isLight ? 'brightness(0.92) contrast(1.08) saturate(1.15)' : 'brightness(0.72) contrast(1.12) saturate(1.2)',
         }} />
 
-        {/* Ambient Dark Gradient Overlays */}
+        {/* Ambient Overlays for Contrast while Keeping Harvest Field Visible */}
         <div style={{
           position: 'absolute',
           inset: 0,
           background: isLight
-            ? 'linear-gradient(180deg, #f8fafc 0%, rgba(6, 9, 19, 0.72) 30%, rgba(6, 9, 19, 0.78) 70%, #ffffff 100%)'
-            : 'linear-gradient(180deg, #060913 0%, rgba(6, 9, 19, 0.75) 50%, #060913 100%)',
+            ? 'linear-gradient(180deg, #f8fafc 0%, rgba(6, 9, 19, 0.40) 25%, rgba(6, 9, 19, 0.46) 75%, #ffffff 100%)'
+            : 'linear-gradient(180deg, #060913 0%, rgba(6, 9, 19, 0.50) 50%, #060913 100%)',
         }} />
 
         {/* Content Container */}
@@ -982,7 +1155,342 @@ export default function LandingPage() {
       </section>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 5. STATUTORY CHECKLIST & MANDATORY DOCUMENTS                 */}
+      {/* 5. LATEST LAND NEWS & POLICY HIGHLIGHTS                       */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <section id="news" style={{
+        maxWidth: '1360px',
+        margin: '90px auto',
+        padding: '0 24px',
+      }}>
+        {/* Section Header */}
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '5px 14px',
+            borderRadius: '9999px',
+            background: isLight ? 'rgba(34, 197, 94, 0.14)' : 'rgba(34, 197, 94, 0.18)',
+            border: isLight ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(34, 197, 94, 0.35)',
+            color: isLight ? '#15803d' : 'var(--primary-400)',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            marginBottom: '14px',
+          }}>
+            <span>📰</span>
+            <span>STATUTORY GAZETTES & POLICY REFORMS</span>
+          </div>
+
+          <h2 style={{
+            fontSize: 'clamp(2rem, 4vw, 2.75rem)',
+            fontWeight: 800,
+            color: isLight ? '#0f172a' : '#ffffff',
+            marginBottom: '12px',
+            letterSpacing: '-0.02em',
+          }}>
+            Latest Land News & Policy Highlights
+          </h2>
+          <p style={{
+            color: isLight ? '#475569' : 'var(--text-muted)',
+            maxWidth: '740px',
+            margin: '0 auto',
+            fontSize: '0.95rem',
+            lineHeight: 1.65,
+          }}>
+            Official communiqués, gazetted regulations, national land audit findings, and cadastre modernization updates from the Ministry of Lands & Rural Development.
+          </p>
+        </div>
+
+        {/* News Grid (4 Cards) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))',
+          gap: '24px',
+        }}>
+          {LAND_NEWS_ARTICLES.map((article) => (
+            <div
+              key={article.id}
+              className="glass-panel"
+              style={{
+                borderRadius: '18px',
+                padding: '28px 24px',
+                background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.8)',
+                backdropFilter: 'blur(16px)',
+                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: isLight ? '0 6px 20px rgba(15, 23, 42, 0.05)' : '0 10px 25px rgba(0, 0, 0, 0.3)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+              }}
+            >
+              <div>
+                {/* Badge & Date Header */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginBottom: '16px',
+                  flexWrap: 'wrap',
+                }}>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    background: article.badgeBg,
+                    color: article.badgeColor,
+                    border: `1px solid ${article.badgeBorder}`,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}>
+                    {article.badge}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
+                    📅 {article.date} • {article.readTime}
+                  </span>
+                </div>
+
+                {/* Title */}
+                <h3 style={{
+                  fontSize: '1.15rem',
+                  fontWeight: 700,
+                  lineHeight: 1.4,
+                  color: isLight ? '#0f172a' : '#ffffff',
+                  marginBottom: '10px',
+                }}>
+                  {article.title}
+                </h3>
+
+                {/* Source / Gazette Reference */}
+                <div style={{
+                  fontSize: '0.75rem',
+                  color: isLight ? '#15803d' : 'var(--primary-400)',
+                  fontWeight: 600,
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}>
+                  <span>🏛️</span>
+                  <span>{article.gazetteRef}</span>
+                </div>
+
+                {/* Summary */}
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: isLight ? '#475569' : 'var(--text-muted)',
+                  lineHeight: 1.6,
+                  marginBottom: '18px',
+                }}>
+                  {article.summary}
+                </p>
+
+                {/* Key Bullet Highlights */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  marginBottom: '20px',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  background: isLight ? 'rgba(241, 245, 249, 0.7)' : 'rgba(2, 6, 23, 0.5)',
+                  border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.05)',
+                }}>
+                  {article.bulletPoints.map((point, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      fontSize: '0.8125rem',
+                      color: isLight ? '#334155' : '#cbd5e1',
+                    }}>
+                      <span style={{ color: isLight ? '#16a34a' : '#4ade80', fontWeight: 800 }}>✓</span>
+                      <span>{point}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action */}
+              <button
+                type="button"
+                onClick={() => setSelectedNews(article)}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                  background: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.06)',
+                  color: isLight ? '#0f172a' : '#ffffff',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <span>Read Official Communiqué</span>
+                <span>→</span>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Interactive Communiqué Modal */}
+        {selectedNews && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}>
+            <div style={{
+              background: isLight ? '#ffffff' : '#090e1a',
+              borderRadius: '20px',
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(34, 197, 94, 0.4)',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.6)',
+              position: 'relative',
+            }}>
+              {/* Top Official Ministry Banner */}
+              <div style={{
+                background: 'linear-gradient(90deg, #166534 0%, #15803d 50%, #854d0e 100%)',
+                padding: '16px 24px',
+                color: '#fef08a',
+                fontSize: '0.75rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderTopLeftRadius: '19px',
+                borderTopRightRadius: '19px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🇿🇼</span>
+                  <strong>REPUBLIC OF ZIMBABWE • STATUTORY COMMUNIQUÉ</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNews(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontSize: '1.25rem',
+                    cursor: 'pointer',
+                    lineHeight: 1,
+                    padding: '2px 8px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '28px 28px 32px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '14px',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                }}>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    background: selectedNews.badgeBg,
+                    color: selectedNews.badgeColor,
+                    border: `1px solid ${selectedNews.badgeBorder}`,
+                  }}>
+                    {selectedNews.badge}
+                  </span>
+                  <span style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
+                    Published: {selectedNews.date}
+                  </span>
+                </div>
+
+                <h3 style={{
+                  fontSize: '1.4rem',
+                  fontWeight: 800,
+                  color: isLight ? '#0f172a' : '#ffffff',
+                  lineHeight: 1.35,
+                  marginBottom: '12px',
+                }}>
+                  {selectedNews.title}
+                </h3>
+
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
+                  border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+                  fontSize: '0.8125rem',
+                  marginBottom: '20px',
+                  color: isLight ? '#334155' : '#cbd5e1',
+                }}>
+                  <strong>Authority Reference:</strong> {selectedNews.gazetteRef} • <em>{selectedNews.source}</em>
+                </div>
+
+                <div style={{
+                  fontSize: '0.9375rem',
+                  lineHeight: 1.7,
+                  color: isLight ? '#334155' : '#e2e8f0',
+                  marginBottom: '24px',
+                  padding: '16px 18px',
+                  borderRadius: '12px',
+                  background: isLight ? 'rgba(34, 197, 94, 0.06)' : 'rgba(34, 197, 94, 0.1)',
+                  borderLeft: '4px solid #22c55e',
+                }}>
+                  {selectedNews.fullGazetteText}
+                </div>
+
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '10px' }}>
+                  Statutory Enactments & Directives:
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '28px' }}>
+                  {selectedNews.bulletPoints.map((pt, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.875rem', color: isLight ? '#475569' : '#cbd5e1' }}>
+                      <span style={{ color: '#16a34a', fontWeight: 800 }}>✓</span>
+                      <span>{pt}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Footer action */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNews(null)}
+                    className="btn btn-primary"
+                    style={{ padding: '10px 24px', fontSize: '0.875rem' }}
+                  >
+                    Close Communiqué
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 6. STATUTORY CHECKLIST & MANDATORY DOCUMENTS                 */}
       {/* ───────────────────────────────────────────────────────────── */}
       <section id="eligibility" style={{
         maxWidth: '1360px',
@@ -1086,7 +1594,7 @@ export default function LandingPage() {
       </section>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 6. FAQ ACCORDION SECTION                                     */}
+      {/* 7. FAQ ACCORDION SECTION                                     */}
       {/* ───────────────────────────────────────────────────────────── */}
       <section id="faqs" style={{
         maxWidth: '960px',
@@ -1179,7 +1687,7 @@ export default function LandingPage() {
       </section>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 7. FOOTER & MINISTRY DIRECTORY                                */}
+      {/* 8. FOOTER & MINISTRY DIRECTORY                                */}
       {/* ───────────────────────────────────────────────────────────── */}
       <footer style={{
         borderTop: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
