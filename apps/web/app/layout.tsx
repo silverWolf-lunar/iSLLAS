@@ -13,6 +13,7 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://isllas.com'),
   title: 'SLLAS — Smart Land Lease and Allocation System (Zimbabwe)',
   description: 'National land registry, lease workflow, and idle land allocation platform for the Republic of Zimbabwe.',
   icons: {
