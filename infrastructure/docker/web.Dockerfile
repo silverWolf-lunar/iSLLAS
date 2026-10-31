@@ -17,6 +17,7 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/web/next.config.mjs apps/web/next.config.mjs
+COPY apps/web/public apps/web/public
 COPY --from=build /workspace/apps/web/.next apps/web/.next
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY --from=build /workspace/packages/contracts/dist packages/contracts/dist
