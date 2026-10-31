@@ -3,6 +3,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -25,6 +26,15 @@ import Svg, {
   Line,
   Text as SvgText,
 } from 'react-native-svg';
+import {
+  ZIMBABWE_NATIONAL_OUTLINE,
+  ZIMBABWE_PROVINCES,
+  ZIMBABWE_WATERCOURSES,
+  GEODETIC_GRID,
+  AGRO_REGIONS_LEGEND,
+} from './zimbabwe_geo';
+
+const SATELLITE_MAP_IMG = require('./assets/zimbabwe_satellite_map.jpg');
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -118,8 +128,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Red Clay Loam',
     waterAccess: true,
     roadAccess: 'Tarred Highway Access',
-    mapX: 165,
-    mapY: 105,
+    mapX: 223,
+    mapY: 87,
     gpsCoords: '17°21\'15"S 30°11\'54"E',
     surveyBeacons: 'BM-401, BM-402, BM-403, BM-404',
   },
@@ -136,8 +146,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Sandy Loam',
     waterAccess: true,
     roadAccess: 'All-Weather Gravel',
-    mapX: 175,
-    mapY: 180,
+    mapX: 208,
+    mapY: 168,
     gpsCoords: '19°27\'32"S 29°50\'16"E',
     surveyBeacons: 'BM-118A, BM-118B, BM-118C',
   },
@@ -154,8 +164,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Humic Forest Soil',
     waterAccess: true,
     roadAccess: 'Tarred Mountain Road',
-    mapX: 295,
-    mapY: 155,
+    mapX: 332,
+    mapY: 134,
     gpsCoords: '18°34\'18"S 32°50\'53"E',
     surveyBeacons: 'HV-089A, HV-089B',
   },
@@ -172,8 +182,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Red Loam',
     waterAccess: false,
     roadAccess: 'Gravel Track',
-    mapX: 235,
-    mapY: 125,
+    mapX: 270,
+    mapY: 105,
     gpsCoords: '17°49\'42"S 31°19\'57"E',
     surveyBeacons: 'GOR-145/1, GOR-145/2',
   },
@@ -190,8 +200,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Alluvial Heavy Clay',
     waterAccess: true,
     roadAccess: 'Canal Service Road',
-    mapX: 240,
-    mapY: 235,
+    mapX: 283,
+    mapY: 228,
     gpsCoords: '21°02\'54"S 31°40\'01"E',
     surveyBeacons: 'CS-204A, CS-204B, CS-204C',
   },
@@ -208,8 +218,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Granitic Coarse Sand',
     waterAccess: true,
     roadAccess: 'District Graded Road',
-    mapX: 135,
-    mapY: 220,
+    mapX: 154,
+    mapY: 211,
     gpsCoords: '20°35\'00"S 28°31\'00"E',
     surveyBeacons: 'MB-062/X, MB-062/Y',
   },
@@ -226,8 +236,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Rich Ferrosol Clay',
     waterAccess: true,
     roadAccess: 'Tarred Strip Road',
-    mapX: 215,
-    mapY: 90,
+    mapX: 255,
+    mapY: 93,
     gpsCoords: '17°31\'00"S 30°59\'00"E',
     surveyBeacons: 'MZ-177/1, MZ-177/2',
   },
@@ -244,8 +254,8 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Kalahari Deep Sand Loam',
     waterAccess: true,
     roadAccess: 'All-Weather Gravel',
-    mapX: 85,
-    mapY: 155,
+    mapX: 144,
+    mapY: 183,
     gpsCoords: '19°52\'00"S 28°16\'00"E',
     surveyBeacons: 'NY-094A, NY-094B',
   },
@@ -795,7 +805,8 @@ export default function App() {
 
   // Cadastre GIS Map View States
   const [mapSelectedProvince, setMapSelectedProvince] = useState<string>('All');
-  const [mapLayerMode, setMapLayerMode] = useState<'cadastre' | 'satellite' | 'agro'>('cadastre');
+  const [mapLayerMode, setMapLayerMode] = useState<'satellite' | 'cadastre' | 'agro' | 'water'>('satellite');
+  const [showMapGrid, setShowMapGrid] = useState<boolean>(true);
 
   // Filtered Parcels for Map View
   const mapFilteredParcels = useMemo(() => {
@@ -1281,12 +1292,13 @@ export default function App() {
               ))}
             </ScrollView>
 
-            {/* Layer switches */}
+            {/* Layer switches & Mode selector */}
             <View style={styles.mapLayerRow}>
               {[
-                { id: 'cadastre', label: '🛰️ Cadastre' },
+                { id: 'satellite', label: '🛰️ Satellite' },
+                { id: 'cadastre', label: '🗺️ Vector Cadastre' },
                 { id: 'agro', label: '🌱 Agro Zones' },
-                { id: 'satellite', label: '💧 Watercourses' },
+                { id: 'water', label: '💧 Watercourses' },
               ].map(layer => (
                 <Pressable
                   key={layer.id}
@@ -1308,33 +1320,77 @@ export default function App() {
               ))}
             </View>
 
-            {/* The Interactive SVG Map Canvas */}
+            {/* The Interactive Cadastre & Satellite Map Canvas */}
             <View style={styles.mapCanvasCard}>
-              {/* Map HUD Overlay */}
+              {/* Satellite Layer Backdrop when in Satellite View */}
+              {mapLayerMode === 'satellite' && (
+                <Image
+                  source={SATELLITE_MAP_IMG}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+                  resizeMode="cover"
+                />
+              )}
+
+              {/* Contrast Shade Overlay for Satellite Mode */}
+              {mapLayerMode === 'satellite' && (
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: 'rgba(3, 7, 18, 0.28)', borderRadius: 16 },
+                  ]}
+                />
+              )}
+
+              {/* Map HUD Overlay Bar */}
               <View style={styles.mapHudBar}>
                 <View style={styles.mapHudItem}>
-                  <Text style={styles.mapHudLabel}>ACTIVE CADASTRE</Text>
-                  <Text style={styles.mapHudVal}>{mapFilteredParcels.length} Mapped Parcels</Text>
+                  <Text style={styles.mapHudLabel}>
+                    {mapLayerMode === 'satellite' ? '🛰️ SATELLITE RADAR' : 'ACTIVE CADASTRE'}
+                  </Text>
+                  <Text style={styles.mapHudVal}>
+                    {mapFilteredParcels.length} Mapped Parcels
+                  </Text>
                 </View>
-                <View style={styles.mapLegendRow}>
-                  <View style={styles.legendDotItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-                    <Text style={styles.legendText}>Available</Text>
-                  </View>
-                  <View style={styles.legendDotItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#f59e0b' }]} />
-                    <Text style={styles.legendText}>Reserved</Text>
-                  </View>
-                  <View style={styles.legendDotItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#60a5fa' }]} />
-                    <Text style={styles.legendText}>Allocated</Text>
+
+                {/* Grid Toggle Button & Legend */}
+                <View style={styles.mapHudRightGroup}>
+                  <Pressable
+                    style={[
+                      styles.gridToggleBtn,
+                      showMapGrid && styles.gridToggleBtnActive,
+                    ]}
+                    onPress={() => setShowMapGrid(g => !g)}
+                  >
+                    <Text
+                      style={[
+                        styles.gridToggleText,
+                        showMapGrid && styles.gridToggleTextActive,
+                      ]}
+                    >
+                      {showMapGrid ? '🌐 Grid: ON' : '🌐 Grid: OFF'}
+                    </Text>
+                  </Pressable>
+
+                  <View style={styles.mapLegendRow}>
+                    <View style={styles.legendDotItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+                      <Text style={styles.legendText}>Available</Text>
+                    </View>
+                    <View style={styles.legendDotItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#f59e0b' }]} />
+                      <Text style={styles.legendText}>Reserved</Text>
+                    </View>
+                    <View style={styles.legendDotItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#60a5fa' }]} />
+                      <Text style={styles.legendText}>Allocated</Text>
+                    </View>
                   </View>
                 </View>
               </View>
 
-              {/* Vector SVG Cadastre Map */}
+              {/* Interactive Vector / Satellite GIS Canvas */}
               <View style={styles.svgWrapper}>
-                <Svg width="100%" height={320} viewBox="0 0 360 280">
+                <Svg width="100%" height={320} viewBox="0 0 360 300">
                   <Defs>
                     <LinearGradient id="mapBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                       <Stop offset="0%" stopColor="#080e1b" />
@@ -1342,167 +1398,215 @@ export default function App() {
                     </LinearGradient>
                   </Defs>
 
-                  {/* Dark Map Canvas Background */}
-                  <Rect x="0" y="0" width="360" height="280" rx="12" fill="url(#mapBgGrad)" />
+                  {/* Dark Map Canvas Background when not in Satellite view */}
+                  {mapLayerMode !== 'satellite' && (
+                    <Rect x="0" y="0" width="360" height="300" rx="12" fill="url(#mapBgGrad)" />
+                  )}
 
-                  {/* UTM Coordinate Grid Lines */}
-                  {[70, 140, 210].map(y => (
-                    <Line
-                      key={`h-${y}`}
-                      x1="0"
-                      y1={y}
-                      x2="360"
-                      y2={y}
-                      stroke="rgba(255, 255, 255, 0.05)"
-                      strokeWidth="1"
-                      strokeDasharray="4,4"
-                    />
-                  ))}
-                  {[90, 180, 270].map(x => (
-                    <Line
-                      key={`v-${x}`}
-                      x1={x}
-                      y1="0"
-                      x2={x}
-                      y2="280"
-                      stroke="rgba(255, 255, 255, 0.05)"
-                      strokeWidth="1"
-                      strokeDasharray="4,4"
-                    />
-                  ))}
-
-                  {/* Geographic Grid Labels */}
-                  <SvgText x="6" y="73" fill="#475569" fontSize="8" fontWeight="600">17°S</SvgText>
-                  <SvgText x="6" y="143" fill="#475569" fontSize="8" fontWeight="600">19°S</SvgText>
-                  <SvgText x="6" y="213" fill="#475569" fontSize="8" fontWeight="600">21°S</SvgText>
-                  <SvgText x="93" y="16" fill="#475569" fontSize="8" fontWeight="600">28°E</SvgText>
-                  <SvgText x="183" y="16" fill="#475569" fontSize="8" fontWeight="600">30°E</SvgText>
-                  <SvgText x="273" y="16" fill="#475569" fontSize="8" fontWeight="600">32°E</SvgText>
-
-                  {/* Lake Kariba / Zambezi Watercourse */}
-                  <Path
-                    d="M 45,95 Q 85,60 120,52 Q 160,50 190,55"
-                    fill="none"
-                    stroke="#06b6d4"
-                    strokeWidth={mapLayerMode === 'satellite' ? 4 : 2.5}
-                    strokeLinecap="round"
-                  />
-                  <SvgText x="95" y="44" fill="#38bdf8" fontSize="8" fontStyle="italic">Lake Kariba</SvgText>
-
-                  {/* Save River Catchment */}
-                  <Path
-                    d="M 255,140 Q 275,185 270,235"
-                    fill="none"
-                    stroke="#0284c7"
-                    strokeWidth="1.8"
-                    strokeDasharray="3,3"
-                  />
-                  <SvgText x="275" y="195" fill="#38bdf8" fontSize="7" fontStyle="italic">Save River</SvgText>
-
-                  {/* Provincial Vector Polygons */}
-                  {/* Mashonaland West */}
-                  <Path
-                    d="M 110,50 L 190,55 L 205,110 L 160,135 L 125,100 Z"
-                    fill={mapSelectedProvince === 'Mashonaland West' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.10)'}
-                    stroke={mapSelectedProvince === 'Mashonaland West' ? '#4ade80' : 'rgba(74, 222, 128, 0.35)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Mashonaland West')}
-                  />
-                  <SvgText x="145" y="85" fill="#86efac" fontSize="9" fontWeight="700">Mash West</SvgText>
-
-                  {/* Mashonaland Central */}
-                  <Path
-                    d="M 190,55 L 245,60 L 250,110 L 205,110 Z"
-                    fill={mapSelectedProvince === 'Mashonaland Central' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
-                    stroke={mapSelectedProvince === 'Mashonaland Central' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Mashonaland Central')}
-                  />
-                  <SvgText x="208" y="80" fill="#86efac" fontSize="8" fontWeight="600">Mash Central</SvgText>
-
-                  {/* Mashonaland East */}
-                  <Path
-                    d="M 205,110 L 250,110 L 275,130 L 245,170 L 195,145 Z"
-                    fill={mapSelectedProvince === 'Mashonaland East' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.09)'}
-                    stroke={mapSelectedProvince === 'Mashonaland East' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Mashonaland East')}
-                  />
-                  <SvgText x="220" y="140" fill="#86efac" fontSize="8" fontWeight="600">Mash East</SvgText>
-
-                  {/* Harare Metro */}
-                  <Rect
-                    x="218"
-                    y="114"
-                    width="14"
-                    height="14"
-                    rx="3"
-                    fill="#15803d"
-                    stroke="#86efac"
-                    strokeWidth="1"
-                  />
-                  <SvgText x="220" y="124" fill="#ffffff" fontSize="7" fontWeight="bold">HRE</SvgText>
-
-                  {/* Manicaland */}
-                  <Path
-                    d="M 275,130 L 320,135 L 315,210 L 270,220 L 245,170 Z"
-                    fill={mapSelectedProvince === 'Manicaland' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(16, 185, 129, 0.08)'}
-                    stroke={mapSelectedProvince === 'Manicaland' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Manicaland')}
-                  />
-                  <SvgText x="278" y="175" fill="#86efac" fontSize="8" fontWeight="600">Manicaland</SvgText>
-
-                  {/* Midlands */}
-                  <Path
-                    d="M 125,100 L 160,135 L 195,145 L 225,200 L 165,225 L 130,175 Z"
-                    fill={mapSelectedProvince === 'Midlands' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.10)'}
-                    stroke={mapSelectedProvince === 'Midlands' ? '#4ade80' : 'rgba(74, 222, 128, 0.35)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Midlands')}
-                  />
-                  <SvgText x="165" y="165" fill="#86efac" fontSize="9" fontWeight="700">Midlands</SvgText>
-
-                  {/* Masvingo */}
-                  <Path
-                    d="M 225,200 L 270,220 L 285,255 L 220,265 L 180,240 Z"
-                    fill={mapSelectedProvince === 'Masvingo' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
-                    stroke={mapSelectedProvince === 'Masvingo' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Masvingo')}
-                  />
-                  <SvgText x="228" y="240" fill="#86efac" fontSize="8" fontWeight="600">Masvingo</SvgText>
-
-                  {/* Matabeleland North */}
-                  <Path
-                    d="M 40,90 L 110,50 L 125,100 L 130,175 L 105,190 L 45,140 Z"
-                    fill={mapSelectedProvince === 'Matabeleland North' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
-                    stroke={mapSelectedProvince === 'Matabeleland North' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Matabeleland North')}
-                  />
-                  <SvgText x="70" y="125" fill="#86efac" fontSize="8" fontWeight="600">Mat North</SvgText>
-
-                  {/* Matabeleland South */}
-                  <Path
-                    d="M 105,190 L 130,175 L 165,225 L 180,240 L 175,265 L 115,255 Z"
-                    fill={mapSelectedProvince === 'Matabeleland South' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
-                    stroke={mapSelectedProvince === 'Matabeleland South' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
-                    strokeWidth="1.2"
-                    onPress={() => setMapSelectedProvince('Matabeleland South')}
-                  />
-                  <SvgText x="130" y="245" fill="#86efac" fontSize="8" fontWeight="600">Mat South</SvgText>
-
-                  {/* Agro-ecological Region Indicators (when agro layer active) */}
-                  {mapLayerMode === 'agro' && (
+                  {/* Geodetic Grid Latitudes & Longitudes */}
+                  {showMapGrid && (
                     <G>
-                      <SvgText x="285" y="145" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region I</SvgText>
-                      <SvgText x="160" y="98" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region II</SvgText>
-                      <SvgText x="175" y="150" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region III</SvgText>
-                      <SvgText x="85" y="145" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region IV</SvgText>
-                      <SvgText x="235" y="250" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region V</SvgText>
+                      {GEODETIC_GRID.latitudes.map(lat => (
+                        <Line
+                          key={`lat-${lat.deg}`}
+                          x1="0"
+                          y1={lat.y}
+                          x2="360"
+                          y2={lat.y}
+                          stroke={
+                            mapLayerMode === 'satellite'
+                              ? 'rgba(255, 255, 255, 0.40)'
+                              : 'rgba(255, 255, 255, 0.12)'
+                          }
+                          strokeWidth={lat.major ? 1 : 0.6}
+                          strokeDasharray={lat.major ? '4,4' : '2,3'}
+                        />
+                      ))}
+                      {GEODETIC_GRID.longitudes.map(lon => (
+                        <Line
+                          key={`lon-${lon.deg}`}
+                          x1={lon.x}
+                          y1="0"
+                          x2={lon.x}
+                          y2="300"
+                          stroke={
+                            mapLayerMode === 'satellite'
+                              ? 'rgba(255, 255, 255, 0.40)'
+                              : 'rgba(255, 255, 255, 0.12)'
+                          }
+                          strokeWidth={lon.major ? 1 : 0.6}
+                          strokeDasharray={lon.major ? '4,4' : '2,3'}
+                        />
+                      ))}
+
+                      {/* Survey Crosshairs (+) at Grid Intersections */}
+                      {GEODETIC_GRID.intersections.map(pt => (
+                        <G key={`tick-${pt.label}`}>
+                          <Line
+                            x1={pt.x - 4}
+                            y1={pt.y}
+                            x2={pt.x + 4}
+                            y2={pt.y}
+                            stroke={mapLayerMode === 'satellite' ? '#38bdf8' : '#94a3b8'}
+                            strokeWidth="1.2"
+                          />
+                          <Line
+                            x1={pt.x}
+                            y1={pt.y - 4}
+                            x2={pt.x}
+                            y2={pt.y + 4}
+                            stroke={mapLayerMode === 'satellite' ? '#38bdf8' : '#94a3b8'}
+                            strokeWidth="1.2"
+                          />
+                        </G>
+                      ))}
+
+                      {/* Geographic Grid Coordinate Labels */}
+                      {GEODETIC_GRID.latitudes
+                        .filter(l => l.major)
+                        .map(lat => (
+                          <SvgText
+                            key={`lbl-lat-${lat.deg}`}
+                            x="4"
+                            y={lat.y - 2}
+                            fill={mapLayerMode === 'satellite' ? '#ffffff' : '#64748b'}
+                            fontSize="7.5"
+                            fontWeight="700"
+                          >
+                            {lat.deg}
+                          </SvgText>
+                        ))}
+                      {GEODETIC_GRID.longitudes
+                        .filter(l => l.major)
+                        .map(lon => (
+                          <SvgText
+                            key={`lbl-lon-${lon.deg}`}
+                            x={lon.x + 2}
+                            y="12"
+                            fill={mapLayerMode === 'satellite' ? '#ffffff' : '#64748b'}
+                            fontSize="7.5"
+                            fontWeight="700"
+                          >
+                            {lon.deg}
+                          </SvgText>
+                        ))}
                     </G>
                   )}
+
+                  {/* Authentic Zimbabwe National Perimeter */}
+                  <Path
+                    d={ZIMBABWE_NATIONAL_OUTLINE}
+                    fill="none"
+                    stroke={
+                      mapLayerMode === 'satellite'
+                        ? 'rgba(56, 189, 248, 0.65)'
+                        : '#22c55e'
+                    }
+                    strokeWidth="2.4"
+                  />
+
+                  {/* Official Zimbabwe Provincial Vector Boundaries */}
+                  {ZIMBABWE_PROVINCES.map(prov => {
+                    const isSelected = mapSelectedProvince === prov.id;
+                    const isMatchFilter = mapSelectedProvince === 'All' || mapSelectedProvince === prov.id;
+
+                    let fillColor = 'transparent';
+                    if (mapLayerMode === 'satellite') {
+                      fillColor = isSelected
+                        ? 'rgba(34, 197, 94, 0.32)'
+                        : isMatchFilter
+                        ? 'rgba(34, 197, 94, 0.08)'
+                        : 'rgba(0, 0, 0, 0.35)';
+                    } else if (mapLayerMode === 'agro') {
+                      const agroItem = AGRO_REGIONS_LEGEND.find(a => a.id === prov.naturalRegion);
+                      fillColor = isSelected
+                        ? (agroItem ? `${agroItem.color}55` : 'rgba(34, 197, 94, 0.35)')
+                        : (agroItem ? `${agroItem.color}25` : prov.fillColor);
+                    } else {
+                      fillColor = isSelected
+                        ? 'rgba(34, 197, 94, 0.28)'
+                        : isMatchFilter
+                        ? prov.fillColor
+                        : 'rgba(15, 23, 42, 0.4)';
+                    }
+
+                    const strokeColor = isSelected
+                      ? '#4ade80'
+                      : mapLayerMode === 'satellite'
+                      ? 'rgba(74, 222, 128, 0.55)'
+                      : 'rgba(74, 222, 128, 0.35)';
+
+                    return (
+                      <G
+                        key={prov.id}
+                        onPress={() => setMapSelectedProvince(isSelected ? 'All' : prov.id)}
+                      >
+                        <Path
+                          d={prov.path}
+                          fill={fillColor}
+                          stroke={strokeColor}
+                          strokeWidth={isSelected ? 2 : 1.1}
+                        />
+                        {/* Province Label Centroid */}
+                        <SvgText
+                          x={prov.centroid.x}
+                          y={prov.centroid.y}
+                          fill={
+                            isSelected
+                              ? '#ffffff'
+                              : mapLayerMode === 'satellite'
+                              ? '#f0fdf4'
+                              : '#86efac'
+                          }
+                          fontSize={prov.id === 'Harare' || prov.id === 'Bulawayo' ? '8' : '9'}
+                          fontWeight={isSelected ? '900' : '700'}
+                          textAnchor="middle"
+                        >
+                          {prov.shortName}
+                        </SvgText>
+                        {/* Agro indicator sublabel if agro mode */}
+                        {mapLayerMode === 'agro' && (
+                          <SvgText
+                            x={prov.centroid.x}
+                            y={prov.centroid.y + 11}
+                            fill="#fef08a"
+                            fontSize="7"
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            {prov.naturalRegion}
+                          </SvgText>
+                        )}
+                      </G>
+                    );
+                  })}
+
+                  {/* Major Watercourses & Lakes */}
+                  {ZIMBABWE_WATERCOURSES.map(water => (
+                    <G key={water.name}>
+                      <Path
+                        d={water.path}
+                        fill="none"
+                        stroke={water.color}
+                        strokeWidth={
+                          mapLayerMode === 'water' || mapLayerMode === 'satellite'
+                            ? water.strokeWidth * 1.3
+                            : water.strokeWidth
+                        }
+                        strokeLinecap="round"
+                      />
+                      <SvgText
+                        x={water.labelPos.x}
+                        y={water.labelPos.y}
+                        fill={mapLayerMode === 'satellite' ? '#7dd3fc' : '#38bdf8'}
+                        fontSize="7.5"
+                        fontStyle="italic"
+                        fontWeight="600"
+                      >
+                        {water.name}
+                      </SvgText>
+                    </G>
+                  ))}
 
                   {/* Interactive Georeferenced Parcel Beacons */}
                   {mapFilteredParcels.map(p => {
@@ -1530,7 +1634,7 @@ export default function App() {
                               cx={x}
                               cy={y}
                               r={18}
-                              fill="rgba(34, 197, 94, 0.2)"
+                              fill="rgba(34, 197, 94, 0.25)"
                               stroke="#4ade80"
                               strokeWidth="1.5"
                             />
@@ -1539,7 +1643,7 @@ export default function App() {
                               cy={y}
                               r={26}
                               fill="none"
-                              stroke="rgba(74, 222, 128, 0.4)"
+                              stroke="rgba(74, 222, 128, 0.45)"
                               strokeWidth="1"
                               strokeDasharray="2,2"
                             />
@@ -1569,15 +1673,15 @@ export default function App() {
                           <Rect
                             x="0"
                             y="0"
-                            width={isSelected ? 58 : 46}
+                            width={isSelected ? 62 : 48}
                             height={14}
                             rx="3"
-                            fill={isSelected ? '#14532d' : 'rgba(15, 23, 42, 0.85)'}
-                            stroke={isSelected ? '#4ade80' : 'rgba(255, 255, 255, 0.2)'}
+                            fill={isSelected ? '#14532d' : 'rgba(15, 23, 42, 0.88)'}
+                            stroke={isSelected ? '#4ade80' : 'rgba(255, 255, 255, 0.25)'}
                             strokeWidth="0.8"
                           />
                           <SvgText
-                            x="3"
+                            x="4"
                             y="10"
                             fill={isSelected ? '#86efac' : '#e2e8f0'}
                             fontSize="7"
@@ -1591,7 +1695,38 @@ export default function App() {
                   })}
                 </Svg>
               </View>
+
+              {/* Map Footer Telemetry Bar */}
+              <View style={styles.mapBottomHudBar}>
+                <Text style={styles.mapBottomHudText}>
+                  WGS 84 / ARC1950 • UTM ZONE 35S/36S
+                </Text>
+                <View style={styles.mapSatelliteTelemetryBadge}>
+                  <Text style={styles.mapSatelliteTelemetryText}>
+                    {mapLayerMode === 'satellite'
+                      ? '🛰️ SENTINEL-2 RGB • 10M GSD'
+                      : mapLayerMode === 'agro'
+                      ? '🌱 AGRO-ECOLOGICAL ZONES'
+                      : mapLayerMode === 'water'
+                      ? '💧 HYDROLOGY NETWORK'
+                      : '🗺️ VECTOR CADASTRE'}
+                  </Text>
+                </View>
+              </View>
             </View>
+
+            {/* Agro-Ecological Legend when in Agro Mode */}
+            {mapLayerMode === 'agro' && (
+              <View style={styles.agroLegendCard}>
+                <Text style={styles.agroLegendTitle}>Agro-Ecological Natural Regions of Zimbabwe</Text>
+                {AGRO_REGIONS_LEGEND.map(reg => (
+                  <View key={reg.id} style={styles.agroLegendItem}>
+                    <View style={[styles.agroLegendDot, { backgroundColor: reg.color }]} />
+                    <Text style={styles.agroLegendText}>{reg.label}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {/* Quick Parcel Inspection Drawer / Card */}
             {selectedParcel && (
@@ -2790,7 +2925,91 @@ const styles = StyleSheet.create({
   mapLegendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+  },
+  mapHudRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gridToggleBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  gridToggleBtnActive: {
+    backgroundColor: 'rgba(34, 197, 94, 0.22)',
+    borderColor: '#4ade80',
+  },
+  gridToggleText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  gridToggleTextActive: {
+    color: '#4ade80',
+  },
+  mapBottomHudBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  mapBottomHudText: {
+    color: '#64748b',
+    fontSize: 8.5,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  mapSatelliteTelemetryBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  mapSatelliteTelemetryText: {
+    color: '#38bdf8',
+    fontSize: 8.5,
+    fontWeight: '700',
+  },
+  agroLegendCard: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 6,
+  },
+  agroLegendTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  agroLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  agroLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  agroLegendText: {
+    fontSize: 10,
+    color: '#cbd5e1',
+    flex: 1,
   },
   legendDotItem: {
     flexDirection: 'row',
