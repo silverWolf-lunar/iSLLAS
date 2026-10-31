@@ -1,14 +1,21 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LeaseStatus, Role, UserProfile, LeaseDetail, LeaseLegalDocument } from '@sllas/contracts';
+import { AuditAction, EventType, LeaseStatus, ParcelStatus, Role, UserProfile, LeaseDetail, LeaseLegalDocument } from '@sllas/contracts';
 import { Lease } from '../applications/lease.entity';
+import { Parcel } from '../parcels/parcel.entity';
+import { OutboxService } from '../outbox/outbox.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class LeasesService {
   constructor(
     @InjectRepository(Lease)
     private readonly leaseRepo: Repository<Lease>,
+    @InjectRepository(Parcel)
+    private readonly parcelRepo: Repository<Parcel>,
+    private readonly outboxService: OutboxService,
+    private readonly auditService: AuditService,
   ) {}
 
   async list(user: UserProfile, filters: { status?: LeaseStatus; search?: string } = {}): Promise<LeaseDetail[]> {
@@ -196,5 +203,114 @@ export class LeasesService {
         phone: l.clientProfile.user?.phoneNumber || undefined,
       } : undefined,
     };
+  }
+
+  /**
+   * Public read-only verification of a lease deed via QR code (non-PII)
+   */
+  async verifyLease(referenceOrId: string) {
+    const lease = await this.leaseRepo.findOne({
+      where: [{ id: referenceOrId }, { leaseNumber: referenceOrId }],
+      relations: [
+        'parcel',
+        'parcel.province',
+        'parcel.district',
+        'clientProfile',
+        'clientProfile.user',
+      ],
+    });
+
+    if (!lease) {
+      throw new NotFoundException(`Lease with reference or ID '${referenceOrId}' was not found on the National Land Register.`);
+    }
+
+    const clientName = lease.clientProfile?.companyName
+      ? lease.clientProfile.companyName
+      : lease.clientProfile?.user
+        ? `${lease.clientProfile.user.firstName} ${lease.clientProfile.user.lastName}`.trim()
+        : 'Registered Citizen / Lessee';
+
+    const now = new Date();
+    const endDate = new Date(lease.endDate);
+    const isExpired = now > endDate;
+    const isCancelled = lease.status === LeaseStatus.TERMINATED;
+    const isActive = lease.status === LeaseStatus.ACTIVE && !isExpired;
+
+    return {
+      leaseNumber: lease.leaseNumber,
+      parcelReference: lease.parcel?.referenceNumber || 'Cadastral Parcel',
+      lesseeName: clientName,
+      startDate: lease.startDate,
+      endDate: lease.endDate,
+      currentStatus: isCancelled ? 'CANCELLED' : isExpired ? 'EXPIRED' : lease.status,
+      termYears: Math.max(1, Math.round((endDate.getTime() - new Date(lease.startDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25))),
+      province: lease.parcel?.province?.name || 'Zimbabwe',
+      district: lease.parcel?.district?.name || 'District',
+      areaHectares: lease.parcel ? Number(lease.parcel.areaHectares) : 0,
+      isValid: isActive,
+      verifiedAt: now.toISOString(),
+      statutoryAct: 'Agricultural Land Settlement Act [Chapter 20:01] & Land Commission Act [Chapter 20:29]',
+      issuingAuthority: 'Ministry of Lands & Rural Development, Republic of Zimbabwe',
+    };
+  }
+
+  /**
+   * Update lease status or execute statutory acceptance
+   */
+  async updateStatus(
+    id: string,
+    body: { status?: LeaseStatus; termsConditions?: string },
+    user: UserProfile,
+  ): Promise<LeaseDetail> {
+    const lease = await this.leaseRepo.findOne({
+      where: { id },
+      relations: [
+        'parcel',
+        'parcel.province',
+        'parcel.district',
+        'clientProfile',
+        'clientProfile.user',
+      ],
+    });
+
+    if (!lease) {
+      throw new NotFoundException(`Lease ${id} not found`);
+    }
+
+    this.assertCanAccess(lease, user);
+
+    const fromStatus = lease.status;
+    if (body.status) {
+      lease.status = body.status;
+    }
+    if (body.termsConditions) {
+      lease.termsConditions = body.termsConditions;
+    }
+
+    const savedLease = await this.leaseRepo.save(lease);
+
+    if (body.status === LeaseStatus.ACTIVE && lease.parcel) {
+      lease.parcel.status = ParcelStatus.LEASED;
+      await this.parcelRepo.save(lease.parcel);
+    }
+
+    await this.outboxService.enqueue({
+      eventType: body.status === LeaseStatus.ACTIVE ? EventType.LEASE_CREATED : EventType.APPLICATION_STATUS_CHANGED,
+      aggregateType: 'LEASE',
+      aggregateId: savedLease.id,
+      payload: { leaseNumber: savedLease.leaseNumber, status: savedLease.status, fromStatus },
+    });
+
+    await this.auditService.logEvent({
+      action: AuditAction.UPDATE,
+      entityType: 'LEASE',
+      entityId: savedLease.id,
+      actorId: user.id,
+      actorRole: user.role,
+      provinceId: lease.parcel?.provinceId,
+      metadata: { fromStatus, toStatus: savedLease.status, leaseNumber: savedLease.leaseNumber },
+    });
+
+    return this.toDetail(savedLease);
   }
 }

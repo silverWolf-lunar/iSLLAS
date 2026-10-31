@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LeaseStatus, Role, UserProfile } from '@sllas/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { LeasesService } from './leases.service';
 
 @ApiTags('Leases')
@@ -11,6 +12,13 @@ import { LeasesService } from './leases.service';
 @Controller('api/v1/leases')
 export class LeasesController {
   constructor(private readonly leasesService: LeasesService) {}
+
+  @Get('verify/:referenceOrId')
+  @Public()
+  @ApiOperation({ summary: 'Public read-only verification of a statutory lease deed via QR code' })
+  verifyLease(@Param('referenceOrId') referenceOrId: string) {
+    return this.leasesService.verifyLease(referenceOrId);
+  }
 
   @Get()
   @Roles(Role.CLIENT, Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
@@ -35,5 +43,16 @@ export class LeasesController {
   @ApiOperation({ summary: 'Get official print-ready legal lease agreement for Republic of Zimbabwe' })
   getPrintDocument(@Param('id') id: string, @CurrentUser() user: UserProfile) {
     return this.leasesService.getPrintDocument(id, user);
+  }
+
+  @Patch(':id')
+  @Roles(Role.CLIENT, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN)
+  @ApiOperation({ summary: 'Update lease status or execute statutory acceptance' })
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status?: LeaseStatus; termsConditions?: string },
+    @CurrentUser() user: UserProfile,
+  ) {
+    return this.leasesService.updateStatus(id, body, user);
   }
 }

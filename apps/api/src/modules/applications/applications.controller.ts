@@ -112,7 +112,7 @@ export class ApplicationsController {
     return this.applicationsService.provideInformation(id, dto, user);
   }
 
-  @Post(':id/approve')
+  @Post([':id/approve', ':id/approval'])
   @Roles(Role.APPROVER)
   @ApiOperation({ summary: 'Approve an application and issue its offer' })
   approve(
@@ -123,7 +123,7 @@ export class ApplicationsController {
     return this.applicationsService.approve(id, dto, user);
   }
 
-  @Post(':id/reject')
+  @Post([':id/reject', ':id/rejection'])
   @Roles(Role.APPROVER)
   @ApiOperation({ summary: 'Reject an application and release its parcel' })
   reject(

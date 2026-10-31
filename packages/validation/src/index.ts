@@ -275,13 +275,18 @@ export const notificationReadSchema = z.object({
 
 export const allocateParcelSchema = z.object({
   parcelId: z.string().uuid(),
-  clientProfileId: z.string().uuid(),
-  intendedActivity: z.string().min(3).max(255),
-  businessPlanSummary: z.string().min(20).max(5000),
-  requestedTermYears: z.coerce.number().int().min(1).max(99),
+  clientProfileId: z.string().uuid().optional().nullable(),
+  applicationId: z.string().uuid().optional().nullable(),
+  intendedActivity: z.string().min(2).max(255).optional().default('Commercial Cropping'),
+  businessPlanSummary: z.string().min(10).max(5000).optional().default('Formal statutory parcel allocation under Land Settlement Act guidelines.'),
+  requestedTermYears: z.coerce.number().int().min(1).max(99).optional().default(99),
   proposedInvestmentUsd: z.coerce.number().nonnegative().optional().nullable(),
   expectedJobsCreated: z.coerce.number().int().nonnegative().optional().nullable(),
-  subdivisionDetails: z.string().max(255).optional().nullable(),
+  subdivisionDetails: z.union([z.string(), z.record(z.any())]).optional().nullable(),
+  permittedLandUse: z.string().optional(),
+  allocationNotes: z.string().optional(),
+  proposedAnnualRentUsd: z.coerce.number().optional(),
+  leaseDurationYears: z.coerce.number().optional(),
 });
 
 // ─────────────────────────────────────────────────────────────

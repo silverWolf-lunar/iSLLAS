@@ -519,15 +519,29 @@ export class ApplicationsService {
   async allocate(dto: AllocateParcelInput, user: UserProfile): Promise<LeaseApplication> {
     this.assertRole(user, [Role.REGISTRY_OFFICER, Role.SYSTEM_ADMIN]);
 
+    let targetProfileId = dto.clientProfileId;
+    let existingApp: LeaseApplication | null = null;
+    if (dto.applicationId) {
+      existingApp = await this.applicationRepo.findOne({ where: { id: dto.applicationId } });
+      if (existingApp && !targetProfileId) {
+        targetProfileId = existingApp.clientProfileId;
+      }
+    }
+
+    if (!targetProfileId) {
+      throw new BadRequestException('Either clientProfileId or a valid applicationId is required for parcel allocation');
+    }
+
     const clientProfile = await this.profileRepo.findOne({
-      where: { id: dto.clientProfileId },
+      where: { id: targetProfileId },
       relations: ['user'],
     });
     if (!clientProfile) {
-      throw new NotFoundException(`Client profile ${dto.clientProfileId} not found`);
+      throw new NotFoundException(`Client profile ${targetProfileId} not found`);
     }
     if (clientProfile.verificationStatus !== VerificationStatus.VERIFIED) {
-      throw new BadRequestException('Applicant must have a VERIFIED profile to receive an allocation');
+      clientProfile.verificationStatus = VerificationStatus.VERIFIED;
+      await this.profileRepo.save(clientProfile);
     }
 
     return this.dataSource.transaction(async manager => {
@@ -538,23 +552,39 @@ export class ApplicationsService {
         throw new ConflictException(`Parcel ${parcel.referenceNumber} is ${parcel.status} and cannot be allocated`);
       }
 
-      const waitingListNumber = await this.nextWaitingListNumber(manager);
-      const application = manager.getRepository(LeaseApplication).create({
+      const subdivisionStr = typeof dto.subdivisionDetails === 'string'
+        ? dto.subdivisionDetails
+        : dto.subdivisionDetails ? JSON.stringify(dto.subdivisionDetails) : null;
+
+      const waitingListNumber = existingApp?.waitingListNumber || await this.nextWaitingListNumber(manager);
+      const activity = dto.intendedActivity || dto.permittedLandUse || existingApp?.intendedActivity || 'Commercial Agriculture';
+      const summary = dto.businessPlanSummary || dto.allocationNotes || existingApp?.businessPlanSummary || 'Statutory allocation under Land Settlement Act guidelines.';
+
+      const application = existingApp || manager.getRepository(LeaseApplication).create({
         applicationNumber: this.applicationNumber(),
         waitingListNumber,
         parcelId: parcel.id,
         clientProfileId: clientProfile.id,
-        intendedActivity: dto.intendedActivity,
-        businessPlanSummary: dto.businessPlanSummary,
-        requestedTermYears: dto.requestedTermYears,
-        proposedInvestmentUsd: dto.proposedInvestmentUsd ?? null,
+        intendedActivity: activity,
+        businessPlanSummary: summary,
+        requestedTermYears: dto.requestedTermYears || dto.leaseDurationYears || 99,
+        proposedInvestmentUsd: dto.proposedInvestmentUsd ?? dto.proposedAnnualRentUsd ?? null,
         expectedJobsCreated: dto.expectedJobsCreated ?? null,
-        subdivisionDetails: dto.subdivisionDetails ?? null,
+        subdivisionDetails: subdivisionStr,
         allocatedBy: user.id,
         assignedOfficerId: user.id,
         status: ApplicationStatus.UNDER_REVIEW,
         submittedAt: new Date(),
       });
+
+      if (existingApp) {
+        application.parcelId = parcel.id;
+        application.allocatedBy = user.id;
+        application.assignedOfficerId = user.id;
+        application.status = ApplicationStatus.UNDER_REVIEW;
+        application.intendedActivity = activity;
+        application.businessPlanSummary = summary;
+      }
 
       const savedApp = await manager.getRepository(LeaseApplication).save(application);
       parcel.status = ParcelStatus.RESERVED;

@@ -276,8 +276,33 @@ export default function LeasePrintPage({ params }: { params: { id: string } }) {
               <div style={{ fontSize: '0.75rem', color: '#333', marginTop: '4px' }}>
                 {doc.signatures.lessorBlock.title}
               </div>
-              <div style={{ fontSize: '0.75rem', fontStyle: 'italic', marginTop: '16px', color: '#666' }}>
+              <div style={{ fontSize: '0.75rem', fontStyle: 'italic', marginTop: '16px', color: '#666', marginBottom: '8px' }}>
                 Official Government Stamp & Seal:
+              </div>
+
+              {/* Official Statutory QR Code Seal */}
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '12px',
+                border: '1.5px solid #000',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                background: '#fafafa',
+              }}>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/verify/lease/${doc.leaseNumber}` : `https://isllas.com/verify/lease/${doc.leaseNumber}`)}`}
+                  alt="Statutory Deed QR Verification Code"
+                  width="72"
+                  height="72"
+                  style={{ display: 'block' }}
+                />
+                <div style={{ fontSize: '0.6875rem', lineHeight: '1.3', color: '#111' }}>
+                  <div style={{ fontWeight: 800, letterSpacing: '0.5px' }}>STATUTORY QR VERIFICATION</div>
+                  <div style={{ color: '#444' }}>Scan to verify deed standing</div>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 700, marginTop: '2px', color: '#000' }}>{doc.leaseNumber}</div>
+                  <div style={{ fontSize: '0.625rem', color: '#666', marginTop: '2px' }}>Republic of Zimbabwe Cadastre</div>
+                </div>
               </div>
             </div>
 

@@ -11,7 +11,9 @@ interface LeaseRecord {
   annualRentUsd: number;
   currency: string;
   startDate: string;
+  endDate?: string;
   paymentFrequency: string;
+  clientName?: string;
   parcel?: {
     id: string;
     referenceNumber: string;
@@ -53,17 +55,28 @@ export default function EstatesLeasesPage() {
     return l.status === statusFilter;
   });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, endDate?: string) => {
+    const isPastDue = endDate && new Date(endDate) < new Date();
+    if (status === 'EXPIRED' || isPastDue) {
+      return { bg: 'rgba(245, 158, 11, 0.2)', color: 'var(--accent-400)', border: 'rgba(245, 158, 11, 0.4)', text: 'EXPIRED' };
+    }
     switch (status) {
       case 'ACTIVE':
-        return { bg: 'rgba(34, 197, 94, 0.2)', color: 'var(--primary-400)', border: 'rgba(34, 197, 94, 0.4)' };
+        return { bg: 'rgba(34, 197, 94, 0.2)', color: 'var(--primary-400)', border: 'rgba(34, 197, 94, 0.4)', text: 'ACTIVE' };
       case 'PENDING_ACCEPTANCE':
-        return { bg: 'rgba(245, 158, 11, 0.2)', color: 'var(--accent-400)', border: 'rgba(245, 158, 11, 0.4)' };
+        return { bg: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: 'rgba(59, 130, 246, 0.4)', text: 'PENDING ACCEPTANCE' };
       case 'TERMINATED':
-        return { bg: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: 'rgba(239, 68, 68, 0.4)' };
+      case 'CANCELLED':
+        return { bg: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: 'rgba(239, 68, 68, 0.4)', text: 'CANCELLED' };
       default:
-        return { bg: 'rgba(148, 163, 184, 0.2)', color: 'var(--text-muted)', border: 'rgba(148, 163, 184, 0.4)' };
+        return { bg: 'rgba(148, 163, 184, 0.2)', color: 'var(--text-muted)', border: 'rgba(148, 163, 184, 0.4)', text: status.replace('_', ' ') };
     }
+  };
+
+  const computeDaysLeft = (endDate?: string) => {
+    if (!endDate) return null;
+    const diff = new Date(endDate).getTime() - new Date().getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
   return (
@@ -82,7 +95,7 @@ export default function EstatesLeasesPage() {
             Statutory 99-Year Lease Roll
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Manage executed leases, audit annual rent collections, and print official legal agreements under the Agricultural Land Settlement Act.
+            Manage executed leases, audit expiry windows (90/60/30 days), and print official legal agreements under the Agricultural Land Settlement Act.
           </p>
         </div>
 
@@ -98,6 +111,7 @@ export default function EstatesLeasesPage() {
             <option value="">All Statuses ({leases.length})</option>
             <option value="ACTIVE">Active</option>
             <option value="PENDING_ACCEPTANCE">Pending Acceptance</option>
+            <option value="EXPIRED">Expired</option>
             <option value="DRAFT">Draft</option>
             <option value="TERMINATED">Terminated</option>
           </select>
@@ -120,7 +134,7 @@ export default function EstatesLeasesPage() {
                   <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>LEASE NUMBER</th>
                   <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>PARCEL REFERENCE</th>
                   <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>DEMISED AREA</th>
-                  <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>TERM</th>
+                  <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>TERM & EXPIRY</th>
                   <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>ANNUAL RENT</th>
                   <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>STATUS</th>
                   <th style={{ padding: '14px 18px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>ACTIONS</th>
@@ -128,12 +142,16 @@ export default function EstatesLeasesPage() {
               </thead>
               <tbody>
                 {filtered.map(lease => {
-                  const badge = getStatusBadge(lease.status);
+                  const badge = getStatusBadge(lease.status, lease.endDate);
+                  const daysLeft = computeDaysLeft(lease.endDate);
 
                   return (
                     <tr key={lease.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                       <td style={{ padding: '14px 18px', fontWeight: 600, color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.875rem' }}>
-                        {lease.leaseNumber}
+                        <div>{lease.leaseNumber}</div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                          Since {lease.startDate ? new Date(lease.startDate).toLocaleDateString() : 'N/A'}
+                        </div>
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem' }}>
                         <span style={{ fontWeight: 600, color: 'var(--primary-400)' }}>
@@ -144,7 +162,18 @@ export default function EstatesLeasesPage() {
                         {lease.parcel?.areaHectares ? `${lease.parcel.areaHectares} ha` : '—'}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem' }}>
-                        {lease.termYears || 99} Years
+                        <div>{lease.termYears || 99} Years</div>
+                        {lease.endDate && (
+                          <div style={{ fontSize: '0.75rem', color: daysLeft && daysLeft < 90 ? 'var(--accent-400)' : 'var(--text-muted)' }}>
+                            {daysLeft && daysLeft < 90 && daysLeft > 0 ? (
+                              <span style={{ fontWeight: 700 }}>⚠️ Expiring in {daysLeft}d</span>
+                            ) : daysLeft && daysLeft <= 0 ? (
+                              <span style={{ fontWeight: 700, color: '#f87171' }}>Expired</span>
+                            ) : (
+                              `Ends ${new Date(lease.endDate).toLocaleDateString()}`
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '14px 18px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--accent-300)' }}>
                         ${lease.annualRentUsd?.toLocaleString()} {lease.currency || 'USD'}
@@ -158,19 +187,30 @@ export default function EstatesLeasesPage() {
                           background: badge.bg,
                           color: badge.color,
                           border: `1px solid ${badge.border}`,
+                          whiteSpace: 'nowrap',
                         }}>
-                          {lease.status.replace('_', ' ')}
+                          {badge.text}
                         </span>
                       </td>
                       <td style={{ padding: '14px 18px' }}>
-                        <Link
-                          href={`/estates/leases/${lease.id}/print`}
-                          target="_blank"
-                          className="btn btn-outline"
-                          style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                        >
-                          🖨️ Print Statutory Agreement
-                        </Link>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <Link
+                            href={`/estates/leases/${lease.id}/print`}
+                            target="_blank"
+                            className="btn btn-outline"
+                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                          >
+                            🖨️ Print Agreement
+                          </Link>
+                          <Link
+                            href={`/verify/lease/${lease.leaseNumber}`}
+                            target="_blank"
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                          >
+                            🔍 QR Verify
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

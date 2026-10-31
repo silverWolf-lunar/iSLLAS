@@ -102,18 +102,26 @@ export default function OfficerAllocationWorkbenchPage() {
       setErrorMsg(null);
       setSuccessMsg(null);
 
+      const selectedApplication = applications.find(a => a.id === selectedAppId);
+      const targetProfileId = (selectedApplication as any)?.clientProfileId || selectedApplication?.clientProfile?.id || (selectedApplication as any)?.applicantId;
+      const activity = permittedUse || selectedApplication?.proposedLandUse || 'Commercial Agriculture';
+      const summary = (notes && notes.length >= 20)
+        ? notes
+        : `Formal statutory allocation executed by Registry Officer ${currentUser?.name || ''} under Section 14 guidelines for ${activity}.`;
+
       const payload = {
         applicationId: selectedAppId,
+        clientProfileId: targetProfileId || undefined,
         parcelId: selectedParcelId,
-        proposedAnnualRentUsd: Number(annualRentUsd),
-        leaseDurationYears: Number(termYears),
-        permittedLandUse: permittedUse,
-        allocationNotes: notes || `Allocated by Registry Officer ${currentUser?.name || ''} under Section 14 statutory guidelines.`,
-        subdivisionDetails: isSubdivision ? {
-          originalParcelId: selectedParcelId,
-          allocatedAreaHectares: Number(subdividedHectares),
-          approvedBySurveyorGeneral: true,
-        } : undefined,
+        intendedActivity: activity,
+        businessPlanSummary: summary,
+        requestedTermYears: Number(termYears) || 99,
+        proposedInvestmentUsd: Number(annualRentUsd) || 0,
+        proposedAnnualRentUsd: Number(annualRentUsd) || 0,
+        leaseDurationYears: Number(termYears) || 99,
+        permittedLandUse: activity,
+        allocationNotes: summary,
+        subdivisionDetails: isSubdivision ? `Subdivision extent: ${subdividedHectares} ha` : undefined,
       };
 
       const res = await fetch('/api/backend/api/v1/applications/allocate', {

@@ -80,7 +80,7 @@ export default function ApproverDashboardPage() {
       setProcessingId(app.id);
       setErrorMsg(null);
 
-      const res = await fetch(`/api/backend/api/v1/applications/${app.id}/approval`, {
+      const res = await fetch(`/api/backend/api/v1/applications/${app.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -110,7 +110,7 @@ export default function ApproverDashboardPage() {
       setProcessingId(rejectingApp.id);
       setErrorMsg(null);
 
-      const res = await fetch(`/api/backend/api/v1/applications/${rejectingApp.id}/rejection`, {
+      const res = await fetch(`/api/backend/api/v1/applications/${rejectingApp.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
