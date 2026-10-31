@@ -120,7 +120,7 @@ function SignInContent() {
   }, [lockoutUntil]);
 
   // Registration State (Stage 0 Citizen Onboarding)
-  const [regClientType, setRegClientType] = useState<ClientType>(ClientType.INDIVIDUAL);
+  const [regClientType] = useState<ClientType>(ClientType.INDIVIDUAL);
   const [regFirstName, setRegFirstName] = useState('');
   const [regLastName, setRegLastName] = useState('');
   const [regCompanyName, setRegCompanyName] = useState('');
@@ -799,57 +799,6 @@ function SignInContent() {
               )}
 
               <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* Applicant Category Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                    Applicant Category <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setRegClientType(ClientType.INDIVIDUAL)}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        border: regClientType === ClientType.INDIVIDUAL
-                          ? '2px solid #16a34a'
-                          : (isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)'),
-                        background: regClientType === ClientType.INDIVIDUAL
-                          ? (isLight ? '#f0fdf4' : 'rgba(22, 163, 74, 0.2)')
-                          : (isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)'),
-                        color: isLight ? '#0f172a' : '#ffffff',
-                        fontSize: '0.75rem',
-                        fontWeight: regClientType === ClientType.INDIVIDUAL ? 700 : 500,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
-                    >
-                      🌾 Individual Farmer (A1)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRegClientType(ClientType.BUSINESS)}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        border: regClientType === ClientType.BUSINESS
-                          ? '2px solid #16a34a'
-                          : (isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)'),
-                        background: regClientType === ClientType.BUSINESS
-                          ? (isLight ? '#f0fdf4' : 'rgba(22, 163, 74, 0.2)')
-                          : (isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)'),
-                        color: isLight ? '#0f172a' : '#ffffff',
-                        fontSize: '0.75rem',
-                        fontWeight: regClientType === ClientType.BUSINESS ? 700 : 500,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
-                    >
-                      🏢 Agribusiness (A2)
-                    </button>
-                  </div>
-                </div>
-
                 {/* Name Fields (2 columns) */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
