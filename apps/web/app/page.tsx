@@ -1262,67 +1262,7 @@ export default function LandingPage() {
           </p>
 
 
-          {/* Category Filter Pills */}
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: '8px',
-          }}>
-            {[
-              { id: 'ALL', label: 'All Updates', icon: '🌍' },
-              { id: 'CROPS', label: 'Crops & Irrigation', icon: '🌾' },
-              { id: 'TENURE', label: 'Farm Tenure & 99-Yr Leases', icon: '📜' },
-              { id: 'CADASTRE', label: 'Cadastre & Audits', icon: '🛰️' },
-              { id: 'LIVESTOCK', label: 'Livestock & Pastures', icon: '🐂' },
-              { id: 'FINANCE', label: 'Agri-Finance & JV', icon: '💼' },
-            ].map((cat) => {
-              const isSelected = selectedCategory === cat.id;
-              const count = cat.id === 'ALL'
-                ? newsArticles.length
-                : newsArticles.filter((a) => (a.category || 'TENURE') === cat.id).length;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat.id as any)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '7px 14px',
-                    borderRadius: '999px',
-                    fontSize: '0.8125rem',
-                    fontWeight: isSelected ? 700 : 500,
-                    border: isSelected
-                      ? '1px solid #16a34a'
-                      : isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
-                    background: isSelected
-                      ? (isLight ? '#16a34a' : '#15803d')
-                      : (isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.6)'),
-                    color: isSelected
-                      ? '#ffffff'
-                      : (isLight ? '#475569' : '#cbd5e1'),
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{cat.label}</span>
-                  <span style={{
-                    fontSize: '0.7rem',
-                    padding: '2px 6px',
-                    borderRadius: '999px',
-                    background: isSelected ? 'rgba(255, 255, 255, 0.25)' : (isLight ? '#f1f5f9' : 'rgba(255,255,255,0.08)'),
-                    color: isSelected ? '#ffffff' : (isLight ? '#64748b' : '#94a3b8'),
-                    fontWeight: 700,
-                  }}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+
         </div>
 
         {/* Horizontal News Feed */}
