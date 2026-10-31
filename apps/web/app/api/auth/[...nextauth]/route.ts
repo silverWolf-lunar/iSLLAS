@@ -38,6 +38,12 @@ async function withAuthDiagnostics(
     return NextResponse.redirect(new URL(`/signin?error=${encodeURIComponent(callbackError)}&ref=${reference}`, request.url));
   }
 
+  if (context.params.nextauth?.[0] === 'error') {
+    const errorType = requestUrl.searchParams.get('error') || 'Configuration';
+    const reference = `AUTH-${randomUUID().slice(0, 8).toUpperCase()}`;
+    return NextResponse.redirect(new URL(`/signin?error=${encodeURIComponent(errorType)}&ref=${reference}`, request.url));
+  }
+
   if (context.params.nextauth?.[0] === 'signin' && context.params.nextauth[1] === 'keycloak') {
     const issuer = process.env.OIDC_ISSUER?.replace(/\/$/, '');
     const discoveryUrl = issuer ? `${issuer}/.well-known/openid-configuration` : null;

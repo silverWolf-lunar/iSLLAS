@@ -9,4 +9,10 @@ services:
         value: production
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        value: "https://isllas-clone.onrender.com"
+      - key: API_INTERNAL_URL
+        value: "http://localhost:3001"
 

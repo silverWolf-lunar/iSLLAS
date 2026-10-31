@@ -17,71 +17,95 @@ function serializeError(value: unknown): unknown {
   return value;
 }
 
-export const authOptions: NextAuthOptions = {
-  providers: [
-    CredentialsProvider({
-      id: 'credentials',
-      name: 'Government Credentials',
-      credentials: {
-        email: { label: 'Email or Username', type: 'text', placeholder: 'officer@sllas.gov.zw' },
-        password: { label: 'Password', type: 'password' },
-        role: { label: 'Role', type: 'text' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Please enter both your email/username and password');
+// Automatically infer NEXTAUTH_URL in cloud environments (Render, Vercel) if not explicitly set
+if (!process.env.NEXTAUTH_URL) {
+  if (process.env.RENDER_EXTERNAL_URL) {
+    process.env.NEXTAUTH_URL = process.env.RENDER_EXTERNAL_URL;
+  } else if (process.env.VERCEL_URL) {
+    process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+  }
+}
+
+const authSecret =
+  process.env.NEXTAUTH_SECRET ||
+  process.env.JWT_SECRET ||
+  'sllas-production-session-fallback-secret-key-32chars-min';
+
+const authProviders: any[] = [
+  CredentialsProvider({
+    id: 'credentials',
+    name: 'Government Credentials',
+    credentials: {
+      email: { label: 'Email or Username', type: 'text', placeholder: 'officer@sllas.gov.zw' },
+      password: { label: 'Password', type: 'password' },
+      role: { label: 'Role', type: 'text' },
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) {
+        throw new Error('Please enter both your email/username and password');
+      }
+
+      if (credentials.password.trim().length === 0) {
+        throw new Error('Password cannot be empty');
+      }
+
+      const apiBaseUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3001';
+
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/v1/auth/dev-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: credentials.email.trim(),
+            role: (credentials.role as Role) || undefined,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'Authentication failed. Please verify your credentials.');
         }
 
-        if (credentials.password.trim().length === 0) {
-          throw new Error('Password cannot be empty');
+        const data = await res.json();
+        const authResult = data?.data ?? data;
+        if (!authResult?.token || !authResult?.user) {
+          throw new Error('Invalid response from identity service');
         }
 
-        const apiBaseUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3001';
+        return {
+          id: authResult.user.id,
+          email: authResult.user.email,
+          name: `${authResult.user.firstName || ''} ${authResult.user.lastName || ''}`.trim() || authResult.user.email,
+          role: authResult.user.role,
+          accessToken: authResult.token,
+        };
+      } catch (error: any) {
+        throw new Error(error.message || 'Unable to authenticate with government identity service');
+      }
+    },
+  }),
+];
 
-        try {
-          const res = await fetch(`${apiBaseUrl}/api/v1/auth/dev-login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: credentials.email.trim(),
-              role: (credentials.role as Role) || undefined,
-            }),
-          });
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || 'Authentication failed. Please verify your credentials.');
-          }
-
-          const data = await res.json();
-          const authResult = data?.data ?? data;
-          if (!authResult?.token || !authResult?.user) {
-            throw new Error('Invalid response from identity service');
-          }
-
-          return {
-            id: authResult.user.id,
-            email: authResult.user.email,
-            name: `${authResult.user.firstName || ''} ${authResult.user.lastName || ''}`.trim() || authResult.user.email,
-            role: authResult.user.role,
-            accessToken: authResult.token,
-          };
-        } catch (error: any) {
-          throw new Error(error.message || 'Unable to authenticate with government identity service');
-        }
-      },
-    }),
+// Only register KeycloakProvider if OIDC_ISSUER and KEYCLOAK_CLIENT_ID are configured
+if (issuer && clientId) {
+  authProviders.push(
     KeycloakProvider({
       clientId,
       clientSecret: clientSecret || '',
       issuer,
       authorization: { params: { scope: 'openid email profile' } },
     }),
-  ],
-  secret: process.env.NEXTAUTH_SECRET ??
-    (process.env.NODE_ENV === 'production' ? undefined : 'local-development-only-secret-not-for-deployments'),
+  );
+}
+
+export const authOptions: NextAuthOptions = {
+  providers: authProviders,
+  secret: authSecret,
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
-  pages: { signIn: '/signin' },
+  pages: {
+    signIn: '/signin',
+    error: '/signin',
+  },
   logger: {
     error(code, metadata) {
       const details = metadata instanceof Error
