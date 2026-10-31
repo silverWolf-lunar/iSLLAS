@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "SLLAS Web Portal & Staff Console (Next.js)",
+  "packageManager": "pnpm@9.12.0",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

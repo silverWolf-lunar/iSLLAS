@@ -1,12 +1,12 @@
 services:
   - type: web
     name: sllas-web
-    runtime: node
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     plan: free
-    buildCommand: pnpm install --frozen-lockfile && pnpm run build
-    startCommand: pnpm --filter @sllas/web start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NODE_VERSION
-        value: 20.18.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+
