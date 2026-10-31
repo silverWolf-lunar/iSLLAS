@@ -71,6 +71,22 @@ export const registerUserSchema = z.object({
   districtId: z.string().uuid().optional(),
 });
 
+export const clientRegisterSchema = z.object({
+  firstName: z.string().min(2, 'First name must be at least 2 characters').max(100),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters').max(100),
+  email: z.string().email('Valid email address is required'),
+  phoneNumber: z.string().min(8, 'Valid phone number is required').max(50),
+  nationalIdNumber: z.string().max(50).optional().nullable(),
+  companyName: z.string().max(255).optional().nullable(),
+  registrationNumber: z.string().max(50).optional().nullable(),
+  clientType: z.nativeEnum(ClientType).default(ClientType.INDIVIDUAL),
+  address: z.string().max(500).optional().nullable(),
+  provinceId: z.string().uuid().optional().nullable(),
+  districtId: z.string().uuid().optional().nullable(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+
 // ─────────────────────────────────────────────────────────────
 // Client Profile Schemas
 // ─────────────────────────────────────────────────────────────
@@ -347,6 +363,7 @@ export const clientDocumentSchema = z.object({
 // Export all types inferred from schemas
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
+export type ClientRegisterInput = z.infer<typeof clientRegisterSchema>;
 export type ClientProfileInput = z.infer<typeof clientProfileSchema>;
 export type CreateParcelInput = z.infer<typeof createParcelSchema>;
 export type UpdateParcelInput = z.infer<typeof updateParcelSchema>;

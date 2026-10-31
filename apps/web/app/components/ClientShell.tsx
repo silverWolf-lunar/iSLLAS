@@ -43,8 +43,8 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Public Landing Page and Sign-in render standalone
-  if (pathname === '/signin' || pathname === '/') {
+  // Public Landing Page, Sign-in, Registration, and Verification render standalone
+  if (pathname === '/signin' || pathname === '/register' || pathname === '/' || pathname?.startsWith('/verify/')) {
     return <>{children}</>;
   }
 

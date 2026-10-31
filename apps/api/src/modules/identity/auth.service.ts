@@ -1,10 +1,14 @@
-import { Injectable, NotFoundException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { UserIdentity } from './user-identity.entity';
+import { ClientProfile } from '../client-profiles/client-profile.entity';
+import { AdminArea } from '../organizations/admin-area.entity';
 import { AccessControlService } from '../access-control/access-control.service';
-import { Role, UserProfile, UserStatus } from '@sllas/contracts';
+import { AuditService } from '../audit/audit.service';
+import { Role, UserProfile, UserStatus, ClientType, VerificationStatus, AuditAction, AdminAreaLevel } from '@sllas/contracts';
+import { ClientRegisterInput } from '@sllas/validation';
 import * as jwt from 'jsonwebtoken';
 
 @Injectable()
@@ -26,7 +30,12 @@ export class AuthService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserIdentity)
     private readonly userIdentityRepo: Repository<UserIdentity>,
+    @InjectRepository(ClientProfile)
+    private readonly clientProfileRepo: Repository<ClientProfile>,
+    @InjectRepository(AdminArea)
+    private readonly adminAreaRepo: Repository<AdminArea>,
     private readonly accessControlService: AccessControlService,
+    private readonly auditService: AuditService,
   ) {}
 
   async getKeycloakProfile(subject: string): Promise<UserProfile> {
@@ -137,6 +146,122 @@ export class AuthService {
       provinceId: user.provinceId,
       districtId: user.districtId,
       status: user.status,
+      permissions,
+    };
+
+    const token = this.generateToken(profile);
+    return { token, user: profile };
+  }
+
+  /**
+   * Stage 0: Citizen / Client self-registration
+   * Enforces Role.CLIENT, checks duplicate email and national ID, creates user,
+   * linked identity, client profile, and logs the statutory audit trail.
+   */
+  async register(dto: ClientRegisterInput): Promise<{ token: string; user: UserProfile }> {
+    const normalizedEmail = dto.email.trim().toLowerCase();
+
+    const existingUser = await this.userRepo.findOne({ where: { email: normalizedEmail } });
+    if (existingUser) {
+      throw new ConflictException(`An account with email '${dto.email}' is already registered.`);
+    }
+
+    if (dto.nationalIdNumber && dto.nationalIdNumber.trim().length > 0) {
+      const existingProfile = await this.clientProfileRepo.findOne({
+        where: { nationalIdNumber: dto.nationalIdNumber.trim() },
+      });
+      if (existingProfile) {
+        throw new ConflictException(`A citizen profile with National ID '${dto.nationalIdNumber}' is already registered.`);
+      }
+    }
+
+    // Resolve or fallback to valid administrative province and district
+    let targetProvinceId = dto.provinceId || null;
+    let targetDistrictId = dto.districtId || null;
+
+    if (!targetProvinceId) {
+      const defaultProv = await this.adminAreaRepo.findOne({
+        where: { level: AdminAreaLevel.PROVINCE },
+        order: { name: 'ASC' },
+      });
+      targetProvinceId = defaultProv ? defaultProv.id : null;
+    }
+
+    if (!targetDistrictId && targetProvinceId) {
+      const defaultDist = await this.adminAreaRepo.findOne({
+        where: { level: AdminAreaLevel.DISTRICT, parentId: targetProvinceId },
+      });
+      targetDistrictId = defaultDist ? defaultDist.id : null;
+    }
+
+    // Save citizen user record (always Role.CLIENT)
+    const user = this.userRepo.create({
+      email: normalizedEmail,
+      firstName: dto.firstName.trim(),
+      lastName: dto.lastName.trim(),
+      phoneNumber: dto.phoneNumber?.trim() || null,
+      role: Role.CLIENT,
+      status: UserStatus.ACTIVE,
+      provinceId: targetProvinceId,
+      districtId: targetDistrictId,
+    });
+    const savedUser = await this.userRepo.save(user);
+
+    // Link keycloak/local identity
+    const identity = this.userIdentityRepo.create({
+      userId: savedUser.id,
+      provider: 'keycloak',
+      providerSubject: `sub-${savedUser.id}`,
+    });
+    await this.userIdentityRepo.save(identity);
+
+    // Create initial statutory client profile record if province and district exist
+    if (targetProvinceId && targetDistrictId) {
+      const clientProfile = this.clientProfileRepo.create({
+        userId: savedUser.id,
+        clientType: dto.clientType || ClientType.INDIVIDUAL,
+        nationalIdNumber: dto.nationalIdNumber?.trim() || null,
+        companyName: dto.companyName?.trim() || null,
+        registrationNumber: dto.registrationNumber?.trim() || null,
+        address: dto.address?.trim() || 'Pending address verification',
+        provinceId: targetProvinceId,
+        districtId: targetDistrictId,
+        verificationStatus: VerificationStatus.UNVERIFIED,
+      });
+      await this.clientProfileRepo.save(clientProfile);
+    }
+
+    // Write Stage 0 statutory audit log
+    await this.auditService.logEvent({
+      action: AuditAction.CREATE,
+      entityType: 'USER',
+      entityId: savedUser.id,
+      actorId: savedUser.id,
+      actorEmail: savedUser.email,
+      actorRole: Role.CLIENT,
+      provinceId: targetProvinceId,
+      metadata: {
+        registrationType: 'CITIZEN_SELF_REGISTRATION',
+        clientType: dto.clientType,
+        nationalIdNumber: dto.nationalIdNumber,
+        statutoryAct: 'Agricultural Land Settlement Act [Chapter 20:01]',
+      },
+    });
+
+    const permissions = await this.accessControlService.getRolePermissions(savedUser.role);
+
+    const profile: UserProfile = {
+      id: savedUser.id,
+      email: savedUser.email,
+      firstName: savedUser.firstName,
+      lastName: savedUser.lastName,
+      roles: [savedUser.role],
+      role: savedUser.role,
+      phoneNumber: savedUser.phoneNumber,
+      officeId: savedUser.officeId,
+      provinceId: savedUser.provinceId,
+      districtId: savedUser.districtId,
+      status: savedUser.status,
       permissions,
     };
 

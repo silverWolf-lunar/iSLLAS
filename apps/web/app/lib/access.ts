@@ -94,6 +94,8 @@ export const ROUTE_PERMISSIONS: Array<{
 }> = [
   // Public/Shared
   { pattern: /^\/signin$/, allowedRoles: Object.values(Role) },
+  { pattern: /^\/register$/, allowedRoles: Object.values(Role) },
+  { pattern: /^\/verify(\/.*)?$/, allowedRoles: Object.values(Role) },
   { pattern: /^\/settings$/, allowedRoles: Object.values(Role) },
   { pattern: /^\/parcels$/, allowedRoles: Object.values(Role) },
   { pattern: /^\/parcels\/[^/]+$/, allowedRoles: Object.values(Role) },

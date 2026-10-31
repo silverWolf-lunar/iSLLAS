@@ -14,12 +14,38 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { UserProfile, Role } from '@sllas/contracts';
+import { clientRegisterSchema, ClientRegisterInput } from '@sllas/validation';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { SYSTEM_CONFIG } from '@sllas/config';
 
 @ApiTags('Auth')
 @Controller('api/v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  @Public()
+  @ApiOperation({ summary: 'Register a new citizen/client account under Stage 0' })
+  @SwaggerResponse({ status: 201, description: 'Citizen registered successfully' })
+  async register(
+    @Body(new ZodValidationPipe(clientRegisterSchema)) dto: ClientRegisterInput,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(dto);
+
+    // Set secure HTTP-only cookie
+    res.cookie(SYSTEM_CONFIG.AUTH.COOKIE_NAME, result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: SYSTEM_CONFIG.AUTH.REFRESH_TOKEN_TTL_SECONDS * 1000,
+    });
+
+    return {
+      token: result.token,
+      user: result.user,
+    };
+  }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
