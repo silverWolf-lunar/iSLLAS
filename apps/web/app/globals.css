@@ -1474,14 +1474,21 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Horizontal News Cards
+ * News Feed Grid & Cards (x2 Grid on Large Screens)
  * ───────────────────────────────────────────────────────────── */
+.news-feed-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+}
+
 .horizontal-news-card {
   display: flex;
   flex-direction: row;
   border-radius: 20px;
   overflow: hidden;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  height: 100%;
 }
 
 .horizontal-news-card:hover {
@@ -1494,6 +1501,37 @@ h1, h2, h3, h4, h5, h6 {
   max-width: 380px;
 }
 
+.horizontal-news-card .news-card-content {
+  flex: 1;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* x2 Grid layout on large screens (>= 1024px) */
+@media (min-width: 1024px) {
+  .news-feed-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .news-feed-grid .horizontal-news-card {
+    flex-direction: column;
+  }
+
+  .news-feed-grid .horizontal-news-card .news-card-image {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 250px !important;
+  }
+
+  .news-feed-grid .horizontal-news-card .news-card-content {
+    padding: 24px 24px 20px;
+  }
+}
+
 @media (max-width: 860px) {
   .horizontal-news-card {
     flex-direction: column;
@@ -1503,6 +1541,9 @@ h1, h2, h3, h4, h5, h6 {
     min-width: 100% !important;
     max-width: 100% !important;
     height: 220px !important;
+  }
+  .horizontal-news-card .news-card-content {
+    padding: 20px;
   }
 }
 

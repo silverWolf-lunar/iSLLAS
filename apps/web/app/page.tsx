@@ -1265,12 +1265,8 @@ export default function LandingPage() {
 
         </div>
 
-        {/* Horizontal News Feed */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '28px',
-        }}>
+        {/* News Feed Grid (x2 Grid on Large Screens) */}
+        <div className="news-feed-grid">
           {filteredNews.length === 0 && (
             <div style={{
               textAlign: 'center',
@@ -1279,6 +1275,7 @@ export default function LandingPage() {
               background: isLight ? '#f8fafc' : 'rgba(15, 23, 42, 0.6)',
               border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
               color: isLight ? '#64748b' : 'var(--text-muted)',
+              gridColumn: '1 / -1',
             }}>
               <p style={{ margin: 0, fontSize: '0.95rem' }}>No farming news updates currently available. Checking live feed...</p>
             </div>
@@ -1317,7 +1314,7 @@ export default function LandingPage() {
                   style={{
                     width: '100%',
                     height: '100%',
-                    minHeight: '260px',
+                    minHeight: '100%',
                     objectFit: 'cover',
                     display: 'block',
                     transition: 'transform 0.4s ease',
@@ -1371,13 +1368,7 @@ export default function LandingPage() {
               </div>
 
               {/* Right Column: Article Details & Key Takeaways */}
-              <div style={{
-                flex: 1,
-                padding: '28px 32px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}>
+              <div className="news-card-content">
                 <div>
                   {/* Top Bar with Category Badge & Actual News Website External Link */}
                   <div style={{
