@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Alert,
+  Animated,
+  Easing,
   Modal,
   Platform,
   Pressable,
@@ -11,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Svg, { Path, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -191,7 +194,334 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SLLAS ANIMATED MOTION SPLASH / LOADING SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
+function SllasMotionSplashScreen({ onFinish }: { onFinish: () => void }) {
+  const logoScale = useRef(new Animated.Value(0.2)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoRotate = useRef(new Animated.Value(0)).current;
+  const glowScale = useRef(new Animated.Value(0.85)).current;
+  const glowOpacity = useRef(new Animated.Value(0.65)).current;
+  const ribbonScaleX = useRef(new Animated.Value(0)).current;
+  const textTranslateY = useRef(new Animated.Value(24)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const screenOpacity = useRef(new Animated.Value(1)).current;
+
+  const [loadingStep, setLoadingStep] = useState('Initializing Vision 2030 Cadastre Spatial Engine...');
+
+  useEffect(() => {
+    // 1. Continuous breathing glow loop
+    const glowLoop = Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(glowScale, {
+            toValue: 1.35,
+            duration: 1800,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowScale, {
+            toValue: 0.85,
+            duration: 1800,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(glowOpacity, {
+            toValue: 0.12,
+            duration: 1800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowOpacity, {
+            toValue: 0.65,
+            duration: 1800,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+    glowLoop.start();
+
+    // 2. Entrance sequence for SLLAS Emblem & Typography
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 45,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoRotate, {
+          toValue: 1,
+          duration: 750,
+          easing: Easing.out(Easing.back(1.5)),
+          useNativeDriver: true,
+        }),
+      ]),
+      // 3. National ribbon expansion & typography reveal
+      Animated.parallel([
+        Animated.timing(ribbonScaleX, {
+          toValue: 1,
+          duration: 550,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(textTranslateY, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(subtitleOpacity, {
+          toValue: 1,
+          duration: 600,
+          delay: 150,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // 4. Progress bar animation & Step messages
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 2700,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+
+    const timer1 = setTimeout(() => {
+      setLoadingStep('Authenticating 99-Year Leasehold Security...');
+    }, 850);
+
+    const timer2 = setTimeout(() => {
+      setLoadingStep('Loading Provincial Land Inventories & Waiting List...');
+    }, 1750);
+
+    const timer3 = setTimeout(() => {
+      setLoadingStep('SLLAS Mobile Engine Ready • Launching Portal...');
+    }, 2400);
+
+    const finishTimer = setTimeout(() => {
+      Animated.timing(screenOpacity, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: true,
+      }).start(() => {
+        onFinish();
+      });
+    }, 2900);
+
+    return () => {
+      glowLoop.stop();
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(finishTimer);
+    };
+  }, []);
+
+  const spinInterpolation = logoRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-16deg', '0deg'],
+  });
+
+  return (
+    <Animated.View style={[styles.splashContainer, { opacity: screenOpacity }]}>
+      <SafeAreaView style={styles.splashSafeArea}>
+        {/* Top Header Pill */}
+        <View style={styles.splashTopBadge}>
+          <Text style={styles.splashTopBadgeText}>🇿🇼 REPUBLIC OF ZIMBABWE • VISION 2030</Text>
+        </View>
+
+        {/* Central Animated Motion Logo Section */}
+        <View style={styles.splashCenterContent}>
+          {/* Ambient Glowing Halo Ring */}
+          <Animated.View
+            style={[
+              styles.splashHaloRing,
+              {
+                transform: [{ scale: glowScale }],
+                opacity: glowOpacity,
+              },
+            ]}
+          />
+
+          {/* SLLAS Badge Emblem with Scale and Rotation */}
+          <Animated.View
+            style={[
+              styles.splashEmblemWrap,
+              {
+                opacity: logoOpacity,
+                transform: [
+                  { scale: logoScale },
+                  { rotate: spinInterpolation },
+                ],
+              },
+            ]}
+          >
+            <Svg width={120} height={120} viewBox="0 0 48 48">
+              <Defs>
+                <LinearGradient id="splashBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor="#064e3b" />
+                  <Stop offset="100%" stopColor="#022c22" />
+                </LinearGradient>
+                <LinearGradient id="splashLeafGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop offset="0%" stopColor="#86efac" />
+                  <Stop offset="50%" stopColor="#4ade80" />
+                  <Stop offset="100%" stopColor="#22c55e" />
+                </LinearGradient>
+                <LinearGradient id="splashStemGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop offset="0%" stopColor="#bbf7d0" />
+                  <Stop offset="100%" stopColor="#15803d" />
+                </LinearGradient>
+              </Defs>
+
+              {/* Squircle Badge Base */}
+              <Rect
+                x="1"
+                y="1"
+                width="46"
+                height="46"
+                rx="10"
+                fill="url(#splashBadgeGrad)"
+                stroke="rgba(74, 222, 128, 0.55)"
+                strokeWidth="1.2"
+              />
+
+              {/* Central Sprout Leaf */}
+              <Path
+                d="M 24.00 5.29 Q 25.62 6.91 27.06 9.11 Q 27.82 10.92 28.20 13.12 Q 28.01 15.79 27.44 17.51 Q 26.39 19.51 24.10 22.19 Q 22.85 21.14 21.33 19.23 Q 20.37 17.41 19.80 15.03 Q 19.99 12.16 20.75 9.96 Q 22.38 7.20 24.00 5.29 Z"
+                fill="url(#splashLeafGrad)"
+              />
+
+              {/* Left Leaf */}
+              <Path
+                d="M 11.11 19.13 Q 14.55 19.42 16.46 19.99 Q 18.37 21.04 19.61 22.19 Q 20.56 23.62 21.23 25.34 Q 21.61 27.82 21.52 29.92 Q 20.18 27.63 18.84 26.10 Q 17.22 24.86 15.60 24.10 Q 15.22 24.29 15.22 24.67 Q 18.37 28.11 19.80 30.30 Q 19.99 30.97 17.89 30.97 Q 15.88 30.59 13.97 29.73 Q 12.16 28.11 10.54 25.34 Q 9.68 21.99 9.49 19.32 Q 11.02 19.23 11.11 19.13 Z"
+                fill="url(#splashLeafGrad)"
+              />
+
+              {/* Right Leaf */}
+              <Path
+                d="M 36.79 21.04 Q 37.94 21.04 37.56 23.90 Q 36.32 27.44 35.08 29.35 Q 33.83 30.59 32.40 31.45 Q 30.59 32.02 28.58 32.12 Q 29.44 30.11 30.21 28.96 Q 32.50 26.48 32.59 26.01 Q 32.21 25.72 30.97 26.29 Q 29.63 27.25 28.01 28.96 Q 26.20 31.73 26.10 29.54 Q 26.58 27.15 27.34 25.53 Q 28.20 24.38 29.35 23.33 Q 31.35 22.19 34.41 21.33 Q 36.70 21.14 36.79 21.04 Z"
+                fill="url(#splashLeafGrad)"
+              />
+
+              {/* Stem Trunk */}
+              <Path
+                d="M 22.28 30.11 Q 23.33 32.69 24.00 35.46 Q 24.57 40.04 24.57 41.85 Q 24.29 42.05 23.90 41.85 Q 23.62 37.18 23.05 34.12 Q 22.09 31.26 22.19 30.21 Z"
+                fill="url(#splashStemGrad)"
+              />
+
+              {/* Stem Branch to right leaf */}
+              <Path
+                d="M 25.43 32.12 Q 25.91 32.40 25.91 32.59 Q 24.76 35.65 24.48 34.03 Q 25.43 32.21 25.43 32.12 Z"
+                fill="url(#splashStemGrad)"
+              />
+
+              {/* Soil Base / Ground Lobes */}
+              <Path
+                d="M 28.11 40.90 Q 29.54 40.90 30.59 41.19 Q 31.83 41.85 33.07 43.00 Q 24.14 43.00 15.22 43.00 Q 15.88 42.24 16.74 41.66 Q 18.56 40.99 20.18 40.99 Q 21.80 41.47 24.29 43.00 Q 26.58 41.38 28.01 40.99 Z"
+                fill="#166534"
+              />
+            </Svg>
+          </Animated.View>
+
+          {/* Animated Zimbabwe National 4-Stripe Ribbon */}
+          <Animated.View
+            style={[
+              styles.splashRibbonWrap,
+              {
+                opacity: ribbonScaleX,
+                transform: [{ scaleX: ribbonScaleX }],
+              },
+            ]}
+          >
+            <View style={[styles.splashRibbonBar, { backgroundColor: '#006B3F' }]} />
+            <View style={[styles.splashRibbonBar, { backgroundColor: '#FFD200' }]} />
+            <View style={[styles.splashRibbonBar, { backgroundColor: '#D40000' }]} />
+            <View style={[styles.splashRibbonBar, { backgroundColor: '#000000' }]} />
+          </Animated.View>
+
+          {/* Animated Typographic Title */}
+          <Animated.View
+            style={[
+              styles.splashTitleWrap,
+              {
+                opacity: textOpacity,
+                transform: [{ translateY: textTranslateY }],
+              },
+            ]}
+          >
+            <Text style={styles.splashTitle}>SLLAS</Text>
+            <View style={styles.splashBadgePill}>
+              <Text style={styles.splashBadgePillText}>SMART LAND LEASE & ALLOCATION SYSTEM</Text>
+            </View>
+          </Animated.View>
+
+          {/* Subtitle / Ministry Tagline */}
+          <Animated.View
+            style={[
+              styles.splashSubtitleWrap,
+              {
+                opacity: subtitleOpacity,
+              },
+            ]}
+          >
+            <Text style={styles.splashMinistryText}>Ministry of Lands, Agriculture, Fisheries, Water & Rural Development</Text>
+            <Text style={styles.splashActText}>Agricultural Land Settlement Act (Cap 20:01)</Text>
+          </Animated.View>
+        </View>
+
+        {/* Bottom Loading Progress Bar & Live Status Stepper */}
+        <View style={styles.splashBottomBar}>
+          <View style={styles.splashStatusRow}>
+            <View style={styles.splashPulseDot} />
+            <Text style={styles.splashStatusText}>{loadingStep}</Text>
+          </View>
+
+          {/* Modern Capsule Progress Track */}
+          <View style={styles.splashProgressTrack}>
+            <Animated.View
+              style={[
+                styles.splashProgressFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            />
+          </View>
+
+          {/* Skip Button */}
+          <Pressable onPress={onFinish} style={styles.splashSkipBtn}>
+            <Text style={styles.splashSkipText}>Skip Intro →</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    </Animated.View>
+  );
+}
+
 export default function App() {
+  // Splash / Loading Screen State
+  const [isLoading, setIsLoading] = useState(true);
+
   // Authentication & Onboarding State
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [authView, setAuthView] = useState<'welcome' | 'signin' | 'register' | 'recover'>('welcome');
@@ -280,6 +610,11 @@ export default function App() {
     Alert.alert('Application Lodged', `Your application for parcel ${selectedParcel.referenceNumber} is now registered on the Waiting List (#${newApp.waitingListNumber}).`);
     setActiveTab('applications');
   };
+
+  // 0. SLLAS ANIMATED MOTION SPLASH / LOADING SCREEN
+  if (isLoading) {
+    return <SllasMotionSplashScreen onFinish={() => setIsLoading(false)} />;
+  }
 
   // 1. WELCOME & SIGN-IN / REGISTRATION SCREEN (Section 4.3.2 Item 1)
   if (!isAuthenticated) {
@@ -563,7 +898,7 @@ export default function App() {
                 </View>
                 <Text style={styles.itemTitle}>{app.intendedActivity}</Text>
                 <Text style={styles.cardSub}>
-                  Waiting List: <strong>{app.waitingListNumber}</strong> • Parcel: {app.parcelRef} ({app.hectares} ha)
+                  Waiting List: <Text style={{ fontWeight: 'bold' }}>{app.waitingListNumber}</Text> • Parcel: {app.parcelRef} ({app.hectares} ha)
                 </Text>
 
                 {/* Status Progress Stepper */}
@@ -712,7 +1047,14 @@ export default function App() {
             </View>
 
             <Pressable
-              style={[styles.secondaryButton, { marginTop: 16 }]}
+              style={[styles.primaryButton, { marginTop: 16 }]}
+              onPress={() => setIsLoading(true)}
+            >
+              <Text style={styles.primaryButtonText}>▶ Replay SLLAS Motion Logo</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.secondaryButton, { marginTop: 12 }]}
               onPress={() => setIsAuthenticated(false)}
             >
               <Text style={styles.secondaryButtonText}>Sign Out of SLLAS</Text>
@@ -806,10 +1148,10 @@ export default function App() {
                 {/* Pre-filled Applicant Profile */}
                 <Text style={styles.filterLabel}>Applicant Details (Pre-filled from Profile)</Text>
                 <View style={styles.prefillBox}>
-                  <Text style={styles.prefillItem}><strong>Applicant:</strong> {profile.name}</Text>
-                  <Text style={styles.prefillItem}><strong>National ID:</strong> {profile.nationalId}</Text>
-                  <Text style={styles.prefillItem}><strong>Contact:</strong> {profile.phone}</Text>
-                  <Text style={styles.prefillItem}><strong>Target Parcel:</strong> {selectedParcel.referenceNumber} ({selectedParcel.hectares} ha)</Text>
+                  <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>Applicant:</Text> {profile.name}</Text>
+                  <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>National ID:</Text> {profile.nationalId}</Text>
+                  <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>Contact:</Text> {profile.phone}</Text>
+                  <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>Target Parcel:</Text> {selectedParcel.referenceNumber} ({selectedParcel.hectares} ha)</Text>
                 </View>
 
                 {/* Intended Agricultural Activity */}
@@ -1379,5 +1721,157 @@ const styles = StyleSheet.create({
   tabBarLabelActive: {
     color: '#4ade80',
     fontWeight: '700',
+  },
+  // --- SLLAS Motion Splash Screen Styles ---
+  splashContainer: {
+    flex: 1,
+    backgroundColor: '#030712',
+  },
+  splashSafeArea: {
+    flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  splashTopBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginTop: 8,
+  },
+  splashTopBadgeText: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  splashCenterContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  splashHaloRing: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(34, 197, 94, 0.14)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(74, 222, 128, 0.35)',
+  },
+  splashEmblemWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  splashRibbonWrap: {
+    flexDirection: 'row',
+    height: 4,
+    width: 90,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 20,
+  },
+  splashRibbonBar: {
+    flex: 1,
+    height: '100%',
+  },
+  splashTitleWrap: {
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  splashTitle: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 6,
+  },
+  splashBadgePill: {
+    backgroundColor: 'rgba(74, 222, 128, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.25)',
+    marginTop: 6,
+  },
+  splashBadgePillText: {
+    color: '#4ade80',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  splashSubtitleWrap: {
+    alignItems: 'center',
+    marginTop: 14,
+    paddingHorizontal: 24,
+  },
+  splashMinistryText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  splashActText: {
+    color: '#64748b',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  splashBottomBar: {
+    width: '100%',
+    paddingHorizontal: 32,
+    paddingBottom: 24,
+    alignItems: 'center',
+  },
+  splashStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  splashPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#4ade80',
+    marginRight: 8,
+  },
+  splashStatusText: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  splashProgressTrack: {
+    width: '100%',
+    height: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  splashProgressFill: {
+    height: '100%',
+    backgroundColor: '#22c55e',
+    borderRadius: 3,
+  },
+  splashSkipBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  splashSkipText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
