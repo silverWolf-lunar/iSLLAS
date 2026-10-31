@@ -5,15 +5,21 @@
     "version": "1.0.0",
     "scheme": "sllas-mobile",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "zw.gov.sllas.mobile",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#e0f2fe"
-      }
+        "backgroundColor": "#030712"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro"
