@@ -92,13 +92,24 @@ async function proxyApiRequest(
     if (value) headers.set(headerName, value);
   }
 
-  const upstream = await fetch(targetUrl, {
-    method: request.method,
-    headers,
-    body: request.method === 'GET' ? undefined : await request.arrayBuffer(),
-    cache: 'no-store',
-    redirect: 'manual',
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(targetUrl, {
+      method: request.method,
+      headers,
+      body: request.method === 'GET' ? undefined : await request.arrayBuffer(),
+      cache: 'no-store',
+      redirect: 'manual',
+    });
+  } catch (err: any) {
+    console.warn(`[SLLAS_API_PROXY] Upstream connection to ${targetUrl} failed: ${err?.message}`);
+    return NextResponse.json({
+      error: 'Upstream service unavailable',
+      message: 'The government API service is currently not accessible from this container.',
+      path: path.join('/'),
+    }, { status: 503 });
+  }
+
   const responseHeaders = new Headers();
   for (const headerName of ['content-type', 'x-request-id', 'x-correlation-id']) {
     const value = upstream.headers.get(headerName);
