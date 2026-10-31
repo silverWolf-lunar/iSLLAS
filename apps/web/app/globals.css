@@ -1482,6 +1482,21 @@ h1, h2, h3, h4, h5, h6 {
   gap: 28px;
 }
 
+@keyframes newsFadeIn {
+  0% {
+    opacity: 0.35;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.news-card-animated {
+  animation: newsFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .horizontal-news-card {
   display: flex;
   flex-direction: row;

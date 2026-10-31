@@ -191,6 +191,13 @@ export default function LandingPage() {
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [newsLastSynced, setNewsLastSynced] = useState<Date>(new Date());
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'CROPS' | 'TENURE' | 'CADASTRE' | 'LIVESTOCK' | 'FINANCE'>('ALL');
+  const [newsPageIndex, setNewsPageIndex] = useState(0);
+  const [isAutoUpdatePaused, setIsAutoUpdatePaused] = useState(false);
+  const [secondsUntilUpdate, setSecondsUntilUpdate] = useState(10);
+  const [showAllNews, setShowAllNews] = useState(false);
+  const [refreshAnimationKey, setRefreshAnimationKey] = useState(0);
+
+  const CARDS_PER_PAGE = 4;
 
   const fetchLiveNews = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshingNews(true);
@@ -212,29 +219,46 @@ export default function LandingPage() {
     }
   }, []);
 
-  // Initial fetch, 20-second automatic real-time polling interval, and tab focus revalidation
+  // 10-second automatic real-time update and dynamic countdown
   useEffect(() => {
     fetchLiveNews();
-    const interval = setInterval(() => {
-      fetchLiveNews();
-    }, 20000);
+
+    const timer = setInterval(() => {
+      setSecondsUntilUpdate((prev) => {
+        if (isAutoUpdatePaused) return prev;
+        if (prev <= 1) {
+          fetchLiveNews();
+          setNewsPageIndex((curr) => curr + 1);
+          setRefreshAnimationKey((k) => k + 1);
+          return 10;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchLiveNews();
+        setSecondsUntilUpdate(10);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(interval);
+      clearInterval(timer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchLiveNews]);
+  }, [fetchLiveNews, isAutoUpdatePaused]);
 
   const filteredNews = selectedCategory === 'ALL'
     ? newsArticles
     : newsArticles.filter((a) => (a.category || 'TENURE') === selectedCategory);
+
+  const totalNewsPages = Math.ceil(filteredNews.length / CARDS_PER_PAGE) || 1;
+  const safePageIndex = newsPageIndex % totalNewsPages;
+  const displayedNews = showAllNews
+    ? filteredNews
+    : filteredNews.slice(safePageIndex * CARDS_PER_PAGE, (safePageIndex + 1) * CARDS_PER_PAGE);
 
   const isLight = resolvedTheme === 'light';
   const userRole = (session?.user as any)?.role as Role | undefined;
@@ -1265,9 +1289,223 @@ export default function LandingPage() {
 
         </div>
 
+        {/* 10-Second Auto-Update Banner & Real-Time Controls */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '14px',
+          padding: '14px 20px',
+          borderRadius: '14px',
+          background: isLight ? 'rgba(255, 255, 255, 0.9)' : 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
+          marginBottom: '24px',
+          boxShadow: isLight ? '0 4px 14px rgba(15, 23, 42, 0.04)' : '0 8px 24px rgba(0, 0, 0, 0.3)',
+        }}>
+          {/* Left: 10s Auto-Update Pulse & Countdown Progress Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="live-pulse-dot" style={{ width: 8, height: 8 }} />
+              <span style={{
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                color: isLight ? '#0f172a' : '#ffffff',
+              }}>
+                LIVE WIRE
+              </span>
+              <span style={{
+                fontSize: '0.725rem',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '6px',
+                background: isLight ? 'rgba(22, 163, 74, 0.12)' : 'rgba(34, 197, 94, 0.18)',
+                color: isLight ? '#15803d' : '#4ade80',
+                border: isLight ? '1px solid rgba(22, 163, 74, 0.25)' : '1px solid rgba(34, 197, 94, 0.3)',
+              }}>
+                ⚡ AUTO-UPDATES EVERY 10s
+              </span>
+            </div>
+
+            {/* Visual 10-Second Progress Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '84px',
+                height: '6px',
+                borderRadius: '3px',
+                background: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.15)',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%',
+                  width: `${Math.max(0, Math.min(100, ((10 - secondsUntilUpdate) / 10) * 100))}%`,
+                  background: isAutoUpdatePaused ? '#94a3b8' : 'linear-gradient(90deg, #22c55e, #10b981)',
+                  transition: 'width 0.9s linear',
+                  borderRadius: '3px',
+                }} />
+              </div>
+              <span style={{
+                fontSize: '0.75rem',
+                color: isLight ? '#64748b' : 'var(--text-muted)',
+                fontVariantNumeric: 'tabular-nums',
+                minWidth: '78px',
+                fontWeight: 600,
+              }}>
+                {isAutoUpdatePaused ? '⏸ Paused' : `Update in ${secondsUntilUpdate}s`}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Batch info & Navigation Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {!showAllNews && totalNewsPages > 1 && (
+              <span style={{
+                fontSize: '0.775rem',
+                fontWeight: 600,
+                color: isLight ? '#475569' : '#94a3b8',
+              }}>
+                Batch {safePageIndex + 1} of {totalNewsPages} ({safePageIndex * CARDS_PER_PAGE + 1}–{Math.min((safePageIndex + 1) * CARDS_PER_PAGE, filteredNews.length)} of {filteredNews.length})
+              </span>
+            )}
+
+            {/* Pause / Resume Button */}
+            <button
+              type="button"
+              onClick={() => setIsAutoUpdatePaused((p) => !p)}
+              className="btn"
+              style={{
+                padding: '5px 11px',
+                fontSize: '0.75rem',
+                borderRadius: '6px',
+                background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+                color: isLight ? '#334155' : '#e2e8f0',
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontWeight: 600,
+              }}
+              title={isAutoUpdatePaused ? 'Resume 10-second automatic rotation' : 'Pause automatic updates while reading'}
+            >
+              <span>{isAutoUpdatePaused ? '▶ Resume' : '⏸ Pause'}</span>
+            </button>
+
+            {/* Prev / Next Pagination */}
+            {!showAllNews && totalNewsPages > 1 && (
+              <div style={{ display: 'inline-flex', gap: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewsPageIndex((curr) => (curr - 1 + totalNewsPages) % totalNewsPages);
+                    setSecondsUntilUpdate(10);
+                    setRefreshAnimationKey((k) => k + 1);
+                  }}
+                  className="btn"
+                  style={{
+                    padding: '5px 10px',
+                    fontSize: '0.75rem',
+                    borderRadius: '6px',
+                    background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+                    color: isLight ? '#334155' : '#e2e8f0',
+                    border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                  title="Previous batch of news cards"
+                >
+                  ‹ Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewsPageIndex((curr) => (curr + 1) % totalNewsPages);
+                    setSecondsUntilUpdate(10);
+                    setRefreshAnimationKey((k) => k + 1);
+                  }}
+                  className="btn"
+                  style={{
+                    padding: '5px 10px',
+                    fontSize: '0.75rem',
+                    borderRadius: '6px',
+                    background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+                    color: isLight ? '#334155' : '#e2e8f0',
+                    border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                  title="Next batch of news cards"
+                >
+                  Next ›
+                </button>
+              </div>
+            )}
+
+            {/* Toggle View Mode */}
+            <button
+              type="button"
+              onClick={() => setShowAllNews((s) => !s)}
+              className="btn"
+              style={{
+                padding: '5px 12px',
+                fontSize: '0.75rem',
+                borderRadius: '6px',
+                background: showAllNews
+                  ? (isLight ? '#0f172a' : '#ffffff')
+                  : (isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)'),
+                color: showAllNews
+                  ? (isLight ? '#ffffff' : '#0f172a')
+                  : (isLight ? '#334155' : '#e2e8f0'),
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+              title="Toggle between 4 cards 10-second rotation or viewing all news cards"
+            >
+              {showAllNews ? 'Rotate 4 per 10s' : `View All (${filteredNews.length})`}
+            </button>
+
+            {/* Manual Sync Button */}
+            <button
+              type="button"
+              onClick={() => {
+                fetchLiveNews(true);
+                setSecondsUntilUpdate(10);
+                setRefreshAnimationKey((k) => k + 1);
+              }}
+              disabled={isRefreshingNews}
+              className="btn"
+              style={{
+                padding: '5px 12px',
+                fontSize: '0.75rem',
+                borderRadius: '6px',
+                background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+                color: isLight ? '#334155' : '#e2e8f0',
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                cursor: isRefreshingNews ? 'wait' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontWeight: 600,
+              }}
+              title="Sync live news updates now"
+            >
+              <span style={{
+                display: 'inline-block',
+                transform: isRefreshingNews ? 'rotate(360deg)' : 'none',
+                transition: 'transform 0.5s ease',
+              }}>↻</span>
+              <span>{isRefreshingNews ? 'Syncing...' : 'Sync'}</span>
+            </button>
+          </div>
+        </div>
+
         {/* News Feed Grid (x2 Grid on Large Screens) */}
         <div className="news-feed-grid">
-          {filteredNews.length === 0 && (
+          {displayedNews.length === 0 && (
             <div style={{
               textAlign: 'center',
               padding: '48px 24px',
@@ -1280,10 +1518,10 @@ export default function LandingPage() {
               <p style={{ margin: 0, fontSize: '0.95rem' }}>No farming news updates currently available. Checking live feed...</p>
             </div>
           )}
-          {filteredNews.map((article) => (
+          {displayedNews.map((article) => (
             <article
-              key={article.id}
-              className="glass-panel horizontal-news-card"
+              key={`${article.id}-${refreshAnimationKey}`}
+              className="glass-panel horizontal-news-card news-card-animated"
               style={{
                 background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.85)',
                 backdropFilter: 'blur(16px)',
