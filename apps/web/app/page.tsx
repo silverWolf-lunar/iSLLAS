@@ -24,7 +24,10 @@ interface LandNewsArticle {
   sourceUrl: string;
   imageUrl: string;
   gazetteRef: string;
-  category?: 'TENURE' | 'CADASTRE' | 'FINANCE' | 'LIVE_WIRE' | string;
+  summary: string;
+  bulletPoints: string[];
+  fullGazetteText: string;
+  category?: 'CROPS' | 'TENURE' | 'CADASTRE' | 'LIVESTOCK' | 'FINANCE' | string;
   isLiveWire?: boolean;
 }
 
@@ -38,16 +41,62 @@ interface NewsTickerItem {
 
 const LAND_NEWS_ARTICLES: LandNewsArticle[] = [
   {
+    id: 'winter-wheat-herald-production',
+    badge: 'The Herald • Crop Production',
+    badgeBg: 'rgba(217, 119, 6, 0.14)',
+    badgeColor: '#d97706',
+    badgeBorder: 'rgba(217, 119, 6, 0.35)',
+    title: 'National Winter Wheat Production: All Systems Go Across Irrigated Commercial Farmlands',
+    date: 'The Herald Agriculture Desk • Special Bulletin',
+    readTime: '4 min read',
+    source: 'The Herald Agriculture Desk',
+    sourceDomain: 'heraldonline.co.zw',
+    sourceUrl: 'https://www.heraldonline.co.zw/winter-wheat-farming-all-systems-go/',
+    imageUrl: '/images/news-farm-finance.jpg',
+    gazetteRef: 'Ministry Crop Assessment Notice • National Food Security Target',
+    summary: 'The Government and agricultural stakeholders have activated comprehensive support measures for winter wheat farming across all provincial farming blocks, ensuring full availability of irrigation water, seed, and fertiliser.',
+    bulletPoints: [
+      'Targeted 120,000 hectares under active centre-pivot and canal irrigation.',
+      'GMB grain reception depots equipped with moisture meters and drying facilities.',
+      'Fuel and electricity ring-fenced for continuous wheat irrigation cycles.',
+    ],
+    fullGazetteText: 'As reported by The Herald Agriculture Desk, Zimbabwe is poised to sustain national wheat self-sufficiency as winter wheat preparations enter peak execution. The Ministry of Lands, Agriculture, Fisheries, Water and Rural Development announced that seed houses, commercial banks, and the Grain Marketing Board (GMB) have finalised distribution of inputs to commercial A2 and smallholder irrigation schemes. With national dams brimming at above 85% capacity, water allocations have been secured to sustain uninterrupted irrigation throughout the winter cycle.',
+    category: 'CROPS',
+  },
+  {
+    id: 'joint-ventures-herald-2701',
+    badge: 'The Herald • Joint Ventures',
+    badgeBg: 'rgba(147, 51, 234, 0.14)',
+    badgeColor: '#9333ea',
+    badgeBorder: 'rgba(147, 51, 234, 0.35)',
+    title: '2,701 Agricultural Joint Ventures Approved to Unlock Idle Farmland & Boost Production',
+    date: 'The Herald Agriculture Desk • Joint Venture Registry',
+    readTime: '3 min read',
+    source: 'The Herald Online',
+    sourceDomain: 'heraldonline.co.zw',
+    sourceUrl: 'https://www.heraldonline.co.zw/2-701-farming-joint-ventures-get-the-nod/',
+    imageUrl: '/images/news-tenure-reform.jpg',
+    gazetteRef: 'Statutory Joint Venture Regulations • Land Settlement Directorate',
+    summary: 'The Ministry has formally approved 2,701 agricultural joint venture partnerships, pairing A1 and A2 land beneficiaries with commercial agribusiness investors to scale up grain and horticulture output.',
+    bulletPoints: [
+      'Over 220,000 hectares brought into commercial production through vetted partnerships.',
+      'Protects leaseholder tenure while injecting private capital, combine harvesters, and irrigation.',
+      'Tripartite agreements legally witnessed and monitored by provincial land committees.',
+    ],
+    fullGazetteText: 'According to The Herald, more than 2,701 agricultural joint venture agreements have been ratified by the Ministry of Lands. The policy provides a secure legal vehicle for farmers lacking capital to partner with private agribusiness operators without forfeiting their land rights. Officials confirmed that approved joint ventures have already expanded national grain hectarage, created rural employment, and eliminated unproductive idle land across Mashonaland, Midlands, and Manicaland provinces.',
+    category: 'FINANCE',
+  },
+  {
     id: 'tenure-reform-herald-2024',
-    badge: 'The Herald • Lead Policy',
-    badgeBg: 'rgba(220, 38, 38, 0.12)',
+    badge: 'The Herald • Farm Tenure',
+    badgeBg: 'rgba(220, 38, 38, 0.14)',
     badgeColor: '#dc2626',
-    badgeBorder: 'rgba(220, 38, 38, 0.3)',
-    title: 'President Mnangagwa Announces Bankable, Registrable and Transferable Land Tenure Overhaul',
+    badgeBorder: 'rgba(220, 38, 38, 0.35)',
+    title: 'President Mnangagwa Announces Bankable, Registrable and Transferable Farm Tenure Overhaul',
     date: 'The Herald Online • Special Edition',
     readTime: '4 min read',
     source: 'The Herald Zimbabwe',
-    sourceDomain: 'herald.co.zw',
+    sourceDomain: 'heraldonline.co.zw',
     sourceUrl: 'https://www.herald.co.zw/president-unveils-new-land-tenure-system/',
     imageUrl: '/images/news-tenure-reform.jpg',
     gazetteRef: 'Cabinet National Policy Directive • Land Reform Act',
@@ -57,14 +106,38 @@ const LAND_NEWS_ARTICLES: LandNewsArticle[] = [
       'Empowers commercial banks to accept leases as collateral for farm mechanisation loans.',
       'Transferability strictly restricted among indigenous Zimbabweans to protect national sovereignty.',
     ],
-    fullGazetteText: 'As reported by The Herald, President Emmerson Mnangagwa announced a decisive overhaul of Zimbabwe’s land tenure framework. The President emphasized that land held under older offer letters and permits remained "dead capital" that could not attract commercial bank financing or unlock long-term farm capital investments. Under the new policy, all verified beneficiaries of the Land Reform Programme who demonstrate agricultural productivity will transition to bankable, registrable, and assignable documents of tenure. The Ministry of Lands, together with the Reserve Bank of Zimbabwe and the Bankers Association of Zimbabwe, has finalized legal mechanisms ensuring that commercial banking institutions can legally register collateral liens over leasehold improvements, empowering farmers to secure financing for centre-pivot irrigation, tractors, and seasonal crop inputs.',
+    fullGazetteText: 'As reported by The Herald, President Emmerson Mnangagwa announced a decisive overhaul of Zimbabwe’s land tenure framework. The President emphasised that land held under older offer letters and permits remained "dead capital" that could not attract commercial bank financing or unlock long-term farm capital investments. Under the new policy, all verified beneficiaries of the Land Reform Programme who demonstrate agricultural productivity will transition to bankable, registrable, and assignable documents of tenure. The Ministry of Lands, together with the Reserve Bank of Zimbabwe and the Bankers Association of Zimbabwe, has finalised legal mechanisms ensuring that commercial banking institutions can legally register collateral liens over leasehold improvements, empowering farmers to secure financing for centre-pivot irrigation, tractors, and seasonal crop inputs.',
+    category: 'TENURE',
+  },
+  {
+    id: 'rangeland-rehabilitation-livestock',
+    badge: 'The Herald • Livestock & Pastures',
+    badgeBg: 'rgba(34, 197, 94, 0.14)',
+    badgeColor: '#15803d',
+    badgeBorder: 'rgba(34, 197, 94, 0.35)',
+    title: 'Rangeland Management & Pasture Rehabilitation Expanded to Protect National Cattle Herds',
+    date: 'The Herald Agriculture Desk • Livestock Notice',
+    readTime: '3 min read',
+    source: 'The Herald Agriculture Desk',
+    sourceDomain: 'heraldonline.co.zw',
+    sourceUrl: 'https://www.heraldonline.co.zw/reclaiming-degraded-rangelands-lessons-from-across-the-zambezi/',
+    imageUrl: '/images/harvest-field.jpg',
+    gazetteRef: 'Department of Livestock Development • Pasture Management Guideline',
+    summary: 'To bolster the national beef and dairy herd, the Department of Livestock Development has rolled out restorative grazing models, paddock rotational fencing, and drought-tolerant fodder cultivation across southern and western provinces.',
+    bulletPoints: [
+      'Community fodder banks and drought-tolerant legume pastures established across Regions IV & V.',
+      'Solar borehole drilling at livestock watering points to minimise trekking distances.',
+      'Rotational grazing plans enforced to prevent soil erosion and pasture degradation.',
+    ],
+    fullGazetteText: 'The Herald reports that the Ministry of Lands, Agriculture, Fisheries, Water and Rural Development has scaled up rangeland reclamation and grazing management programmes. Livestock farming communities across Matabeleland, Masvingo, and Midlands are being capacitated with solar-powered boreholes, paddock rotational fences, and drought-hardy fodder crops (including velvet beans and bana grass) to insulate national cattle herds against erratic rainfall patterns and overgrazing.',
+    category: 'LIVESTOCK',
   },
   {
     id: 'land-audit-chronicle-repossession',
     badge: 'The Chronicle • Cadastre Audit',
-    badgeBg: 'rgba(22, 163, 74, 0.12)',
+    badgeBg: 'rgba(22, 163, 74, 0.14)',
     badgeColor: '#16a34a',
-    badgeBorder: 'rgba(22, 163, 74, 0.3)',
+    badgeBorder: 'rgba(22, 163, 74, 0.35)',
     title: 'National Farmland Audit: Repossession & Downsizing of Underutilised Farms for Waiting List Allocation',
     date: 'The Chronicle • ZLC Communiqué',
     readTime: '3 min read',
@@ -75,18 +148,19 @@ const LAND_NEWS_ARTICLES: LandNewsArticle[] = [
     gazetteRef: 'Land Commission Act • General Notice 389',
     summary: 'The Zimbabwe Land Commission and Ministry of Lands have intensified nationwide satellite audits and field inspections enforcing the One-Person-One-Farm policy, repossessing thousands of idle hectares for sequential distribution to waiting list applicants.',
     bulletPoints: [
-      'Multispectral satellite imagery and ground GPS teams inspect farm utilization across all provinces.',
+      'Multispectral satellite imagery and ground GPS teams inspect farm utilisation across all provinces.',
       'Idle, abandoned, or speculative holdings downsized or repossessed under Land Commission Act provisions.',
       'Recovered arable hectarage automatically re-entered into SLLAS digital queue for verified applicant allocations.',
     ],
-    fullGazetteText: 'According to reports published in The Chronicle, the Ministry of Lands, Agriculture, Fisheries, Water and Rural Development, in partnership with the Zimbabwe Land Commission (ZLC), is actively enforcing statutory productivity covenants across all agro-ecological zones. Authorities confirmed that agricultural state land is a strategic national asset and cannot be held for speculative or absentee ownership. Farms found to be chronically abandoned or held in excess of provincial size ceilings are systematically downsized or repossessed. The recovered hectares are ingested into the SLLAS digital cadastre to facilitate fair, sequential allocation to waiting list applicants, with affirmative action quotas prioritizing qualifying young farmers and women agribusiness entrepreneurs.',
+    fullGazetteText: 'According to reports published in The Chronicle, the Ministry of Lands, Agriculture, Fisheries, Water and Rural Development, in partnership with the Zimbabwe Land Commission (ZLC), is actively enforcing statutory productivity covenants across all agro-ecological zones. Authorities confirmed that agricultural state land is a strategic national asset and cannot be held for speculative or absentee ownership. Farms found to be chronically abandoned or held in excess of provincial size ceilings are systematically downsized or repossessed. The recovered hectares are ingested into the SLLAS digital cadastre to facilitate fair, sequential allocation to waiting list applicants, with affirmative action quotas prioritising qualifying young farmers and women agribusiness entrepreneurs.',
+    category: 'CADASTRE',
   },
   {
     id: 'surveyor-general-lims-ecadastre',
     badge: 'The Herald • Spatial Tech',
-    badgeBg: 'rgba(37, 99, 235, 0.12)',
+    badgeBg: 'rgba(37, 99, 235, 0.14)',
     badgeColor: '#2563eb',
-    badgeBorder: 'rgba(37, 99, 235, 0.3)',
+    badgeBorder: 'rgba(37, 99, 235, 0.35)',
     title: 'Surveyor-General Digitises Over 360,000 Agricultural Parcels Under Modernised e-Cadastre & LIMS',
     date: 'The Herald • Surveyor-General Bulletin',
     readTime: '3 min read',
@@ -95,36 +169,14 @@ const LAND_NEWS_ARTICLES: LandNewsArticle[] = [
     sourceUrl: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
     imageUrl: '/images/news-digital-cadastre.jpg',
     gazetteRef: 'Statutory Instrument 76 of 2025 • LIMS Protocol',
-    summary: 'The Department of the Surveyor-General and Ministry of Lands have deployed RTK survey drones and GIS mapping to digitize over 360,000 parcels into an integrated electronic cadastre, definitively eliminating historic boundary overlaps.',
+    summary: 'The Department of the Surveyor-General and Ministry of Lands have deployed RTK survey drones and GIS mapping to digitise over 360,000 parcels into an integrated electronic cadastre, definitively eliminating historic boundary overlaps.',
     bulletPoints: [
       'RTK survey drone fleet delivers centimetre-grade boundary accuracy for all farm demarcations.',
       'Paper-based archives migrated to PostGIS-backed Land Information Management System (LIMS).',
       'Digital title documents feature cryptographic QR validation and automated spatial overlap prevention.',
     ],
-    fullGazetteText: 'The Herald reports that the Department of the Surveyor-General and the Ministry of Lands have accelerated the nationwide rollout of the Digital Land Administration Platform (DLAP) and the Land Information Management System (LIMS). Mandated under Statutory Instrument 76, the project transitions more than 360,000 agricultural land parcels from fragile paper archives into an auditable spatial cadastre. Equipped with RTK-enabled GPS survey drones and localized base stations across all 60 administrative districts, cadastral teams complete field surveys and boundary verifications within 72 hours. Automated spatial intersection engines mathematically guarantee zero boundary overlaps, providing unambiguous legal clarity for 99-year lease schedules.',
-  },
-  {
-    id: 'business-weekly-joint-venture-finance',
-    badge: 'Business Weekly • Agribusiness',
-    badgeBg: 'rgba(147, 51, 234, 0.12)',
-    badgeColor: '#9333ea',
-    badgeBorder: 'rgba(147, 51, 234, 0.3)',
-    title: 'Commercial Joint Venture Framework Gazetted: AFC Land Bank & Private Capital Power Record Grain Harvests',
-    date: 'Business Weekly • Agribusiness Gazette',
-    readTime: '4 min read',
-    source: 'Business Weekly Zimbabwe',
-    sourceDomain: 'ebusinessweekly.co.zw',
-    sourceUrl: 'https://www.ebusinessweekly.co.zw/joint-venture-framework-afc-bank-agribusiness/',
-    imageUrl: '/images/news-farm-finance.jpg',
-    gazetteRef: 'Joint Venture Regulations • AFC Agribank Notice',
-    summary: 'The Government has gazetted the statutory Joint Venture Framework for agricultural state land, enabling A1 and A2 farmers to legally partner with institutional investors and the AFC Land Bank to secure working capital and modern mechanisation.',
-    bulletPoints: [
-      'Tripartite agreements legally registered with Ministry to protect landholder ownership rights.',
-      'Unlocks concessional financing for centre-pivot irrigation, combine harvesters, and seasonal crop inputs.',
-      'Accelerates record winter wheat and commercial maize yields through modern agronomic partnerships.',
-    ],
-    fullGazetteText: 'Business Weekly reports that the Government of Zimbabwe has gazetted the statutory Joint Venture Framework for agricultural state land. This landmark policy enables land reform beneficiaries to enter into commercially viable joint ventures with private agribusiness firms, corporate investors, and the AFC Land and Development Bank. Under registered tripartite agreements, the leaseholder’s statutory tenure remains entirely uncompromised while investors provide high-capacity combine harvesters, centre-pivot irrigation infrastructure, and certified hybrid seed. The initiative has contributed directly to Zimbabwe’s consecutive record-breaking winter wheat and commercial maize harvests, strengthening national food self-sufficiency.',
-    category: 'FINANCE',
+    fullGazetteText: 'The Herald reports that the Department of the Surveyor-General and the Ministry of Lands have accelerated the nationwide rollout of the Digital Land Administration Platform (DLAP) and the Land Information Management System (LIMS). Mandated under Statutory Instrument 76, the project transitions more than 360,000 agricultural land parcels from fragile paper archives into an auditable spatial cadastre. Equipped with RTK-enabled GPS survey drones and localised base stations across all 60 administrative districts, cadastral teams complete field surveys and boundary verifications within 72 hours. Automated spatial intersection engines mathematically guarantee zero boundary overlaps, providing unambiguous legal clarity for 99-year lease schedules.',
+    category: 'CADASTRE',
   },
 ];
 
@@ -139,42 +191,49 @@ export default function LandingPage() {
   const [newsTicker, setNewsTicker] = useState<NewsTickerItem[]>([
     {
       id: 'ticker-1',
-      source: 'The Herald',
-      headline: 'President Mnangagwa gazettes bankable, transferable 99-year leasehold framework',
-      url: 'https://www.herald.co.zw/president-unveils-new-land-tenure-system/',
+      source: 'The Herald Agriculture',
+      headline: 'Winter wheat farming: All systems go across commercial irrigated farming blocks',
+      url: 'https://www.heraldonline.co.zw/winter-wheat-farming-all-systems-go/',
       pubDate: 'Just now',
     },
     {
       id: 'ticker-2',
-      source: 'The Chronicle',
-      headline: 'National Land Audit downsizes idle arable holdings across Mashonaland & Midlands',
-      url: 'https://www.chronicle.co.zw/national-land-audit-underutilised-farms-downsized/',
-      pubDate: '12m ago',
+      source: 'The Herald Online',
+      headline: '2,701 farming joint ventures approved to expand grain and horticulture output',
+      url: 'https://www.heraldonline.co.zw/2-701-farming-joint-ventures-get-the-nod/',
+      pubDate: '10m ago',
     },
     {
       id: 'ticker-3',
-      source: 'Surveyor-General',
-      headline: 'RTK survey drone fleet synchronizes 360,000 farm boundaries into PostGIS e-Cadastre',
-      url: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
-      pubDate: '28m ago',
+      source: 'The Herald Livestock',
+      headline: 'Reclaiming degraded rangelands: Rotational grazing and fodder banks rolled out',
+      url: 'https://www.heraldonline.co.zw/reclaiming-degraded-rangelands-lessons-from-across-the-zambezi/',
+      pubDate: '24m ago',
     },
     {
       id: 'ticker-4',
-      source: 'Business Weekly',
-      headline: 'AFC Land & Development Bank unlocks commercial joint venture input credit for A1/A2 farmers',
-      url: 'https://www.ebusinessweekly.co.zw/joint-venture-framework-afc-bank-agribusiness/',
-      pubDate: '45m ago',
+      source: 'The Herald Agriculture',
+      headline: 'Tobacco farmers count losses from barn fires as curing safety drive launched',
+      url: 'https://www.heraldonline.co.zw/tobacco-farmers-count-losses-from-barn-fires/',
+      pubDate: '38m ago',
+    },
+    {
+      id: 'ticker-5',
+      source: 'ZMX Commodity Wire',
+      headline: 'ZMX mobilises finance for commodity trading and warehouse receipt collateralisation',
+      url: 'https://www.heraldonline.co.zw/zmx-mobilises-finance-for-commodity-trading/',
+      pubDate: '50m ago',
     },
   ]);
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [newsLastSynced, setNewsLastSynced] = useState<Date>(new Date());
-  const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'TENURE' | 'CADASTRE' | 'FINANCE' | 'LIVE_WIRE'>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'CROPS' | 'TENURE' | 'CADASTRE' | 'LIVESTOCK' | 'FINANCE'>('ALL');
   const [activeTickerIndex, setActiveTickerIndex] = useState(0);
 
   const fetchLiveNews = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshingNews(true);
     try {
-      const res = await fetch('/api/news');
+      const res = await fetch('/api/news', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (data.articles && data.articles.length > 0) {
@@ -194,12 +253,12 @@ export default function LandingPage() {
     }
   }, []);
 
-  // Initial fetch and 60-second real-time polling interval
+  // Initial fetch and 5-second automatic real-time polling interval
   useEffect(() => {
     fetchLiveNews();
     const interval = setInterval(() => {
       fetchLiveNews();
-    }, 60000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [fetchLiveNews]);
 
@@ -1239,9 +1298,9 @@ export default function LandingPage() {
             gap: '8px',
             padding: '5px 12px',
             borderRadius: '8px',
-            background: 'rgba(239, 68, 68, 0.16)',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
-            color: '#ef4444',
+            background: 'rgba(22, 163, 74, 0.16)',
+            border: '1px solid rgba(22, 163, 74, 0.4)',
+            color: isLight ? '#15803d' : '#4ade80',
             fontSize: '0.75rem',
             fontWeight: 800,
             letterSpacing: '0.05em',
@@ -1249,7 +1308,7 @@ export default function LandingPage() {
             flexShrink: 0,
           }}>
             <span className="live-pulse-dot" />
-            <span>BREAKING WIRE</span>
+            <span>FARM &amp; AGRI WIRE</span>
           </div>
 
           {/* Active Headline Display */}
@@ -1332,6 +1391,23 @@ export default function LandingPage() {
 
         {/* Section Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: '999px',
+            background: isLight ? 'rgba(22, 163, 74, 0.1)' : 'rgba(34, 197, 94, 0.15)',
+            border: isLight ? '1px solid rgba(22, 163, 74, 0.25)' : '1px solid rgba(34, 197, 94, 0.3)',
+            color: isLight ? '#15803d' : '#4ade80',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            marginBottom: '12px',
+          }}>
+            <span>🌱 Farm &amp; Agriculture Dispatches</span>
+          </div>
           <h2 style={{
             fontSize: 'clamp(2rem, 4vw, 2.75rem)',
             fontWeight: 800,
@@ -1339,115 +1415,17 @@ export default function LandingPage() {
             margin: '0 0 12px',
             letterSpacing: '-0.02em',
           }}>
-            Latest Land News & Policy Highlights
+            Latest Agricultural &amp; Farm News Updates
           </h2>
           <p style={{
             color: isLight ? '#475569' : 'var(--text-muted)',
-            maxWidth: '740px',
+            maxWidth: '760px',
             margin: '0 auto',
             fontSize: '0.95rem',
             lineHeight: 1.65,
           }}>
-            Continuous live syndication from The Herald, The Chronicle, and Business Weekly, combined with official gazetted regulations and cadastre modernization updates.
+            Continuous real-time reporting from The Herald Agriculture Desk, The Chronicle, and the Ministry of Lands, Agriculture, Fisheries, Water &amp; Rural Development — covering crop yields, rangelands, 99-year farm leases, and agribusiness financing.
           </p>
-        </div>
-
-        {/* Real-time Status & Category Filter Control Bar */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '28px',
-          padding: '14px 20px',
-          borderRadius: '16px',
-          background: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(15, 23, 42, 0.7)',
-          border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
-          backdropFilter: 'blur(12px)',
-        }}>
-          {/* Live Status indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8125rem' }}>
-            <span style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: '#22c55e',
-              display: 'inline-block',
-              boxShadow: '0 0 10px #22c55e',
-            }} />
-            <span style={{ fontWeight: 600, color: isLight ? '#065f46' : '#4ade80' }}>
-              Live Wire Active
-            </span>
-            <span style={{ color: isLight ? '#94a3b8' : '#64748b' }}>•</span>
-            <span style={{ color: isLight ? '#64748b' : 'var(--text-muted)' }}>
-              Synced: {newsLastSynced.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          </div>
-
-          {/* Category Filter Tabs & Sync Button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {[
-              { id: 'ALL', label: `All Updates (${newsArticles.length})` },
-              { id: 'TENURE', label: 'Tenure & Leases' },
-              { id: 'CADASTRE', label: 'Cadastre & Audits' },
-              { id: 'FINANCE', label: 'Agribusiness Finance' },
-              { id: 'LIVE_WIRE', label: 'Herald Live' },
-            ].map((tab) => {
-              const isActive = selectedCategory === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(tab.id as any)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    fontSize: '0.775rem',
-                    fontWeight: 600,
-                    border: isActive
-                      ? (isLight ? '1px solid #16a34a' : '1px solid #22c55e')
-                      : (isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)'),
-                    background: isActive
-                      ? (isLight ? 'rgba(22, 163, 74, 0.14)' : 'rgba(34, 197, 94, 0.22)')
-                      : 'transparent',
-                    color: isActive
-                      ? (isLight ? '#15803d' : '#4ade80')
-                      : (isLight ? '#64748b' : 'var(--text-muted)'),
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-
-            {/* Manual Sync Button */}
-            <button
-              type="button"
-              onClick={() => fetchLiveNews(true)}
-              disabled={isRefreshingNews}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '0.775rem',
-                fontWeight: 600,
-                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
-                background: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.08)',
-                color: isLight ? '#0f172a' : '#ffffff',
-                cursor: isRefreshingNews ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title="Sync latest live headlines from media sources"
-            >
-              <span className={isRefreshingNews ? 'spin-sync-anim' : ''}>🔄</span>
-              <span>{isRefreshingNews ? 'Syncing...' : 'Sync Live'}</span>
-            </button>
-          </div>
         </div>
 
         {/* Horizontal News Feed */}
@@ -1456,6 +1434,18 @@ export default function LandingPage() {
           flexDirection: 'column',
           gap: '28px',
         }}>
+          {filteredNews.length === 0 && (
+            <div style={{
+              textAlign: 'center',
+              padding: '48px 24px',
+              borderRadius: '16px',
+              background: isLight ? '#f8fafc' : 'rgba(15, 23, 42, 0.6)',
+              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+              color: isLight ? '#64748b' : 'var(--text-muted)',
+            }}>
+              <p style={{ margin: 0, fontSize: '0.95rem' }}>No farming news updates currently available. Checking live feed...</p>
+            </div>
+          )}
           {filteredNews.map((article) => (
             <article
               key={article.id}
@@ -1555,19 +1545,39 @@ export default function LandingPage() {
                     marginBottom: '12px',
                     flexWrap: 'wrap',
                   }}>
-                    <span style={{
-                      fontSize: '0.725rem',
-                      fontWeight: 700,
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      background: article.badgeBg,
-                      color: article.badgeColor,
-                      border: `1px solid ${article.badgeBorder}`,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
-                    }}>
-                      {article.badge}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: '0.725rem',
+                        fontWeight: 700,
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        background: article.badgeBg,
+                        color: article.badgeColor,
+                        border: `1px solid ${article.badgeBorder}`,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                      }}>
+                        {article.badge}
+                      </span>
+
+                      {article.isLiveWire && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: isLight ? 'rgba(22, 163, 74, 0.12)' : 'rgba(34, 197, 94, 0.2)',
+                          color: isLight ? '#15803d' : '#4ade80',
+                          border: isLight ? '1px solid rgba(22, 163, 74, 0.3)' : '1px solid rgba(34, 197, 94, 0.35)',
+                        }}>
+                          <span className="live-pulse-dot" style={{ width: 6, height: 6 }} />
+                          <span>LIVE WIRE</span>
+                        </span>
+                      )}
+                    </div>
 
                     <a
                       href={article.sourceUrl}

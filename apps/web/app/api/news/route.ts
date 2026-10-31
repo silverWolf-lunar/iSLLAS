@@ -17,7 +17,7 @@ export interface LiveNewsArticle {
   summary: string;
   bulletPoints: string[];
   fullGazetteText: string;
-  category: 'TENURE' | 'CADASTRE' | 'FINANCE' | 'LIVE_WIRE';
+  category: 'CROPS' | 'TENURE' | 'CADASTRE' | 'LIVESTOCK' | 'FINANCE';
   isLiveWire?: boolean;
 }
 
@@ -42,21 +42,67 @@ let cachedResponse: {
   };
 } | null = null;
 
-const CACHE_TTL_MS = 45 * 1000; // 45 seconds cache
+const CACHE_TTL_MS = 5 * 1000; // 5 seconds cache for real-time polling
 
-// Authoritative Flagship Land Reform & Cadastre Articles
-const CURATED_FLAGSHIP_ARTICLES: LiveNewsArticle[] = [
+// Dedicated Curated Flagship Agricultural & Farm Articles
+const CURATED_AGRICULTURE_ARTICLES: LiveNewsArticle[] = [
+  {
+    id: 'winter-wheat-herald-production',
+    badge: 'The Herald • Crop Production',
+    badgeBg: 'rgba(217, 119, 6, 0.14)',
+    badgeColor: '#d97706',
+    badgeBorder: 'rgba(217, 119, 6, 0.35)',
+    title: 'National Winter Wheat Production: All Systems Go Across Irrigated Commercial Farmlands',
+    date: 'The Herald Agriculture Desk • Special Bulletin',
+    readTime: '4 min read',
+    source: 'The Herald Agriculture Desk',
+    sourceDomain: 'heraldonline.co.zw',
+    sourceUrl: 'https://www.heraldonline.co.zw/winter-wheat-farming-all-systems-go/',
+    imageUrl: '/images/news-farm-finance.jpg',
+    gazetteRef: 'Ministry Crop Assessment Notice • National Food Security Target',
+    summary: 'The Government and agricultural stakeholders have activated comprehensive support measures for winter wheat farming across all provincial farming blocks, ensuring full availability of irrigation water, seed, and fertilizer.',
+    bulletPoints: [
+      'Targeted 120,000 hectares under active centre-pivot and canal irrigation.',
+      'GMB grain reception depots equipped with moisture meters and drying facilities.',
+      'Fuel and electricity ring-fenced for continuous wheat irrigation cycles.',
+    ],
+    fullGazetteText: 'As reported by The Herald Agriculture Desk, Zimbabwe is poised to sustain national wheat self-sufficiency as winter wheat preparations enter peak execution. The Ministry of Lands, Agriculture, Fisheries, Water and Rural Development announced that seed houses, commercial banks, and the Grain Marketing Board (GMB) have finalized distribution of inputs to commercial A2 and smallholder irrigation schemes. With national dams brimming at above 85% capacity, water allocations have been secured to sustain uninterrupted irrigation throughout the winter cycle.',
+    category: 'CROPS',
+  },
+  {
+    id: 'joint-ventures-herald-2701',
+    badge: 'The Herald • Joint Ventures',
+    badgeBg: 'rgba(147, 51, 234, 0.14)',
+    badgeColor: '#9333ea',
+    badgeBorder: 'rgba(147, 51, 234, 0.35)',
+    title: '2,701 Agricultural Joint Ventures Approved to Unlock Idle Farmland & Boost Production',
+    date: 'The Herald Agriculture Desk • Joint Venture Registry',
+    readTime: '3 min read',
+    source: 'The Herald Online',
+    sourceDomain: 'heraldonline.co.zw',
+    sourceUrl: 'https://www.heraldonline.co.zw/2-701-farming-joint-ventures-get-the-nod/',
+    imageUrl: '/images/news-tenure-reform.jpg',
+    gazetteRef: 'Statutory Joint Venture Regulations • Land Settlement Directorate',
+    summary: 'The Ministry has formally approved 2,701 agricultural joint venture partnerships, pairing A1 and A2 land beneficiaries with commercial agribusiness investors to scale up grain and horticulture output.',
+    bulletPoints: [
+      'Over 220,000 hectares brought into commercial production through vetted partnerships.',
+      'Protects leaseholder tenure while injecting private capital, combine harvesters, and irrigation.',
+      'Tripartite agreements legally witnessed and monitored by provincial land committees.',
+    ],
+    fullGazetteText: 'According to The Herald, more than 2,701 agricultural joint venture agreements have been ratified by the Ministry of Lands. The policy provides a secure legal vehicle for farmers lacking capital to partner with private agribusiness operators without forfeiting their land rights. Officials confirmed that approved joint ventures have already expanded national grain hectarage, created rural employment, and eliminated unproductive idle land across Mashonaland, Midlands, and Manicaland provinces.',
+    category: 'FINANCE',
+  },
   {
     id: 'tenure-reform-herald-2024',
-    badge: 'The Herald • Lead Policy',
-    badgeBg: 'rgba(220, 38, 38, 0.12)',
+    badge: 'The Herald • Farm Tenure',
+    badgeBg: 'rgba(220, 38, 38, 0.14)',
     badgeColor: '#dc2626',
-    badgeBorder: 'rgba(220, 38, 38, 0.3)',
-    title: 'President Mnangagwa Announces Bankable, Registrable and Transferable Land Tenure Overhaul',
+    badgeBorder: 'rgba(220, 38, 38, 0.35)',
+    title: 'President Mnangagwa Announces Bankable, Registrable and Transferable Farm Tenure Overhaul',
     date: 'The Herald Online • Special Edition',
     readTime: '4 min read',
     source: 'The Herald Zimbabwe',
-    sourceDomain: 'herald.co.zw',
+    sourceDomain: 'heraldonline.co.zw',
     sourceUrl: 'https://www.herald.co.zw/president-unveils-new-land-tenure-system/',
     imageUrl: '/images/news-tenure-reform.jpg',
     gazetteRef: 'Cabinet National Policy Directive • Land Reform Act',
@@ -72,9 +118,9 @@ const CURATED_FLAGSHIP_ARTICLES: LiveNewsArticle[] = [
   {
     id: 'land-audit-chronicle-repossession',
     badge: 'The Chronicle • Cadastre Audit',
-    badgeBg: 'rgba(22, 163, 74, 0.12)',
+    badgeBg: 'rgba(22, 163, 74, 0.14)',
     badgeColor: '#16a34a',
-    badgeBorder: 'rgba(22, 163, 74, 0.3)',
+    badgeBorder: 'rgba(22, 163, 74, 0.35)',
     title: 'National Farmland Audit: Repossession & Downsizing of Underutilised Farms for Waiting List Allocation',
     date: 'The Chronicle • ZLC Communiqué',
     readTime: '3 min read',
@@ -93,16 +139,39 @@ const CURATED_FLAGSHIP_ARTICLES: LiveNewsArticle[] = [
     category: 'CADASTRE',
   },
   {
+    id: 'rangeland-rehabilitation-livestock',
+    badge: 'The Herald • Livestock & Pastures',
+    badgeBg: 'rgba(34, 197, 94, 0.14)',
+    badgeColor: '#15803d',
+    badgeBorder: 'rgba(34, 197, 94, 0.35)',
+    title: 'Rangeland Management & Pasture Rehabilitation Expanded to Protect National Cattle Herds',
+    date: 'The Herald Agriculture Desk • Livestock Notice',
+    readTime: '3 min read',
+    source: 'The Herald Agriculture Desk',
+    sourceDomain: 'heraldonline.co.zw',
+    sourceUrl: 'https://www.heraldonline.co.zw/reclaiming-degraded-rangelands-lessons-from-across-the-zambezi/',
+    imageUrl: '/images/harvest-field.jpg',
+    gazetteRef: 'Department of Livestock Development • Pasture Management Guideline',
+    summary: 'To bolster the national beef and dairy herd, the Department of Livestock Development has rolled out restorative grazing models, paddock rotational fencing, and drought-tolerant fodder cultivation across southern and western provinces.',
+    bulletPoints: [
+      'Community fodder banks and drought-tolerant legume pastures established across Regions IV & V.',
+      'Solar borehole drilling at livestock watering points to minimize trekking distances.',
+      'Rotational grazing plans enforced to prevent soil erosion and pasture degradation.',
+    ],
+    fullGazetteText: 'The Herald reports that the Department of Livestock Development is executing an extensive rangeland reclamation initiative across Matabeleland and Masvingo provinces. In response to recurring climate shocks, communal and A1 livestock farmers are being trained in rotational grazing techniques, grass-seed harvesting, and on-farm hay silage production. The initiative is critical to expanding the national cattle herd towards the target of 6 million head under the Livestock Growth Plan.',
+    category: 'LIVESTOCK',
+  },
+  {
     id: 'surveyor-general-lims-ecadastre',
-    badge: 'The Herald • Spatial Tech',
-    badgeBg: 'rgba(37, 99, 235, 0.12)',
+    badge: 'The Herald • Spatial Cadastre',
+    badgeBg: 'rgba(37, 99, 235, 0.14)',
     badgeColor: '#2563eb',
-    badgeBorder: 'rgba(37, 99, 235, 0.3)',
+    badgeBorder: 'rgba(37, 99, 235, 0.35)',
     title: 'Surveyor-General Digitises Over 360,000 Agricultural Parcels Under Modernised e-Cadastre & LIMS',
     date: 'The Herald • Surveyor-General Bulletin',
     readTime: '3 min read',
     source: 'The Herald Online',
-    sourceDomain: 'herald.co.zw',
+    sourceDomain: 'heraldonline.co.zw',
     sourceUrl: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
     imageUrl: '/images/news-digital-cadastre.jpg',
     gazetteRef: 'Statutory Instrument 76 of 2025 • LIMS Protocol',
@@ -115,40 +184,18 @@ const CURATED_FLAGSHIP_ARTICLES: LiveNewsArticle[] = [
     fullGazetteText: 'The Herald reports that the Department of the Surveyor-General and the Ministry of Lands have accelerated the nationwide rollout of the Digital Land Administration Platform (DLAP) and the Land Information Management System (LIMS). Mandated under Statutory Instrument 76, the project transitions more than 360,000 agricultural land parcels from fragile paper archives into an auditable spatial cadastre. Equipped with RTK-enabled GPS survey drones and localized base stations across all 60 administrative districts, cadastral teams complete field surveys and boundary verifications within 72 hours. Automated spatial intersection engines mathematically guarantee zero boundary overlaps, providing unambiguous legal clarity for 99-year lease schedules.',
     category: 'CADASTRE',
   },
-  {
-    id: 'business-weekly-joint-venture-finance',
-    badge: 'Business Weekly • Agribusiness',
-    badgeBg: 'rgba(147, 51, 234, 0.12)',
-    badgeColor: '#9333ea',
-    badgeBorder: 'rgba(147, 51, 234, 0.3)',
-    title: 'Commercial Joint Venture Framework Gazetted: AFC Land Bank & Private Capital Power Record Grain Harvests',
-    date: 'Business Weekly • Agribusiness Gazette',
-    readTime: '4 min read',
-    source: 'Business Weekly Zimbabwe',
-    sourceDomain: 'ebusinessweekly.co.zw',
-    sourceUrl: 'https://www.ebusinessweekly.co.zw/joint-venture-framework-afc-bank-agribusiness/',
-    imageUrl: '/images/news-farm-finance.jpg',
-    gazetteRef: 'Joint Venture Regulations • AFC Agribank Notice',
-    summary: 'The Government has gazetted the statutory Joint Venture Framework for agricultural state land, enabling A1 and A2 farmers to legally partner with institutional investors and the AFC Land Bank to secure working capital and modern mechanisation.',
-    bulletPoints: [
-      'Tripartite agreements legally registered with Ministry to protect landholder ownership rights.',
-      'Unlocks concessional financing for centre-pivot irrigation, combine harvesters, and seasonal crop inputs.',
-      'Accelerates record winter wheat and commercial maize yields through modern agronomic partnerships.',
-    ],
-    fullGazetteText: 'Business Weekly reports that the Government of Zimbabwe has gazetted the statutory Joint Venture Framework for agricultural state land. This landmark policy enables land reform beneficiaries to enter into commercially viable joint ventures with private agribusiness firms, corporate investors, and the AFC Land and Development Bank. Under registered tripartite agreements, the leaseholder’s statutory tenure remains entirely uncompromised while investors provide high-capacity combine harvesters, centre-pivot irrigation infrastructure, and certified hybrid seed. The initiative has contributed directly to Zimbabwe’s consecutive record-breaking winter wheat and commercial maize harvests, strengthening national food self-sufficiency.',
-    category: 'FINANCE',
-  },
 ];
 
-async function fetchLiveHeraldArticles(): Promise<LiveNewsArticle[]> {
+async function fetchLiveAgricultureArticles(): Promise<LiveNewsArticle[]> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    const res = await fetch('https://www.heraldonline.co.zw/feed/', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SLLAS-NewsAggregator/2.0' },
+    // Specifically query the dedicated Agriculture category RSS feed
+    const res = await fetch('https://www.heraldonline.co.zw/category/agriculture/feed/', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SLLAS-AgriFeed/2.0' },
       signal: controller.signal,
-      next: { revalidate: 60 },
+      next: { revalidate: 5 },
     });
     clearTimeout(timeoutId);
 
@@ -177,6 +224,11 @@ async function fetchLiveHeraldArticles(): Promise<LiveNewsArticle[]> {
           .replace(/&#038;/g, '&')
           .trim();
 
+        // Skip non-article meta items
+        if (cleanTitle.toLowerCase() === 'all things farming') {
+          continue;
+        }
+
         const cleanDesc = descM
           ? descM[1]
               .replace(/<[^>]+>/g, '')
@@ -203,39 +255,54 @@ async function fetchLiveHeraldArticles(): Promise<LiveNewsArticle[]> {
             });
           }
         } catch {
-          // fallback to raw
+          // fallback
         }
 
-        // Cycle through our generated documentary image assets for live stories
+        // Determine category based on title keywords
+        let category: LiveNewsArticle['category'] = 'CROPS';
+        const lower = (cleanTitle + ' ' + cleanDesc).toLowerCase();
+        if (lower.includes('wheat') || lower.includes('tobacco') || lower.includes('maize') || lower.includes('grain')) {
+          category = 'CROPS';
+        } else if (lower.includes('joint venture') || lower.includes('finance') || lower.includes('bank') || lower.includes('credit')) {
+          category = 'FINANCE';
+        } else if (lower.includes('rangeland') || lower.includes('cattle') || lower.includes('livestock') || lower.includes('pasture')) {
+          category = 'LIVESTOCK';
+        } else if (lower.includes('audit') || lower.includes('survey') || lower.includes('cadastre') || lower.includes('boundary')) {
+          category = 'CADASTRE';
+        } else if (lower.includes('lease') || lower.includes('tenure') || lower.includes('permit') || lower.includes('title')) {
+          category = 'TENURE';
+        }
+
         const imageRotation = [
+          '/images/news-farm-finance.jpg',
           '/images/news-tenure-reform.jpg',
           '/images/news-land-audit.jpg',
-          '/images/news-digital-cadastre.jpg',
-          '/images/news-farm-finance.jpg',
+          '/images/harvest-field.jpg',
         ];
 
+        const articleSlug = cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 36);
         articles.push({
-          id: `herald-live-${count}-${Date.now()}`,
-          badge: 'The Herald • Live Wire',
-          badgeBg: 'rgba(239, 68, 68, 0.14)',
-          badgeColor: '#ef4444',
-          badgeBorder: 'rgba(239, 68, 68, 0.35)',
+          id: `herald-live-${articleSlug}-${count}`,
+          badge: 'The Herald • Agriculture Desk',
+          badgeBg: 'rgba(22, 163, 74, 0.14)',
+          badgeColor: '#16a34a',
+          badgeBorder: 'rgba(22, 163, 74, 0.35)',
           title: cleanTitle,
           date: `Live • ${formattedDate}`,
-          readTime: '2 min read',
-          source: 'The Herald Online',
+          readTime: '3 min read',
+          source: 'The Herald Agriculture Desk',
           sourceDomain: 'heraldonline.co.zw',
           sourceUrl: linkM[1].trim(),
           imageUrl: imageRotation[count % imageRotation.length],
-          gazetteRef: 'The Herald Syndication Feed • Live Dispatch',
+          gazetteRef: 'The Herald Agriculture Syndication • National Farm Wire',
           summary: cleanDesc.slice(0, 230) + (cleanDesc.length > 230 ? '...' : ''),
           bulletPoints: [
-            'Direct live wire dispatch from The Herald editorial desk in Harare.',
-            'Continuous syndication covering national economy, trade, and rural development.',
-            'Authenticated news source linked directly to verified publication portal.',
+            'Direct live wire dispatch from The Herald dedicated agricultural reporting desk.',
+            'Covers national farm production, agronomy updates, input distribution, and farmer welfare.',
+            'Verified reporting directly linked to heraldonline.co.zw official news portal.',
           ],
-          fullGazetteText: `${cleanTitle}: ${cleanDesc} (Reported live by The Herald Zimbabwe editorial team. Direct dispatch available via heraldonline.co.zw).`,
-          category: 'LIVE_WIRE',
+          fullGazetteText: `${cleanTitle}: ${cleanDesc} (Reported live by The Herald Zimbabwe Agriculture Bureau. Official dispatches published via heraldonline.co.zw).`,
+          category,
           isLiveWire: true,
         });
         count++;
@@ -244,7 +311,7 @@ async function fetchLiveHeraldArticles(): Promise<LiveNewsArticle[]> {
 
     return articles;
   } catch (error) {
-    console.warn('[News API] Real-time RSS fetch timed out or offline, utilizing verified cached dispatch.');
+    console.warn('[News API] Real-time agriculture RSS fetch timed out or offline, utilizing verified cached dispatch.');
     return [];
   }
 }
@@ -256,59 +323,75 @@ export async function GET() {
   if (cachedResponse && now - cachedResponse.timestamp < CACHE_TTL_MS) {
     return NextResponse.json(cachedResponse.data, {
       headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
         'X-Cache-Status': 'HIT',
       },
     });
   }
 
-  // Fetch live stories from The Herald
-  const liveHeraldArticles = await fetchLiveHeraldArticles();
+  // Fetch live agricultural stories from The Herald Agriculture Desk
+  const liveAgriArticles = await fetchLiveAgricultureArticles();
 
-  // Combine curated flagship policy reports with live wire news
-  // Put 2 live wire stories alongside the 4 flagship stories
+  // Merge live stories with our flagship farm & land tenure reports
   const mergedArticles = [
-    CURATED_FLAGSHIP_ARTICLES[0],
-    ...(liveHeraldArticles.length > 0 ? [liveHeraldArticles[0]] : []),
-    CURATED_FLAGSHIP_ARTICLES[1],
-    ...(liveHeraldArticles.length > 1 ? [liveHeraldArticles[1]] : []),
-    CURATED_FLAGSHIP_ARTICLES[2],
-    CURATED_FLAGSHIP_ARTICLES[3],
+    ...(liveAgriArticles.length > 0 ? [liveAgriArticles[0]] : []),
+    CURATED_AGRICULTURE_ARTICLES[0], // Winter Wheat Farming
+    ...(liveAgriArticles.length > 1 ? [liveAgriArticles[1]] : []),
+    CURATED_AGRICULTURE_ARTICLES[1], // 2,701 Joint Ventures
+    CURATED_AGRICULTURE_ARTICLES[2], // Bankable Farm Tenure
+    CURATED_AGRICULTURE_ARTICLES[3], // National Farmland Audit
+    CURATED_AGRICULTURE_ARTICLES[4], // Rangeland Pasture Management
+    CURATED_AGRICULTURE_ARTICLES[5], // e-Cadastre 360,000 Parcels
+    ...(liveAgriArticles.length > 2 ? liveAgriArticles.slice(2) : []),
   ];
 
-  // Build real-time breaking ticker items
+  // Dedicated Real-time Farming & Agriculture Ticker Items
   const ticker: LiveNewsTickerItem[] = [
     {
       id: 'ticker-1',
-      source: 'The Herald',
-      headline: 'President Mnangagwa gazettes bankable, transferable 99-year leasehold framework',
-      url: 'https://www.herald.co.zw/president-unveils-new-land-tenure-system/',
+      source: 'The Herald [Crops]',
+      headline: 'Winter wheat farming: All systems go as Government targets record 600,000 tonnes',
+      url: 'https://www.heraldonline.co.zw/winter-wheat-farming-all-systems-go/',
       pubDate: 'Just now',
     },
     {
       id: 'ticker-2',
-      source: 'The Chronicle',
-      headline: 'National Land Audit downsizes idle arable holdings across Mashonaland & Midlands',
-      url: 'https://www.chronicle.co.zw/national-land-audit-underutilised-farms-downsized/',
-      pubDate: '12m ago',
+      source: 'The Herald [Farms]',
+      headline: '2,701 agricultural joint venture partnerships approved to expand commercial grain hectarage',
+      url: 'https://www.heraldonline.co.zw/2-701-farming-joint-ventures-get-the-nod/',
+      pubDate: '15m ago',
     },
     {
       id: 'ticker-3',
-      source: 'Surveyor-General',
-      headline: 'RTK survey drone fleet synchronizes 360,000 farm boundaries into PostGIS e-Cadastre',
-      url: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
+      source: 'The Herald [Tenure]',
+      headline: 'President Mnangagwa gazettes bankable, transferable 99-year leasehold framework for farmers',
+      url: 'https://www.herald.co.zw/president-unveils-new-land-tenure-system/',
       pubDate: '28m ago',
     },
     {
       id: 'ticker-4',
-      source: 'Business Weekly',
-      headline: 'AFC Land & Development Bank unlocks commercial joint venture input credit for A1/A2 farmers',
-      url: 'https://www.ebusinessweekly.co.zw/joint-venture-framework-afc-bank-agribusiness/',
-      pubDate: '45m ago',
+      source: 'The Chronicle [Audits]',
+      headline: 'National Land Audit: Idle arable land downsized for sequential allocation to waiting list farmers',
+      url: 'https://www.chronicle.co.zw/national-land-audit-underutilised-farms-downsized/',
+      pubDate: '35m ago',
     },
-    ...liveHeraldArticles.slice(0, 3).map((a, i) => ({
-      id: `ticker-live-${i}`,
-      source: 'Herald Live',
+    {
+      id: 'ticker-5',
+      source: 'The Herald [Livestock]',
+      headline: 'Rangeland rehabilitation and pasture fodder banks rolled out across cattle ranching provinces',
+      url: 'https://www.heraldonline.co.zw/reclaiming-degraded-rangelands-lessons-from-across-the-zambezi/',
+      pubDate: '48m ago',
+    },
+    {
+      id: 'ticker-6',
+      source: 'Surveyor-General',
+      headline: 'RTK survey drone fleet maps 360,000 agricultural farm boundaries into PostGIS e-Cadastre',
+      url: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
+      pubDate: '1h ago',
+    },
+    ...liveAgriArticles.slice(0, 3).map((a, i) => ({
+      id: `ticker-agri-live-${i}`,
+      source: 'Herald Agri Live',
       headline: a.title,
       url: a.sourceUrl,
       pubDate: 'Live Wire',
@@ -318,7 +401,7 @@ export async function GET() {
   const responseData = {
     status: 'success',
     timestamp: new Date().toISOString(),
-    liveSource: 'The Herald Online RSS & Zimbabwe Cadastre Gazette Network',
+    liveSource: 'The Herald Agriculture Desk RSS & Zimbabwe Cadastre Gazette Network',
     sourceCount: 4,
     articles: mergedArticles,
     ticker,
@@ -331,7 +414,7 @@ export async function GET() {
 
   return NextResponse.json(responseData, {
     headers: {
-      'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
       'X-Cache-Status': 'MISS',
     },
   });
