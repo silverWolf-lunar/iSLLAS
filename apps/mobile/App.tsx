@@ -731,12 +731,43 @@ export default function App() {
   // Splash / Loading Screen State
   const [isLoading, setIsLoading] = useState(true);
 
-  // Authentication & Onboarding State
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [authView, setAuthView] = useState<'welcome' | 'signin' | 'register' | 'recover'>('welcome');
+  // Authentication & Onboarding State - Users MUST login before accessing home
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authView, setAuthView] = useState<'welcome' | 'signin' | 'register' | 'recover'>('signin');
   const [loginEmail, setLoginEmail] = useState('farmer@sllas.gov.zw');
-  const [loginPassword, setLoginPassword] = useState('');
+  const [loginPassword, setLoginPassword] = useState('password123');
   const [recoverEmail, setRecoverEmail] = useState('');
+  const [regName, setRegName] = useState('Tafadzwa Chikata');
+  const [regId, setRegId] = useState('63-128944-P-63');
+  const [regPhone, setRegPhone] = useState('+263 77 345 6789');
+
+  const handleSignIn = () => {
+    if (!loginEmail.trim()) {
+      Alert.alert('Authentication Required', 'Please enter your registered National ID or Email to proceed.');
+      return;
+    }
+    if (!loginPassword.trim()) {
+      Alert.alert('Password Required', 'Please enter your password to sign in to the SLLAS Client Portal.');
+      return;
+    }
+    setIsAuthenticated(true);
+    setActiveTab('home');
+  };
+
+  const handleRegister = () => {
+    if (!regName.trim() || !regId.trim()) {
+      Alert.alert('Incomplete Registration', 'Please provide your Full Legal Name and National ID to register.');
+      return;
+    }
+    setProfile(p => ({
+      ...p,
+      name: regName.trim(),
+      nationalId: regId.trim(),
+      phone: regPhone.trim() || p.phone,
+    }));
+    setIsAuthenticated(true);
+    setActiveTab('home');
+  };
 
   // Main Mobile Navigation
   const [activeTab, setActiveTab] = useState<MobileTabKey>('home');
@@ -885,28 +916,53 @@ export default function App() {
                 placeholderTextColor="#94a3b8"
                 secureTextEntry
               />
-              <Pressable style={styles.primaryButton} onPress={() => setIsAuthenticated(true)}>
-                <Text style={styles.primaryButtonText}>Sign In</Text>
+              <Pressable style={styles.primaryButton} onPress={handleSignIn}>
+                <Text style={styles.primaryButtonText}>Sign In to SLLAS Portal</Text>
               </Pressable>
-              <Pressable onPress={() => setAuthView('welcome')} style={styles.textLink}>
-                <Text style={styles.textLinkText}>← Back to Welcome</Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                <Pressable onPress={() => setAuthView('register')} style={styles.textLink}>
+                  <Text style={styles.textLinkText}>Create New Account</Text>
+                </Pressable>
+                <Pressable onPress={() => setAuthView('recover')} style={styles.textLink}>
+                  <Text style={styles.textLinkText}>Forgot Password?</Text>
+                </Pressable>
+              </View>
             </View>
           )}
 
           {authView === 'register' && (
             <View style={styles.formStack}>
               <Text style={styles.inputLabel}>Full Legal Name</Text>
-              <TextInput style={styles.textInput} placeholder="e.g. Tafadzwa Chikata" placeholderTextColor="#94a3b8" />
+              <TextInput
+                style={styles.textInput}
+                value={regName}
+                onChangeText={setRegName}
+                placeholder="e.g. Tafadzwa Chikata"
+                placeholderTextColor="#94a3b8"
+              />
               <Text style={styles.inputLabel}>National ID / Passport</Text>
-              <TextInput style={styles.textInput} placeholder="e.g. 63-128944-P-63" placeholderTextColor="#94a3b8" />
+              <TextInput
+                style={styles.textInput}
+                value={regId}
+                onChangeText={setRegId}
+                placeholder="e.g. 63-128944-P-63"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="characters"
+              />
               <Text style={styles.inputLabel}>Mobile Phone Number</Text>
-              <TextInput style={styles.textInput} placeholder="+263 77..." placeholderTextColor="#94a3b8" keyboardType="phone-pad" />
-              <Pressable style={styles.primaryButton} onPress={() => setIsAuthenticated(true)}>
+              <TextInput
+                style={styles.textInput}
+                value={regPhone}
+                onChangeText={setRegPhone}
+                placeholder="+263 77..."
+                placeholderTextColor="#94a3b8"
+                keyboardType="phone-pad"
+              />
+              <Pressable style={styles.primaryButton} onPress={handleRegister}>
                 <Text style={styles.primaryButtonText}>Complete Registration</Text>
               </Pressable>
-              <Pressable onPress={() => setAuthView('welcome')} style={styles.textLink}>
-                <Text style={styles.textLinkText}>← Back</Text>
+              <Pressable onPress={() => setAuthView('signin')} style={styles.textLink}>
+                <Text style={styles.textLinkText}>← Back to Sign In</Text>
               </Pressable>
             </View>
           )}
@@ -1776,7 +1832,10 @@ export default function App() {
 
             <Pressable
               style={[styles.secondaryButton, { marginTop: 12 }]}
-              onPress={() => setIsAuthenticated(false)}
+              onPress={() => {
+                setIsAuthenticated(false);
+                setAuthView('signin');
+              }}
             >
               <Text style={styles.secondaryButtonText}>Sign Out of SLLAS</Text>
             </Pressable>
