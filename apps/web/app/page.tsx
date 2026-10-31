@@ -1241,23 +1241,7 @@ export default function LandingPage() {
       }}>
         {/* Section Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '6px 14px',
-            borderRadius: '999px',
-            background: isLight ? 'rgba(22, 163, 74, 0.1)' : 'rgba(34, 197, 94, 0.15)',
-            border: isLight ? '1px solid rgba(22, 163, 74, 0.25)' : '1px solid rgba(34, 197, 94, 0.3)',
-            color: isLight ? '#15803d' : '#4ade80',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
-            marginBottom: '12px',
-          }}>
-            <span>🌱 Real-time Agricultural &amp; Farm News</span>
-          </div>
+
           <h2 style={{
             fontSize: 'clamp(2rem, 4vw, 2.75rem)',
             fontWeight: 800,
