@@ -33,6 +33,11 @@ import {
   GEODETIC_GRID,
   AGRO_REGIONS_LEGEND,
 } from './zimbabwe_geo';
+import {
+  MOBILE_NEWS_ARTICLES,
+  MobileNewsArticle,
+  NEWS_IMAGES,
+} from './news_data';
 
 const SATELLITE_MAP_IMG = require('./assets/zimbabwe_satellite_map.jpg');
 
@@ -41,7 +46,7 @@ declare const process: {
 };
 
 // 4.3.2 Mobile Application Screen Keys
-type MobileTabKey = 'home' | 'search' | 'applications' | 'map' | 'profile' | 'notifications';
+type MobileTabKey = 'home' | 'search' | 'applications' | 'map' | 'menu' | 'notifications';
 
 type LandUseCategory = 'All' | 'Commercial Cropping' | 'Livestock Ranching' | 'Horticulture' | 'Mixed Farming';
 type SizeRangeFilter = 'All' | '<50 ha' | '50-100 ha' | '100-250 ha' | '250+ ha';
@@ -807,6 +812,78 @@ export default function App() {
   const [mapSelectedProvince, setMapSelectedProvince] = useState<string>('All');
   const [mapLayerMode, setMapLayerMode] = useState<'satellite' | 'cadastre' | 'agro' | 'water'>('satellite');
   const [showMapGrid, setShowMapGrid] = useState<boolean>(true);
+
+  // Menu Hub Navigation & Sub-views: Profile Management, Settings, News Feed, Logout
+  const [menuView, setMenuView] = useState<'hub' | 'profile' | 'settings' | 'news'>('hub');
+  const [settingsLanguage, setSettingsLanguage] = useState<'English (ZW)' | 'ChiShona' | 'isiNdebele'>('English (ZW)');
+  const [settingsBioAuth, setSettingsBioAuth] = useState(true);
+  const [settingsOfflineCache, setSettingsOfflineCache] = useState(true);
+
+  // News Feed Auto-Update & Filter States
+  const [newsCategory, setNewsCategory] = useState<string>('ALL');
+  const [selectedNewsArticle, setSelectedNewsArticle] = useState<MobileNewsArticle | null>(null);
+  const [newsCountdown, setNewsCountdown] = useState<number>(10);
+  const [isNewsPaused, setIsNewsPaused] = useState<boolean>(false);
+  const [newsBatchIndex, setNewsBatchIndex] = useState<number>(0);
+
+  // 10-Second Auto-Refresh Timer for News Feed
+  useEffect(() => {
+    if (activeTab !== 'menu' || menuView !== 'news' || isNewsPaused) return;
+
+    const interval = setInterval(() => {
+      setNewsCountdown(prev => {
+        if (prev <= 1) {
+          setNewsBatchIndex(b => (b === 0 ? 1 : 0));
+          return 10;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeTab, menuView, isNewsPaused]);
+
+  // Filtered News Articles
+  const filteredNews = useMemo(() => {
+    let list = MOBILE_NEWS_ARTICLES;
+    if (newsCategory !== 'ALL') {
+      list = list.filter(a => a.category === newsCategory);
+    }
+    return list;
+  }, [newsCategory]);
+
+  // Safe Logout Confirmation Handler (Cross-Platform Mobile & Web)
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const g = globalThis as unknown as { confirm?: (msg: string) => boolean };
+      const confirmed = typeof g.confirm === 'function' ? g.confirm('Are you sure you want to log out of the SLLAS Client Land Portal?') : true;
+      if (confirmed) {
+        setIsAuthenticated(false);
+        setAuthView('signin');
+        setActiveTab('home');
+        setMenuView('hub');
+      }
+      return;
+    }
+    Alert.alert(
+      'Sign Out of SLLAS',
+      'Are you sure you want to log out of the SLLAS Client Land Portal?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => {
+            setIsAuthenticated(false);
+            setAuthView('signin');
+            setActiveTab('home');
+            setMenuView('hub');
+            Alert.alert('Session Terminated', 'You have been safely signed out.');
+          },
+        },
+      ]
+    );
+  };
 
   // Filtered Parcels for Map View
   const mapFilteredParcels = useMemo(() => {
@@ -1880,102 +1957,411 @@ export default function App() {
           </View>
         )}
 
-        {/* 8. PROFILE SCREEN (Section 4.3.2 Item 8) */}
-        {activeTab === 'profile' && (
+        {/* 8. MENU & SERVICES HUB (Profile Management, Settings, News Feed, Logout) */}
+        {activeTab === 'menu' && (
           <View style={styles.tabContent}>
-            <Text style={styles.pageTitle}>Client Profile &amp; Preferences</Text>
-            <Text style={styles.cardSub}>Manage your verified identification, contact information, and notifications.</Text>
+            {/* SUB-VIEW 1: MENU HUB OVERVIEW */}
+            {menuView === 'hub' && (
+              <>
+                {/* Citizen User Profile Hero Card */}
+                <View style={styles.menuUserHeroCard}>
+                  <View style={styles.menuUserHeroRow}>
+                    <View style={styles.menuAvatarWrap}>
+                      <Text style={styles.menuAvatarText}>
+                        {profile.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuUserName}>{profile.name}</Text>
+                      <Text style={styles.menuUserId}>ID: {profile.nationalId}</Text>
+                      <View style={styles.menuCitizenBadge}>
+                        <Text style={styles.menuCitizenBadgeText}>🇿🇼 VERIFIED CITIZEN • TIER 1</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={[styles.cardSub, { marginTop: 10, fontSize: 11 }]}>
+                    📍 {profile.address} • {profile.district}, {profile.province}
+                  </Text>
+                </View>
 
-            <View style={styles.card}>
-              <Text style={styles.inputLabel}>Full Legal Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profile.name}
-                onChangeText={v => setProfile(p => ({ ...p, name: v }))}
-              />
+                {/* Section Header */}
+                <Text style={styles.sectionHeading}>Services &amp; Navigation</Text>
 
-              <Text style={styles.inputLabel}>National Identification Number</Text>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: '#1e293b' }]}
-                value={profile.nationalId}
-                editable={false}
-              />
+                {/* 4 Primary Menu Function Cards */}
+                <View style={styles.menuCardGrid}>
+                  {/* 1. Profile Management */}
+                  <Pressable
+                    style={styles.menuActionCard}
+                    onPress={() => setMenuView('profile')}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(34, 197, 94, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>👤</Text>
+                    </View>
+                    <View style={styles.menuCardContent}>
+                      <View style={styles.menuCardHeaderRow}>
+                        <Text style={styles.menuCardTitle}>Profile Management</Text>
+                        <View style={[styles.menuCardBadge, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+                          <Text style={{ color: '#4ade80', fontSize: 9, fontWeight: '700' }}>KYC Verified</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.menuCardDesc}>
+                        Manage verified identification, contact numbers, email &amp; physical farm stand
+                      </Text>
+                    </View>
+                    <Text style={styles.menuArrowGlyph}>→</Text>
+                  </Pressable>
 
-              <Text style={styles.inputLabel}>Email Address</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profile.email}
-                onChangeText={v => setProfile(p => ({ ...p, email: v }))}
-                keyboardType="email-address"
-              />
+                  {/* 2. Settings */}
+                  <Pressable
+                    style={styles.menuActionCard}
+                    onPress={() => setMenuView('settings')}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>⚙️</Text>
+                    </View>
+                    <View style={styles.menuCardContent}>
+                      <View style={styles.menuCardHeaderRow}>
+                        <Text style={styles.menuCardTitle}>Settings</Text>
+                        <View style={[styles.menuCardBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                          <Text style={{ color: '#38bdf8', fontSize: 9, fontWeight: '700' }}>Alerts &amp; Security</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.menuCardDesc}>
+                        Notification channels, language selection, biometric login &amp; offline cadastre
+                      </Text>
+                    </View>
+                    <Text style={styles.menuArrowGlyph}>→</Text>
+                  </Pressable>
 
-              <Text style={styles.inputLabel}>Contact Phone Number</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profile.phone}
-                onChangeText={v => setProfile(p => ({ ...p, phone: v }))}
-                keyboardType="phone-pad"
-              />
+                  {/* 3. News Feed */}
+                  <Pressable
+                    style={styles.menuActionCard}
+                    onPress={() => setMenuView('news')}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(234, 179, 8, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>📰</Text>
+                    </View>
+                    <View style={styles.menuCardContent}>
+                      <View style={styles.menuCardHeaderRow}>
+                        <Text style={styles.menuCardTitle}>News Feed</Text>
+                        <View style={[styles.menuCardBadge, { backgroundColor: 'rgba(234, 179, 8, 0.15)' }]}>
+                          <Text style={{ color: '#facc15', fontSize: 9, fontWeight: '700' }}>Live Wire ⚡</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.menuCardDesc}>
+                        Live Land Reform gazettes, Herald agricultural updates &amp; 10s auto-refresh wire
+                      </Text>
+                    </View>
+                    <Text style={styles.menuArrowGlyph}>→</Text>
+                  </Pressable>
 
-              <Text style={styles.inputLabel}>Physical Address</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profile.address}
-                onChangeText={v => setProfile(p => ({ ...p, address: v }))}
-              />
+                  {/* 4. Logout */}
+                  <Pressable
+                    style={[styles.menuActionCard, { borderColor: 'rgba(239, 68, 68, 0.25)' }]}
+                    onPress={handleLogout}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>🚪</Text>
+                    </View>
+                    <View style={styles.menuCardContent}>
+                      <View style={styles.menuCardHeaderRow}>
+                        <Text style={[styles.menuCardTitle, { color: '#f87171' }]}>Logout</Text>
+                        <View style={[styles.menuCardBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                          <Text style={{ color: '#f87171', fontSize: 9, fontWeight: '700' }}>End Session</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.menuCardDesc}>
+                        Securely sign out of the SLLAS Client Land Portal on this device
+                      </Text>
+                    </View>
+                    <Text style={[styles.menuArrowGlyph, { color: '#ef4444' }]}>→</Text>
+                  </Pressable>
+                </View>
 
-              <Pressable
-                style={[styles.primaryButton, { marginTop: 12 }]}
-                onPress={() => Alert.alert('Profile Saved', 'Your contact details have been successfully updated in SLLAS.')}
-              >
-                <Text style={styles.primaryButtonText}>Save Contact Details</Text>
-              </Pressable>
-            </View>
+                {/* Quick Account Summary Strip */}
+                <View style={styles.menuStatsStrip}>
+                  <View style={styles.menuStatTile}>
+                    <Text style={styles.menuStatVal}>1 Active</Text>
+                    <Text style={styles.menuStatLabel}>99-Year Lease</Text>
+                  </View>
+                  <View style={styles.menuStatTile}>
+                    <Text style={styles.menuStatVal}>#WL-0185</Text>
+                    <Text style={styles.menuStatLabel}>Waiting List</Text>
+                  </View>
+                  <View style={styles.menuStatTile}>
+                    <Text style={styles.menuStatVal}>{notifications.filter(n => !n.read).length} Unread</Text>
+                    <Text style={styles.menuStatLabel}>Notices</Text>
+                  </View>
+                </View>
 
-            {/* Notification Preferences */}
-            <Text style={styles.sectionHeading}>Notification Preferences</Text>
-            <View style={styles.card}>
-              <Pressable
-                style={styles.preferenceRow}
-                onPress={() => setProfile(p => ({ ...p, smsNotifications: !p.smsNotifications }))}
-              >
-                <Text style={styles.preferenceText}>📱 SMS Status Progression Alerts</Text>
-                <Text style={styles.toggleState}>{profile.smsNotifications ? 'ON' : 'OFF'}</Text>
-              </Pressable>
+                {/* Statutory Credits Footer */}
+                <View style={styles.menuFooterBox}>
+                  <Text style={styles.menuFooterTitle}>REPUBLIC OF ZIMBABWE • VISION 2030</Text>
+                  <Text style={styles.menuFooterSub}>
+                    Ministry of Lands, Agriculture, Fisheries, Water and Rural Development • SLLAS Mobile v2.4.0
+                  </Text>
+                </View>
+              </>
+            )}
 
-              <Pressable
-                style={styles.preferenceRow}
-                onPress={() => setProfile(p => ({ ...p, emailNotifications: !p.emailNotifications }))}
-              >
-                <Text style={styles.preferenceText}>📧 Official Email Dispatches</Text>
-                <Text style={styles.toggleState}>{profile.emailNotifications ? 'ON' : 'OFF'}</Text>
-              </Pressable>
+            {/* SUB-VIEW 2: PROFILE MANAGEMENT */}
+            {menuView === 'profile' && (
+              <>
+                <Pressable onPress={() => setMenuView('hub')} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>← Back to Menu</Text>
+                </Pressable>
+                <Text style={styles.pageTitle}>Profile Management</Text>
+                <Text style={styles.cardSub}>
+                  Manage your verified legal identification, contact information, and registered farm location.
+                </Text>
 
-              <Pressable
-                style={styles.preferenceRow}
-                onPress={() => setProfile(p => ({ ...p, expiryReminders: !p.expiryReminders }))}
-              >
-                <Text style={styles.preferenceText}>⏰ Lease Expiry (90-Day / 60-Day) Reminders</Text>
-                <Text style={styles.toggleState}>{profile.expiryReminders ? 'ON' : 'OFF'}</Text>
-              </Pressable>
-            </View>
+                <View style={styles.card}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: 8, borderRadius: 8 }}>
+                    <Text style={{ color: '#4ade80', fontSize: 13 }}>🟢</Text>
+                    <Text style={{ color: '#86efac', fontSize: 11, fontWeight: '700' }}>
+                      Citizen Identity Verified • Ministry KYC Validated
+                    </Text>
+                  </View>
 
-            <Pressable
-              style={[styles.primaryButton, { marginTop: 16 }]}
-              onPress={() => setIsLoading(true)}
-            >
-              <Text style={styles.primaryButtonText}>▶ Replay SLLAS Motion Logo</Text>
-            </Pressable>
+                  <Text style={styles.inputLabel}>Full Legal Name</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={profile.name}
+                    onChangeText={v => setProfile(p => ({ ...p, name: v }))}
+                  />
 
-            <Pressable
-              style={[styles.secondaryButton, { marginTop: 12 }]}
-              onPress={() => {
-                setIsAuthenticated(false);
-                setAuthView('signin');
-              }}
-            >
-              <Text style={styles.secondaryButtonText}>Sign Out of SLLAS</Text>
-            </Pressable>
+                  <Text style={styles.inputLabel}>National Identification Number 🔒</Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#94a3b8' }]}
+                    value={profile.nationalId}
+                    editable={false}
+                  />
+
+                  <Text style={styles.inputLabel}>Email Address</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={profile.email}
+                    onChangeText={v => setProfile(p => ({ ...p, email: v }))}
+                    keyboardType="email-address"
+                  />
+
+                  <Text style={styles.inputLabel}>Contact Phone Number</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={profile.phone}
+                    onChangeText={v => setProfile(p => ({ ...p, phone: v }))}
+                    keyboardType="phone-pad"
+                  />
+
+                  <Text style={styles.inputLabel}>Physical Farm / Residential Address</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={profile.address}
+                    onChangeText={v => setProfile(p => ({ ...p, address: v }))}
+                  />
+
+                  <Text style={styles.inputLabel}>Primary District &amp; Province</Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#cbd5e1' }]}
+                    value={`${profile.district}, ${profile.province}`}
+                    editable={false}
+                  />
+
+                  <Pressable
+                    style={[styles.primaryButton, { marginTop: 14 }]}
+                    onPress={() => Alert.alert('Profile Saved', 'Your contact details have been successfully updated in SLLAS.')}
+                  >
+                    <Text style={styles.primaryButtonText}>Save Contact Details</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+
+            {/* SUB-VIEW 3: SETTINGS & PREFERENCES */}
+            {menuView === 'settings' && (
+              <>
+                <Pressable onPress={() => setMenuView('hub')} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>← Back to Menu</Text>
+                </Pressable>
+                <Text style={styles.pageTitle}>Settings &amp; Preferences</Text>
+                <Text style={styles.cardSub}>
+                  Configure notification dispatch channels, preferred language, biometric security, and offline mapping.
+                </Text>
+
+                {/* Notification Channels */}
+                <Text style={styles.sectionHeading}>Notification Channels</Text>
+                <View style={styles.card}>
+                  <Pressable
+                    style={styles.preferenceRow}
+                    onPress={() => setProfile(p => ({ ...p, smsNotifications: !p.smsNotifications }))}
+                  >
+                    <Text style={styles.preferenceText}>📱 SMS Status Progression Alerts</Text>
+                    <Text style={styles.toggleState}>{profile.smsNotifications ? 'ON' : 'OFF'}</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.preferenceRow}
+                    onPress={() => setProfile(p => ({ ...p, emailNotifications: !p.emailNotifications }))}
+                  >
+                    <Text style={styles.preferenceText}>📧 Official Email Dispatches</Text>
+                    <Text style={styles.toggleState}>{profile.emailNotifications ? 'ON' : 'OFF'}</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.preferenceRow}
+                    onPress={() => setProfile(p => ({ ...p, expiryReminders: !p.expiryReminders }))}
+                  >
+                    <Text style={styles.preferenceText}>⏰ Lease Expiry (90-Day / 60-Day) Reminders</Text>
+                    <Text style={styles.toggleState}>{profile.expiryReminders ? 'ON' : 'OFF'}</Text>
+                  </Pressable>
+                </View>
+
+                {/* Language Selection */}
+                <Text style={styles.sectionHeading}>Language / Mutauro / Ulimi</Text>
+                <View style={styles.card}>
+                  <View style={styles.languageRow}>
+                    {(['English (ZW)', 'ChiShona', 'isiNdebele'] as const).map(lang => (
+                      <Pressable
+                        key={lang}
+                        style={[styles.languageBtn, settingsLanguage === lang && styles.languageBtnActive]}
+                        onPress={() => setSettingsLanguage(lang)}
+                      >
+                        <Text style={[styles.languageBtnText, settingsLanguage === lang && styles.languageBtnTextActive]}>
+                          {lang}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Security & System Preferences */}
+                <Text style={styles.sectionHeading}>Security &amp; Device Preferences</Text>
+                <View style={styles.card}>
+                  <Pressable
+                    style={styles.preferenceRow}
+                    onPress={() => setSettingsBioAuth(b => !b)}
+                  >
+                    <Text style={styles.preferenceText}>🔐 Biometric / Face ID Unlock</Text>
+                    <Text style={styles.toggleState}>{settingsBioAuth ? 'ON' : 'OFF'}</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.preferenceRow}
+                    onPress={() => setSettingsOfflineCache(c => !c)}
+                  >
+                    <Text style={styles.preferenceText}>🗺️ Offline Cadastre Map Caching</Text>
+                    <Text style={styles.toggleState}>{settingsOfflineCache ? 'ENABLED' : 'DISABLED'}</Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={[styles.primaryButton, { marginTop: 10 }]}
+                  onPress={() => setIsLoading(true)}
+                >
+                  <Text style={styles.primaryButtonText}>▶ Replay SLLAS Motion Logo</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.secondaryButton, { marginTop: 10 }]}
+                  onPress={handleLogout}
+                >
+                  <Text style={[styles.secondaryButtonText, { color: '#f87171' }]}>Sign Out of SLLAS</Text>
+                </Pressable>
+              </>
+            )}
+
+            {/* SUB-VIEW 4: NEWS FEED */}
+            {menuView === 'news' && (
+              <>
+                <Pressable onPress={() => setMenuView('hub')} style={styles.backButton}>
+                  <Text style={styles.backButtonText}>← Back to Menu</Text>
+                </Pressable>
+                <Text style={styles.pageTitle}>News Feed &amp; Gazette</Text>
+                <Text style={styles.cardSub}>
+                  Live land administration reporting, policy announcements, and agricultural bulletins syndicated from The Herald and Ministry of Lands.
+                </Text>
+
+                {/* 10-Second Auto-Update Wire Banner */}
+                <View style={styles.newsLiveBanner}>
+                  <View style={styles.newsLiveLeft}>
+                    <View style={styles.newsLivePulse} />
+                    <Text style={styles.newsLiveTitle}>LIVE WIRE</Text>
+                    <View style={styles.newsLiveBadge}>
+                      <Text style={styles.newsLiveBadgeText}>10s AUTO</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.newsTrackWrap}>
+                    <View style={styles.newsTrack}>
+                      <View
+                        style={[
+                          styles.newsTrackFill,
+                          {
+                            width: `${Math.max(0, Math.min(100, ((10 - newsCountdown) / 10) * 100))}%`,
+                            backgroundColor: isNewsPaused ? '#94a3b8' : '#22c55e',
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.newsTimerText}>
+                      {isNewsPaused ? 'Paused' : `${newsCountdown}s`}
+                    </Text>
+                    <Pressable
+                      style={styles.newsPauseBtn}
+                      onPress={() => setIsNewsPaused(p => !p)}
+                    >
+                      <Text style={styles.newsPauseText}>{isNewsPaused ? '▶' : '⏸'}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* Category Filters */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.newsCategoryRow}>
+                  {['ALL', 'CROPS', 'FINANCE', 'LIVESTOCK', 'TENURE'].map(cat => (
+                    <Pressable
+                      key={cat}
+                      style={[styles.newsCategoryChip, newsCategory === cat && styles.newsCategoryChipActive]}
+                      onPress={() => setNewsCategory(cat)}
+                    >
+                      <Text style={[styles.newsCategoryText, newsCategory === cat && styles.newsCategoryTextActive]}>
+                        {cat}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                {/* News Article Cards (4-6 max on screen) */}
+                {filteredNews.slice(0, 6).map(item => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.newsArticleCard}
+                    onPress={() => setSelectedNewsArticle(item)}
+                  >
+                    <Image
+                      source={NEWS_IMAGES[item.imageKey]}
+                      style={styles.newsArticleImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.newsArticleContent}>
+                      <View style={styles.newsArticleHeaderRow}>
+                        <Text style={styles.newsArticleTag}>{item.category}</Text>
+                        <Text style={styles.newsArticleSource}>{item.source}</Text>
+                      </View>
+                      <Text style={styles.newsArticleTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.newsArticleSummary} numberOfLines={2}>
+                        {item.summary}
+                      </Text>
+                      <View style={styles.newsArticleFooter}>
+                        <Text style={styles.newsArticleDate}>{item.date} • {item.readTime}</Text>
+                        <Text style={styles.newsReadMore}>Read Gazette →</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </>
+            )}
           </View>
         )}
       </ScrollView>
@@ -2123,6 +2509,55 @@ export default function App() {
         </Modal>
       )}
 
+      {/* 5. NEWS ARTICLE GAZETTE READER MODAL */}
+      {selectedNewsArticle && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setSelectedNewsArticle(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.newsArticleTag}>{selectedNewsArticle.category}</Text>
+                  <Text style={styles.modalTitle} numberOfLines={2}>{selectedNewsArticle.title}</Text>
+                </View>
+                <Pressable onPress={() => setSelectedNewsArticle(null)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 380 }}>
+                <Image
+                  source={NEWS_IMAGES[selectedNewsArticle.imageKey]}
+                  style={{ width: '100%', height: 160, borderRadius: 10, marginBottom: 12 }}
+                  resizeMode="cover"
+                />
+                <Text style={styles.cardEyebrow}>{selectedNewsArticle.source} • {selectedNewsArticle.date}</Text>
+                <Text style={[styles.cardSub, { fontSize: 13, lineHeight: 18, color: '#e2e8f0', marginTop: 8 }]}>
+                  {selectedNewsArticle.summary}
+                </Text>
+                <Text style={[styles.sectionHeading, { marginTop: 12, marginBottom: 6 }]}>Key Policy Points</Text>
+                {selectedNewsArticle.bulletPoints.map((bp, i) => (
+                  <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                    <Text style={{ color: '#4ade80', fontSize: 12 }}>•</Text>
+                    <Text style={[styles.cardSub, { flex: 1, fontSize: 11 }]}>{bp}</Text>
+                  </View>
+                ))}
+                <Text style={[styles.sectionHeading, { marginTop: 12, marginBottom: 6 }]}>Official Gazette Text</Text>
+                <Text style={[styles.cardSub, { fontSize: 11, fontStyle: 'italic', color: '#cbd5e1', lineHeight: 17 }]}>
+                  "{selectedNewsArticle.fullGazetteText}"
+                </Text>
+              </ScrollView>
+
+              <Pressable
+                style={[styles.primaryButton, { marginTop: 12 }]}
+                onPress={() => setSelectedNewsArticle(null)}
+              >
+                <Text style={styles.primaryButtonText}>Close Gazette Bulletin</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* Touch-Friendly Bottom Tab Bar */}
       <View style={styles.tabBar}>
         {[
@@ -2130,12 +2565,17 @@ export default function App() {
           { key: 'search', label: 'Land Search', icon: '🔍' },
           { key: 'applications', label: 'My Leases', icon: '📜' },
           { key: 'map', label: 'Map View', icon: '🗺️' },
-          { key: 'profile', label: 'Profile', icon: '👤' },
+          { key: 'menu', label: 'Menu', icon: '☰' },
         ].map(t => (
           <Pressable
             key={t.key}
             style={[styles.tabBarItem, activeTab === t.key && styles.tabBarItemActive]}
-            onPress={() => setActiveTab(t.key as MobileTabKey)}
+            onPress={() => {
+              if (t.key === 'menu') {
+                setMenuView('hub');
+              }
+              setActiveTab(t.key as MobileTabKey);
+            }}
           >
             <Text style={styles.tabBarIcon}>{t.icon}</Text>
             <Text style={[styles.tabBarLabel, activeTab === t.key && styles.tabBarLabelActive]}>
@@ -3087,16 +3527,362 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   backButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginBottom: 10,
     alignSelf: 'flex-start',
   },
   backButtonText: {
-    color: '#94a3b8',
+    color: '#4ade80',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  // --- Menu Hub Styles ---
+  menuUserHeroCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 8,
+  },
+  menuUserHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  menuAvatarWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#166534',
+    borderWidth: 2,
+    borderColor: '#4ade80',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuAvatarText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  menuUserName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  menuUserId: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  menuCitizenBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.3)',
+  },
+  menuCitizenBadgeText: {
+    color: '#4ade80',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  menuCardGrid: {
+    gap: 10,
+    marginTop: 6,
+  },
+  menuActionCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  menuIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuIconGlyph: {
+    fontSize: 20,
+  },
+  menuCardContent: {
+    flex: 1,
+  },
+  menuCardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  menuCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  menuCardBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  menuCardDesc: {
+    fontSize: 11,
+    color: '#94a3b8',
+    lineHeight: 15,
+  },
+  menuArrowGlyph: {
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '700',
+  },
+  menuStatsStrip: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  menuStatTile: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+  },
+  menuStatVal: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#f8fafc',
+  },
+  menuStatLabel: {
+    fontSize: 9,
+    color: '#64748b',
     fontWeight: '600',
+    marginTop: 2,
+  },
+  menuFooterBox: {
+    marginTop: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  menuFooterTitle: {
+    color: '#64748b',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  menuFooterSub: {
+    color: '#475569',
+    fontSize: 9,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  languageRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  languageBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+  },
+  languageBtnActive: {
+    backgroundColor: '#166534',
+    borderColor: '#4ade80',
+  },
+  languageBtnText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  languageBtnTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  newsLiveBanner: {
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  newsLiveLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  newsLivePulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+  },
+  newsLiveTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  newsLiveBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newsLiveBadgeText: {
+    color: '#4ade80',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  newsTrackWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  newsTrack: {
+    width: 60,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    overflow: 'hidden',
+  },
+  newsTrackFill: {
+    height: '100%',
+    backgroundColor: '#22c55e',
+  },
+  newsTimerText: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  newsPauseBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  newsPauseText: {
+    color: '#cbd5e1',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  newsCategoryRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  newsCategoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginRight: 8,
+  },
+  newsCategoryChipActive: {
+    backgroundColor: '#166534',
+    borderColor: '#4ade80',
+  },
+  newsCategoryText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  newsCategoryTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  newsArticleCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 12,
+  },
+  newsArticleImage: {
+    width: '100%',
+    height: 145,
+  },
+  newsArticleContent: {
+    padding: 12,
+    gap: 6,
+  },
+  newsArticleHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  newsArticleTag: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    color: '#4ade80',
+    fontSize: 9,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  newsArticleSource: {
+    color: '#64748b',
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  newsArticleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ffffff',
+    lineHeight: 19,
+  },
+  newsArticleSummary: {
+    fontSize: 11,
+    color: '#94a3b8',
+    lineHeight: 16,
+  },
+  newsArticleFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    paddingTop: 8,
+    marginTop: 2,
+  },
+  newsArticleDate: {
+    color: '#64748b',
+    fontSize: 10,
+  },
+  newsReadMore: {
+    color: '#38bdf8',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
