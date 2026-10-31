@@ -1287,9 +1287,9 @@ export default function LandingPage() {
 
         </div>
 
-        {/* 10-Second Auto-Update Banner & Real-Time Controls */}
+        {/* 10-Second Auto-Update Banner & Real-Time Controls (Hidden from view per user request) */}
         <div style={{
-          display: 'flex',
+          display: 'none',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
