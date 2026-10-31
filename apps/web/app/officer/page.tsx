@@ -469,11 +469,11 @@ export default function OfficerDashboardPage() {
             </span>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
               <ZimbabweFlag width={16} height={10} />
-              <span>Administrator &amp; Resettlement Officer Operations Console</span>
+              <span>Resettlement Officer Operations Console</span>
             </div>
           </div>
           <h1 style={{ fontSize: '1.875rem', color: 'var(--text-main)', margin: '0 0 6px' }}>
-            Integrated Land Administration Workbench
+            Resettlement Officer Dashboard
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '780px', margin: 0 }}>
             Unified operational command: monitor cadastre KPIs, process live lease applications, manage land inventory, inspect lease registers, and audit compliance.

@@ -77,7 +77,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <h1 style={{ fontSize: '1.875rem', color: 'var(--text-main)', margin: '0 0 6px' }}>
-            Executive Platform Administration
+            System Admin Dashboard
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '640px', margin: 0 }}>
             Manage staff identities, provincial registry offices, PostGIS spatial data integrity, and compliance policies across Zimbabwe.

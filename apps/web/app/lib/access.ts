@@ -28,11 +28,11 @@ export const ROLE_CONFIG: Record<
     ],
   },
   [Role.REGISTRY_OFFICER]: {
-    displayName: 'Registry & Resettlement Officer',
+    displayName: 'Resettlement Officer',
     description: 'Cadastre registration, verification and allocation',
     defaultDashboard: '/officer',
     navItems: [
-      { label: 'Cadastre Dashboard', href: '/officer' },
+      { label: 'Resettlement Dashboard', href: '/officer' },
       { label: 'Parcel Explorer', href: '/parcels' },
       { label: '+ Register Parcel', href: '/parcels/new' },
       { label: 'Verification Workbench', href: '/parcels/verify' },
@@ -63,11 +63,11 @@ export const ROLE_CONFIG: Record<
     ],
   },
   [Role.SYSTEM_ADMIN]: {
-    displayName: 'System Administrator',
+    displayName: 'System Admin',
     description: 'Full national platform administration',
     defaultDashboard: '/admin',
     navItems: [
-      { label: 'Admin Console', href: '/admin' },
+      { label: 'System Admin Dashboard', href: '/admin' },
       { label: 'User & Staff Management', href: '/admin/users' },
       { label: 'Registry Offices', href: '/admin/offices' },
       { label: 'Parcel Explorer', href: '/parcels' },

@@ -69,7 +69,7 @@ export default function EstatesDashboardPage() {
             </div>
           </div>
           <h1 style={{ fontSize: '1.875rem', color: 'var(--text-main)', margin: '0 0 6px' }}>
-            Estates &amp; Leasehold Administration
+            Estates Officer Dashboard
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '640px', margin: 0 }}>
             Oversee Zimbabwe's national land waiting list queue, manage 99-year agricultural lease contracts, and issue statutory legal agreements.

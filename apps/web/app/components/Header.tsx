@@ -129,12 +129,9 @@ export function Header({
               onChange={(e) => handleRoleChange(e.target.value as Role)}
               className="header-role-select"
             >
-              <option value={Role.CLIENT}>Farmer / Client</option>
-              <option value={Role.REGISTRY_OFFICER}>Registry Officer</option>
-              <option value={Role.APPROVER}>Board Approver</option>
-              <option value={Role.ESTATES_OFFICER}>Estates Officer</option>
               <option value={Role.SYSTEM_ADMIN}>System Admin</option>
-              <option value={Role.AUDITOR}>Auditor</option>
+              <option value={Role.ESTATES_OFFICER}>Estates Officer</option>
+              <option value={Role.REGISTRY_OFFICER}>Resettlement Officer</option>
             </select>
           </div>
         )}

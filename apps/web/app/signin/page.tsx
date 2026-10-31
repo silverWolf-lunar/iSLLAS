@@ -35,28 +35,12 @@ interface DemoAccount {
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
   {
-    label: 'Citizen / Farmer',
-    role: Role.CLIENT,
-    email: 'farmer@sllas.gov.zw',
-    icon: '🌾',
-    badgeColor: '#3b82f6',
-    description: 'Land applicant & 99-year leaseholder',
-  },
-  {
-    label: 'Registry Officer',
-    role: Role.REGISTRY_OFFICER,
-    email: 'officer@sllas.gov.zw',
-    icon: '📋',
-    badgeColor: '#10b981',
-    description: 'District parcel & KYC verification',
-  },
-  {
-    label: 'Land Board Approver',
-    role: Role.APPROVER,
-    email: 'approver@sllas.gov.zw',
-    icon: '⚖️',
-    badgeColor: '#f59e0b',
-    description: 'Provincial board & Ministerial approvals',
+    label: 'System Admin',
+    role: Role.SYSTEM_ADMIN,
+    email: 'admin@sllas.gov.zw',
+    icon: '🛡️',
+    badgeColor: '#ef4444',
+    description: 'Executive console & platform management',
   },
   {
     label: 'Estates Officer',
@@ -67,20 +51,12 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     description: 'Master waiting list & legal leases',
   },
   {
-    label: 'System Admin',
-    role: Role.SYSTEM_ADMIN,
-    email: 'admin@sllas.gov.zw',
-    icon: '🛡️',
-    badgeColor: '#ef4444',
-    description: 'Executive console & user management',
-  },
-  {
-    label: 'Compliance Auditor',
-    role: Role.AUDITOR,
-    email: 'auditor@sllas.gov.zw',
-    icon: '🔍',
-    badgeColor: '#06b6d4',
-    description: 'Independent statutory integrity oversight',
+    label: 'Resettlement Officer',
+    role: Role.REGISTRY_OFFICER,
+    email: 'officer@sllas.gov.zw',
+    icon: '📋',
+    badgeColor: '#10b981',
+    description: 'Cadastre registration, verification & allocation',
   },
 ];
 
@@ -100,7 +76,7 @@ function SignInContent() {
   // Sign In State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>(Role.CLIENT);
+  const [role, setRole] = useState<Role>(Role.SYSTEM_ADMIN);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -620,12 +596,9 @@ function SignInContent() {
                       fontSize: '0.875rem',
                     }}
                   >
-                    <option value={Role.CLIENT}>🌾 Citizen / Farmer (Land Applicant & Leases)</option>
-                    <option value={Role.REGISTRY_OFFICER}>📋 District Land Registry Officer</option>
-                    <option value={Role.APPROVER}>⚖️ Provincial Land Board Approver</option>
-                    <option value={Role.ESTATES_OFFICER}>📜 Estates & Valuation Officer</option>
-                    <option value={Role.SYSTEM_ADMIN}>🛡️ System Administrator</option>
-                    <option value={Role.AUDITOR}>🔍 National Compliance Auditor</option>
+                    <option value={Role.SYSTEM_ADMIN}>🛡️ System Admin (Executive Console)</option>
+                    <option value={Role.ESTATES_OFFICER}>📜 Estates Officer (Master Waiting List & Leases)</option>
+                    <option value={Role.REGISTRY_OFFICER}>📋 Resettlement Officer (Cadastre & Allocation)</option>
                   </select>
                 </div>
 
