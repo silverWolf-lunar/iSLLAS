@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -12,1479 +11,951 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
-
-WebBrowser.maybeCompleteAuthSession();
 
 declare const process: {
   env: Record<string, string | undefined>;
 };
 
-type TabKey = 'overview' | 'parcels' | 'applications' | 'alerts';
-type StatusFilter =
-  | 'All'
-  | 'Available'
-  | 'Reserved'
-  | 'Allocated'
-  | 'Leased'
-  | 'Draft'
-  | 'Pending review'
-  | 'Withdrawn'
-  | 'Disputed';
-type FormMode = 'parcel' | 'renewal';
+// 4.3.2 Mobile Application Screen Keys
+type MobileTabKey = 'home' | 'search' | 'applications' | 'notifications' | 'profile';
 
-type Metric = {
-  label: string;
-  value: string;
-  change: string;
-  tone: 'blue' | 'green' | 'amber' | 'red';
-};
+type LandUseCategory = 'All' | 'Commercial Cropping' | 'Livestock Ranching' | 'Horticulture' | 'Mixed Farming';
+type SizeRangeFilter = 'All' | '<50 ha' | '50-100 ha' | '100-250 ha' | '250+ ha';
+type AvailabilityFilter = 'All' | 'Available' | 'Reserved' | 'Allocated';
 
-type ParcelItem = {
-  id: string;
-  referenceNumber: string;
-  district: string;
-  hectares: number;
-  status: 'Available' | 'Reserved' | 'Allocated' | 'Expired' | string;
-  suitability: number;
-  landUse: string;
-  waterAccess: boolean;
-  roadAccess: string;
-  nextAction: string;
-  province?: string;
-  naturalRegion?: string;
-  currentUse?: string;
-  notes?: string | null;
-};
-
-type ApplicationItem = {
-  id: string;
-  applicant: string;
-  activity: string;
-  status: string;
-  delta: string;
-};
-
-type ReferenceOption = {
-  id: string;
+interface ClientProfile {
   name: string;
-};
-
-type OfflineQueueEntry = {
-  id: string;
-  parcelRef: string;
-  notes: string;
-  provinceId: string;
-  districtId: string;
-  categoryId: string;
-  boundary: unknown;
-  createdAt: string;
-  status: 'queued' | 'synced';
-};
-
-const metrics: Metric[] = [
-  { label: 'Parcels available', value: '184', change: '+12%', tone: 'blue' },
-  { label: 'Applications', value: '36', change: '+4%', tone: 'green' },
-  { label: 'Renewals due', value: '9', change: '3 urgent', tone: 'amber' },
-  { label: 'Alerts', value: '2', change: '1 critical', tone: 'red' },
-];
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? Platform.select({
-  ios: 'http://localhost:3001',
-  android: 'http://10.0.2.2:3001',
-  default: 'http://localhost:3001',
-});
-
-const OIDC_ISSUER = process.env.EXPO_PUBLIC_OIDC_ISSUER ?? '';
-const OIDC_CLIENT_ID = process.env.EXPO_PUBLIC_OIDC_CLIENT_ID ?? 'sllas-mobile';
-
-type AuthMode = 'login' | 'register';
-
-function AuthenticationScreen({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
-  const [mode, setMode] = useState<AuthMode>('login');
-  const [authError, setAuthError] = useState<string | null>(null);
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'sllas-mobile' });
-  const discovery = AuthSession.useAutoDiscovery(OIDC_ISSUER || 'https://identity.example.gov.zw/realms/sllas');
-  const [loginRequest, loginResponse, promptLogin] = AuthSession.useAuthRequest(
-    {
-      clientId: OIDC_CLIENT_ID,
-      redirectUri,
-      responseType: AuthSession.ResponseType.Code,
-      usePKCE: true,
-      scopes: ['openid', 'profile', 'email'],
-    },
-    discovery,
-  );
-  const [registerRequest, registerResponse, promptRegister] = AuthSession.useAuthRequest(
-    {
-      clientId: OIDC_CLIENT_ID,
-      redirectUri,
-      responseType: AuthSession.ResponseType.Code,
-      usePKCE: true,
-      scopes: ['openid', 'profile', 'email'],
-      extraParams: { kc_action: 'register' },
-    },
-    discovery,
-  );
-  const request = mode === 'register' ? registerRequest : loginRequest;
-  const response = mode === 'register' ? registerResponse : loginResponse;
-
-  useEffect(() => {
-    const codeVerifier = request?.codeVerifier;
-    if (response?.type !== 'success' || !discovery || !codeVerifier) {
-      return;
-    }
-
-    let cancelled = false;
-    const exchangeCode = async () => {
-      try {
-        setAuthError(null);
-        const tokenResponse = await AuthSession.exchangeCodeAsync(
-          {
-            clientId: OIDC_CLIENT_ID,
-            code: response.params.code,
-            redirectUri,
-            extraParams: { code_verifier: codeVerifier },
-          },
-          discovery,
-        );
-
-        if (!cancelled) {
-          onAuthenticated(tokenResponse.accessToken);
-        }
-      } catch {
-        if (!cancelled) {
-          setAuthError('Unable to complete sign-in. Please try again.');
-        }
-      }
-    };
-
-    exchangeCode();
-    return () => {
-      cancelled = true;
-    };
-  }, [discovery, onAuthenticated, redirectUri, request?.codeVerifier, response]);
-
-  const startAuthentication = async (nextMode: AuthMode) => {
-    if (!OIDC_ISSUER) {
-      setAuthError('Authentication is not configured. Set EXPO_PUBLIC_OIDC_ISSUER and restart the app.');
-      return;
-    }
-
-    if (!request) {
-      setAuthError('Authentication is still loading. Please try again in a moment.');
-      return;
-    }
-
-    setMode(nextMode);
-    setAuthError(null);
-    if (nextMode === 'register') {
-      await promptRegister();
-    } else {
-      await promptLogin();
-    }
-  };
-
-  return (
-    <SafeAreaView style={styles.authSafeArea}>
-      <View style={styles.authCard}>
-        <Text style={styles.govLabel}>GOVERNMENT OF ZIMBABWE</Text>
-        <Text style={styles.eyebrow}>MINISTRY OF LANDS</Text>
-        <Text style={styles.authTitle}>Smart Land Lease and Allocation System</Text>
-        <Text style={styles.authSubtitle}>
-          Secure access to land administration services. Use your approved government identity account.
-        </Text>
-        {authError && <Text style={styles.authError}>{authError}</Text>}
-        <Pressable
-          style={[styles.primaryButton, !request && styles.disabledButton]}
-          onPress={() => startAuthentication('login')}
-          disabled={!request}
-        >
-          <Text style={styles.primaryButtonText}>Log in</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.secondaryButton, !request && styles.disabledButton]}
-          onPress={() => startAuthentication('register')}
-          disabled={!request}
-        >
-          <Text style={styles.secondaryButtonText}>Create an account</Text>
-        </Pressable>
-        <Text style={styles.authHint}>Redirect URI: {redirectUri}</Text>
-      </View>
-    </SafeAreaView>
-  );
+  nationalId: string;
+  email: string;
+  phone: string;
+  address: string;
+  province: string;
+  district: string;
+  smsNotifications: boolean;
+  emailNotifications: boolean;
+  expiryReminders: boolean;
 }
 
-const mockParcels: ParcelItem[] = [
+interface MobileParcel {
+  id: string;
+  referenceNumber: string;
+  name: string;
+  province: string;
+  district: string;
+  hectares: number;
+  landUse: string;
+  availability: 'Available' | 'Reserved' | 'Allocated';
+  naturalRegion: string;
+  soilType: string;
+  waterAccess: boolean;
+  roadAccess: string;
+}
+
+interface ApplicationStatusItem {
+  id: string;
+  applicationNumber: string;
+  waitingListNumber: string;
+  parcelRef: string;
+  hectares: number;
+  intendedActivity: string;
+  status: 'SUBMITTED' | 'UNDER_INSPECTION' | 'ALLOCATED' | 'APPROVED' | 'REJECTED';
+  lodgedDate: string;
+  officerRemarks: string;
+  history: Array<{ status: string; date: string; note: string }>;
+}
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: 'STATUS_UPDATE' | 'EXPIRY_REMINDER' | 'GAZETTE';
+  timestamp: string;
+  read: boolean;
+}
+
+const INITIAL_PROFILE: ClientProfile = {
+  name: 'Tafadzwa Chikata',
+  nationalId: '63-128944-P-63',
+  email: 'farmer@sllas.gov.zw',
+  phone: '+263 77 345 6789',
+  address: 'Stand 44, Banket Commercial Farming Block',
+  province: 'Mashonaland West',
+  district: 'Makonde',
+  smsNotifications: true,
+  emailNotifications: true,
+  expiryReminders: true,
+};
+
+const MOCK_PARCELS: MobileParcel[] = [
   {
-    id: 'mock-1',
-    referenceNumber: 'ZW-ME-GOR-2026-0042',
+    id: 'p-1',
+    referenceNumber: 'ZW-MSW-MAK-2026-0042',
+    name: 'Makonde Commercial Cropping Block 4',
+    province: 'Mashonaland West',
+    district: 'Makonde',
+    hectares: 120,
+    landUse: 'Commercial Cropping',
+    availability: 'Available',
+    naturalRegion: 'Region II',
+    soilType: 'Red Clay Loam',
+    waterAccess: true,
+    roadAccess: 'Tarred Highway Access',
+  },
+  {
+    id: 'p-2',
+    referenceNumber: 'ZW-MID-GWE-2026-0118',
+    name: 'Somabula Cattle Ranch Plot 12',
+    province: 'Midlands',
+    district: 'Gweru',
+    hectares: 350,
+    landUse: 'Livestock Ranching',
+    availability: 'Available',
+    naturalRegion: 'Region III',
+    soilType: 'Sandy Loam',
+    waterAccess: true,
+    roadAccess: 'All-Weather Gravel',
+  },
+  {
+    id: 'p-3',
+    referenceNumber: 'ZW-MAN-MUT-2026-0089',
+    name: 'Honde Valley Macadamia & Tea Plot',
+    province: 'Manicaland',
+    district: 'Mutasa',
+    hectares: 45,
+    landUse: 'Horticulture',
+    availability: 'Reserved',
+    naturalRegion: 'Region I',
+    soilType: 'Humic Forest Soil',
+    waterAccess: true,
+    roadAccess: 'Tarred',
+  },
+  {
+    id: 'p-4',
+    referenceNumber: 'ZW-MSE-GOR-2026-0145',
+    name: 'Goromonzi Mixed Agriculture Subdivision A',
+    province: 'Mashonaland East',
     district: 'Goromonzi',
-    hectares: 42.5,
-    status: 'Available',
-    suitability: 92,
-    landUse: 'Crop farming',
-    waterAccess: true,
-    roadAccess: 'GRAVEL',
-    nextAction: 'Review parcel and proceed to allocation',
-  },
-  {
-    id: 'mock-2',
-    referenceNumber: 'ZW-ME-SHU-2026-0118',
-    district: 'Shurugwi',
-    hectares: 18.2,
-    status: 'Reserved',
-    suitability: 84,
-    landUse: 'Mixed agriculture',
-    waterAccess: true,
-    roadAccess: 'TARRED',
-    nextAction: 'Await lessee verification',
-  },
-  {
-    id: 'mock-3',
-    referenceNumber: 'ZW-ME-KAD-2026-0089',
-    district: 'Kadoma',
-    hectares: 62.1,
-    status: 'Allocated',
-    suitability: 88,
-    landUse: 'Agro-processing',
+    hectares: 80,
+    landUse: 'Mixed Farming',
+    availability: 'Available',
+    naturalRegion: 'Region II',
+    soilType: 'Red Loam',
     waterAccess: false,
-    roadAccess: 'DIRT_TRACK',
-    nextAction: 'Confirm site inspection and lease documents',
+    roadAccess: 'Gravel Track',
+  },
+];
+
+const INITIAL_APPLICATIONS: ApplicationStatusItem[] = [
+  {
+    id: 'app-01',
+    applicationNumber: 'APP-2026-MSW-0042',
+    waitingListNumber: 'WL-2026-0184',
+    parcelRef: 'ZW-MSW-MAK-2026-0042',
+    hectares: 120,
+    intendedActivity: 'Commercial Maize & Soya Bean Cropping',
+    status: 'ALLOCATED',
+    lodgedDate: '2026-10-24',
+    officerRemarks: 'Boundary survey verified by District Officer. Parcel allocated subject to 99-year lease statutory acceptance.',
+    history: [
+      { status: 'SUBMITTED', date: '24 Oct 2026', note: 'Application lodged and assigned Waiting List #WL-2026-0184' },
+      { status: 'UNDER_INSPECTION', date: '27 Oct 2026', note: 'Agro-ecological suitability and soil fertility confirmed' },
+      { status: 'ALLOCATED', date: '30 Oct 2026', note: 'Allocated by Makonde District Resettlement Officer' },
+    ],
+  },
+];
+
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 'n-1',
+    title: 'Application Allocated to Land Board',
+    message: 'Your application APP-2026-MSW-0042 has been allocated and forwarded to Provincial Land Board docket.',
+    type: 'STATUS_UPDATE',
+    timestamp: 'Today, 09:30 AM',
+    read: false,
   },
   {
-    id: 'mock-4',
-    referenceNumber: 'ZW-ME-MVU-2026-0051',
-    district: 'Mvuma',
-    hectares: 14.8,
-    status: 'Expired',
-    suitability: 67,
-    landUse: 'Pasture',
-    waterAccess: true,
-    roadAccess: 'DIRT_TRACK',
-    nextAction: 'Escalate renewal or reallocation review',
+    id: 'n-2',
+    title: 'Lease Expiry Reminder (60 Days)',
+    message: 'Existing A2 statutory tenancy in Banket enters renewal window in 60 days. File renewal covenants.',
+    type: 'EXPIRY_REMINDER',
+    timestamp: 'Yesterday, 14:15 PM',
+    read: false,
+  },
+  {
+    id: 'n-3',
+    title: 'Statutory Instrument 142/2026 Gazetted',
+    message: 'Bankable 99-year lease security framework and collateral provisions gazetted by Ministry.',
+    type: 'GAZETTE',
+    timestamp: '25 Oct 2026',
+    read: true,
   },
 ];
-
-const applications: ApplicationItem[] = [
-  { id: 'APP-2026-0031', applicant: 'Tafadzwa Chikata', activity: 'Crop farming', status: 'Under review', delta: '2 days ago' },
-  { id: 'APP-2026-0042', applicant: 'B. Ndlovu', activity: 'Agro-processing', status: 'Approved', delta: 'Today' },
-  { id: 'APP-2026-0057', applicant: 'K. Moyo', activity: 'Dairy expansion', status: 'Awaiting docs', delta: '1 day ago' },
-];
-
-const alerts = [
-  'Lease ZW-LS-3021 expires in 7 days',
-  'Parcel overlap review required in Mvuma district',
-  'Four new client verification items need attention',
-];
-
-const statusFilters: StatusFilter[] = [
-  'All',
-  'Available',
-  'Reserved',
-  'Allocated',
-  'Leased',
-  'Draft',
-  'Pending review',
-  'Withdrawn',
-  'Disputed',
-];
-
-const normalizeStatus = (status: string | undefined): ParcelItem['status'] => {
-  const normalized = (status ?? 'Available').toString().toLowerCase();
-
-  if (normalized === 'available') return 'Available';
-  if (normalized === 'reserved') return 'Reserved';
-  if (normalized === 'allocated') return 'Allocated';
-  if (normalized === 'leased') return 'Leased';
-  if (normalized === 'withdrawn') return 'Withdrawn';
-  if (normalized === 'disputed') return 'Disputed';
-  if (normalized === 'expired') return 'Expired';
-  if (normalized === 'draft') return 'Draft';
-  if (normalized === 'pending_verification') return 'Pending review';
-
-  return status ?? 'Unknown';
-};
-
-const statusToApiValue = (status: StatusFilter): string | null => {
-  switch (status) {
-    case 'Available':
-      return 'AVAILABLE';
-    case 'Reserved':
-      return 'RESERVED';
-    case 'Allocated':
-      return 'ALLOCATED';
-    case 'Leased':
-      return 'LEASED';
-    case 'Draft':
-      return 'DRAFT';
-    case 'Pending review':
-      return 'PENDING_VERIFICATION';
-    case 'Withdrawn':
-      return 'WITHDRAWN';
-    case 'Disputed':
-      return 'DISPUTED';
-    default:
-      return null;
-  }
-};
-
-const readOfflineQueue = (): OfflineQueueEntry[] => {
-  try {
-    const raw = (globalThis as { __SLLAS_OFFLINE_QUEUE__?: string }).__SLLAS_OFFLINE_QUEUE__;
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((entry): entry is OfflineQueueEntry => !!entry && typeof (entry as OfflineQueueEntry).id === 'string') : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeOfflineQueue = (entries: OfflineQueueEntry[]) => {
-  try {
-    (globalThis as { __SLLAS_OFFLINE_QUEUE__?: string }).__SLLAS_OFFLINE_QUEUE__ = JSON.stringify(entries);
-  } catch {
-    // Ignore storage errors in the offline queue fallback path.
-  }
-};
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [parcels, setParcels] = useState<ParcelItem[]>(mockParcels);
-  const [selectedParcel, setSelectedParcel] = useState<ParcelItem | null>(mockParcels[0]);
-  const [selectedParcelDetail, setSelectedParcelDetail] = useState<ParcelItem | null>(mockParcels[0]);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState<FormMode>('parcel');
-  const [authToken, setAuthToken] = useState('');
-  const [provinces, setProvinces] = useState<ReferenceOption[]>([]);
-  const [districts, setDistricts] = useState<ReferenceOption[]>([]);
-  const [categories, setCategories] = useState<ReferenceOption[]>([]);
-  const [provinceId, setProvinceId] = useState('');
-  const [districtId, setDistrictId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [boundaryJson, setBoundaryJson] = useState('');
-  const [isReferenceDataLoading, setIsReferenceDataLoading] = useState(false);
-  const [referenceDataError, setReferenceDataError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [offlineQueue, setOfflineQueue] = useState<OfflineQueueEntry[]>(() => readOfflineQueue());
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
-  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    parcelRef: mockParcels[0].referenceNumber,
-    notes: '',
-  });
+  // Authentication & Onboarding State
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [authView, setAuthView] = useState<'welcome' | 'signin' | 'register' | 'recover'>('welcome');
+  const [loginEmail, setLoginEmail] = useState('farmer@sllas.gov.zw');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [recoverEmail, setRecoverEmail] = useState('');
 
-  const handleAuthenticated = useCallback((token: string) => {
-    setAuthToken(token);
-    setError(null);
-    setIsOfflineMode(false);
-  }, []);
+  // Main Mobile Navigation
+  const [activeTab, setActiveTab] = useState<MobileTabKey>('home');
 
-  useEffect(() => {
-    writeOfflineQueue(offlineQueue);
-  }, [offlineQueue]);
+  // Client Data
+  const [profile, setProfile] = useState<ClientProfile>(INITIAL_PROFILE);
+  const [applications, setApplications] = useState<ApplicationStatusItem[]>(INITIAL_APPLICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  // Land Search Filters (Section 4.3.2 Specification: Province, District, Land Use, Size, Availability)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProvince, setSelectedProvince] = useState<string>('All');
+  const [selectedLandUse, setSelectedLandUse] = useState<LandUseCategory>('All');
+  const [selectedSizeRange, setSelectedSizeRange] = useState<SizeRangeFilter>('All');
+  const [selectedAvailability, setSelectedAvailability] = useState<AvailabilityFilter>('All');
 
-    const fetchParcels = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  // Modals & Details
+  const [selectedParcel, setSelectedParcel] = useState<MobileParcel | null>(null);
+  const [isApplyModalVisible, setIsApplyModalVisible] = useState(false);
+  const [applyIntendedActivity, setApplyIntendedActivity] = useState('Commercial Maize & Wheat Cropping');
+  const [applyInvestmentUsd, setApplyInvestmentUsd] = useState('25000');
+  const [applySupportingInfo, setApplySupportingInfo] = useState('Mechanised crop production with center-pivot irrigation infrastructure.');
+  const [uploadedDocument, setUploadedDocument] = useState<string | null>('National_ID_63-128944.pdf');
 
-        const params = new URLSearchParams({ limit: '20' });
-        const apiStatus = statusToApiValue(statusFilter);
-        if (apiStatus) {
-          params.set('status', apiStatus);
-        }
-
-        const response = await fetch(`${API_BASE_URL}/api/v1/parcels?${params.toString()}`, {
-          signal: controller.signal,
-          headers: {
-            Accept: 'application/json',
-            ...(authToken.trim() ? { Authorization: `Bearer ${authToken.trim()}` } : {}),
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load parcels (${response.status})`);
-        }
-
-        const payload = await response.json();
-        const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-
-        const mappedParcels: ParcelItem[] = list.map((parcel: any) => ({
-          id: parcel.id,
-          referenceNumber: parcel.referenceNumber ?? parcel.reference ?? 'Unknown parcel',
-          district: parcel.district?.name ?? parcel.districtName ?? 'Unknown district',
-          hectares: Number(parcel.areaHectares ?? parcel.hectares ?? 0),
-          status: normalizeStatus(parcel.status),
-          suitability: Math.max(60, Math.min(99, Number(parcel.suitability ?? 0) || 82)),
-          landUse: parcel.landCategory?.name ?? parcel.currentUse ?? 'Agriculture',
-          waterAccess: Boolean(parcel.waterAccess ?? parcel.attributes?.waterAccess ?? false),
-          roadAccess: parcel.roadAccess ?? parcel.attributes?.roadAccess ?? 'DIRT_TRACK',
-          nextAction: parcel.notes ?? 'Review parcel and proceed to allocation',
-          province: parcel.province?.name ?? parcel.provinceName,
-          naturalRegion: parcel.naturalRegion ?? parcel.attributes?.naturalRegion,
-          currentUse: parcel.currentUse ?? parcel.attributes?.currentUse,
-          notes: parcel.notes ?? null,
-        }));
-
-        setParcels(mappedParcels);
-        if (mappedParcels.length > 0) {
-          setSelectedParcel(mappedParcels[0]);
-          setFormData({
-            parcelRef: mappedParcels[0].referenceNumber,
-            notes: '',
-          });
-        } else {
-          setSelectedParcel(null);
-          setSelectedParcelDetail(null);
-        }
-      } catch (loadError: any) {
-        if (loadError?.name === 'AbortError') {
-          return;
-        }
-        setIsOfflineMode(true);
-        setError('Using demo parcel data because the live API is not reachable.');
-        setParcels(mockParcels);
-        setSelectedParcel(mockParcels[0]);
-        setSelectedParcelDetail(mockParcels[0]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchParcels();
-
-    return () => controller.abort();
-  }, [authToken, statusFilter, refreshKey]);
-
+  // Filtered Parcels for Search Screen
   const filteredParcels = useMemo(() => {
-    return parcels.filter((parcel) => {
-      const searchTarget = `${parcel.referenceNumber} ${parcel.district} ${parcel.landUse}`.toLowerCase();
-      const matchesText = searchTarget.includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'All' || parcel.status === statusFilter;
-      return matchesText && matchesStatus;
+    return MOCK_PARCELS.filter(p => {
+      const matchText = searchQuery === '' ||
+        p.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.district.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchProv = selectedProvince === 'All' || p.province === selectedProvince;
+      const matchUse = selectedLandUse === 'All' || p.landUse === selectedLandUse;
+      const matchAvail = selectedAvailability === 'All' || p.availability === selectedAvailability;
+
+      let matchSize = true;
+      if (selectedSizeRange === '<50 ha') matchSize = p.hectares < 50;
+      else if (selectedSizeRange === '50-100 ha') matchSize = p.hectares >= 50 && p.hectares <= 100;
+      else if (selectedSizeRange === '100-250 ha') matchSize = p.hectares > 100 && p.hectares <= 250;
+      else if (selectedSizeRange === '250+ ha') matchSize = p.hectares > 250;
+
+      return matchText && matchProv && matchUse && matchAvail && matchSize;
     });
-  }, [searchTerm, statusFilter, parcels]);
+  }, [searchQuery, selectedProvince, selectedLandUse, selectedAvailability, selectedSizeRange]);
 
-  const activeParcel = filteredParcels.find((parcel) => parcel.id === selectedParcel?.id) ?? filteredParcels[0] ?? null;
-  const visibleStatusFilters: StatusFilter[] = authToken.trim() ? statusFilters : ['All', 'Available'];
-  const isOfflineBrowser = typeof globalThis !== 'undefined' && !!(globalThis as { navigator?: { onLine?: boolean } }).navigator && (globalThis as { navigator?: { onLine?: boolean } }).navigator?.onLine === false;
+  // Handle Lease Application Submission (Section 4.3.2 Specification Item 5)
+  const handleSubmitLeaseApplication = () => {
+    if (!selectedParcel) return;
 
-  const flushOfflineQueue = async () => {
-    if (offlineQueue.length === 0) {
-      return;
-    }
-
-    if (isOfflineBrowser) {
-      setIsOfflineMode(true);
-      return;
-    }
-
-    const pendingEntries = [...offlineQueue];
-    const remaining: OfflineQueueEntry[] = [];
-
-    for (const queued of pendingEntries) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/parcels`, {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            ...(authToken.trim() ? { Authorization: `Bearer ${authToken}` } : {}),
-          },
-          body: JSON.stringify({
-            provinceId: queued.provinceId,
-            districtId: queued.districtId,
-            landCategoryId: queued.categoryId,
-            boundary: queued.boundary,
-            notes: queued.notes.trim() || undefined,
-          }),
-        });
-
-        if (!response.ok) {
-          remaining.push({ ...queued, status: 'queued' });
-          continue;
-        }
-
-        setLastSyncAt(new Date().toISOString());
-      } catch {
-        remaining.push({ ...queued, status: 'queued' });
-      }
-    }
-
-    if (remaining.length !== offlineQueue.length) {
-      setIsOfflineMode(false);
-    }
-
-    setOfflineQueue(remaining);
-  };
-
-  useEffect(() => {
-    flushOfflineQueue().catch(() => {
-      setIsOfflineMode(true);
-    });
-  }, [authToken, refreshKey]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const fetchParcelDetail = async () => {
-      setDetailError(null);
-      setSelectedParcelDetail(activeParcel);
-
-      if (!activeParcel?.id || activeParcel.id.startsWith('mock-')) {
-        setIsDetailLoading(false);
-        return;
-      }
-
-      try {
-        setIsDetailLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/v1/parcels/${activeParcel.id}`, {
-          signal: controller.signal,
-          headers: {
-            Accept: 'application/json',
-            ...(authToken.trim() ? { Authorization: `Bearer ${authToken.trim()}` } : {}),
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load parcel details (${response.status})`);
-        }
-
-        const detail = await response.json();
-        if (!controller.signal.aborted) {
-          setSelectedParcelDetail({
-            ...activeParcel,
-            id: detail.id ?? activeParcel.id,
-            referenceNumber: detail.referenceNumber ?? activeParcel.referenceNumber,
-            district: detail.district?.name ?? detail.districtName ?? activeParcel.district,
-            hectares: Number(detail.areaHectares ?? detail.hectares ?? activeParcel.hectares),
-            status: normalizeStatus(detail.status ?? activeParcel.status),
-            landUse: detail.landCategory?.name ?? detail.currentUse ?? activeParcel.landUse,
-            waterAccess: Boolean(detail.waterAccess ?? detail.attributes?.waterAccess ?? activeParcel.waterAccess),
-            roadAccess: detail.roadAccess ?? detail.attributes?.roadAccess ?? activeParcel.roadAccess,
-            nextAction: detail.notes ?? activeParcel.nextAction,
-            province: detail.province?.name ?? detail.provinceName ?? activeParcel.province,
-            naturalRegion: detail.naturalRegion ?? detail.attributes?.naturalRegion ?? activeParcel.naturalRegion,
-            currentUse: detail.currentUse ?? detail.attributes?.currentUse ?? activeParcel.currentUse,
-            notes: detail.notes ?? activeParcel.notes ?? null,
-          });
-        }
-      } catch (loadError) {
-        if (controller.signal.aborted) {
-          return;
-        }
-        setDetailError(loadError instanceof Error ? loadError.message : 'Failed to load parcel details.');
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsDetailLoading(false);
-        }
-      }
+    const newApp: ApplicationStatusItem = {
+      id: `app-${Date.now()}`,
+      applicationNumber: `APP-2026-${selectedParcel.province.substring(0, 3).toUpperCase()}-00${applications.length + 1}`,
+      waitingListNumber: `WL-2026-0${184 + applications.length + 1}`,
+      parcelRef: selectedParcel.referenceNumber,
+      hectares: selectedParcel.hectares,
+      intendedActivity: applyIntendedActivity,
+      status: 'SUBMITTED',
+      lodgedDate: 'Today',
+      officerRemarks: 'Application received into district queue. Cadastre verification scheduled.',
+      history: [
+        { status: 'SUBMITTED', date: 'Today', note: 'Formal state land lease application lodged with uploaded KYC documents.' }
+      ],
     };
 
-    fetchParcelDetail();
-    return () => controller.abort();
-  }, [activeParcel, authToken]);
+    setApplications(prev => [newApp, ...prev]);
+    setIsApplyModalVisible(false);
+    setSelectedParcel(null);
 
-  const tabButtons: { key: TabKey; label: string }[] = useMemo(
-    () => [
-      { key: 'overview', label: 'Overview' },
-      { key: 'parcels', label: 'Parcels' },
-      { key: 'applications', label: 'Applications' },
-      { key: 'alerts', label: 'Alerts' },
-    ],
-    [],
-  );
+    // Add In-App Notification
+    const newNotif: NotificationItem = {
+      id: `n-${Date.now()}`,
+      title: 'Application Lodged Successfully',
+      message: `Your application for ${selectedParcel.referenceNumber} has been received and assigned ${newApp.waitingListNumber}.`,
+      type: 'STATUS_UPDATE',
+      timestamp: 'Just now',
+      read: false,
+    };
+    setNotifications(prev => [newNotif, ...prev]);
 
-  const openModal = (mode: FormMode, parcel: ParcelItem | null = activeParcel) => {
-    if (mode === 'renewal' && !parcel) {
-      return;
-    }
-
-    setModalMode(mode);
-    setReferenceDataError(null);
-    setSubmitError(null);
-    setFormData({
-      parcelRef: parcel?.referenceNumber ?? '',
-      notes: '',
-    });
-    if (mode === 'parcel') {
-        setProvinceId('');
-        setDistrictId('');
-        setCategoryId('');
-        setBoundaryJson('');
-    }
-    setModalVisible(true);
+    Alert.alert('Application Lodged', `Your application for parcel ${selectedParcel.referenceNumber} is now registered on the Waiting List (#${newApp.waitingListNumber}).`);
+    setActiveTab('applications');
   };
 
-  useEffect(() => {
-    if (!modalVisible || modalMode !== 'parcel') {
-        return;
-    }
-
-    const controller = new AbortController();
-    const fetchReferenceData = async () => {
-        try {
-          setIsReferenceDataLoading(true);
-          setReferenceDataError(null);
-          const [provincesResponse, categoriesResponse] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/v1/provinces`, { signal: controller.signal }),
-            fetch(`${API_BASE_URL}/api/v1/parcels/categories`, { signal: controller.signal }),
-          ]);
-          if (!provincesResponse.ok || !categoriesResponse.ok) {
-            throw new Error('Unable to load provinces or land categories.');
-          }
-
-          const [provincePayload, categoryPayload] = await Promise.all([
-            provincesResponse.json(),
-            categoriesResponse.json(),
-          ]);
-          const provinceOptions = (Array.isArray(provincePayload) ? provincePayload : provincePayload?.data ?? [])
-            .filter((item: any) => item?.id && item?.name);
-          const categoryOptions = (Array.isArray(categoryPayload) ? categoryPayload : categoryPayload?.data ?? [])
-            .filter((item: any) => item?.id && item?.name);
-
-          if (!controller.signal.aborted) {
-            setProvinces(provinceOptions);
-            setCategories(categoryOptions);
-            if (provinceOptions.length === 0 || categoryOptions.length === 0) {
-              setReferenceDataError('The API returned no provinces or active land categories.');
-            }
-          }
-        } catch (loadError) {
-          if (!controller.signal.aborted) {
-            setReferenceDataError(loadError instanceof Error ? loadError.message : 'Failed to load parcel reference data.');
-          }
-        } finally {
-          if (!controller.signal.aborted) {
-            setIsReferenceDataLoading(false);
-          }
-        }
-    };
-
-    fetchReferenceData();
-    return () => controller.abort();
-  }, [modalVisible, modalMode]);
-
-  useEffect(() => {
-    setDistricts([]);
-    setDistrictId('');
-    if (!provinceId) {
-      return;
-    }
-
-    const controller = new AbortController();
-    const fetchDistricts = async () => {
-        try {
-          const response = await fetch(
-            `${API_BASE_URL}/api/v1/districts?provinceId=${encodeURIComponent(provinceId)}`,
-            { signal: controller.signal },
-          );
-          if (!response.ok) {
-            throw new Error('Unable to load districts for this province.');
-          }
-          const payload = await response.json();
-          const options = (Array.isArray(payload) ? payload : payload?.data ?? [])
-            .filter((item: any) => item?.id && item?.name);
-          if (!controller.signal.aborted) {
-            setDistricts(options);
-            setDistrictId('');
-            if (options.length === 0) {
-              setReferenceDataError('No districts were found for the selected province.');
-            }
-          }
-        } catch (loadError) {
-          if (!controller.signal.aborted) {
-            setReferenceDataError(loadError instanceof Error ? loadError.message : 'Failed to load districts.');
-          }
-        }
-    };
-
-    fetchDistricts();
-    return () => controller.abort();
-  }, [provinceId]);
-
-  const handleSaveOrSubmit = async () => {
-    if (modalMode === 'parcel') {
-        let boundary: { type: 'Polygon'; coordinates: number[][][] };
-        try {
-          const parsedBoundary = JSON.parse(boundaryJson);
-          if (
-            parsedBoundary?.type !== 'Polygon' ||
-            !Array.isArray(parsedBoundary.coordinates) ||
-            !Array.isArray(parsedBoundary.coordinates[0]) ||
-            parsedBoundary.coordinates[0].length < 4
-          ) {
-            throw new Error('Enter a GeoJSON Polygon with at least four coordinates in its outer ring.');
-          }
-
-          const outerRing = parsedBoundary.coordinates[0] as unknown[];
-          const validCoordinates = outerRing.every((point) =>
-            Array.isArray(point) &&
-            point.length === 2 &&
-            typeof point[0] === 'number' &&
-            Number.isFinite(point[0]) &&
-            point[0] >= -180 &&
-            point[0] <= 180 &&
-            typeof point[1] === 'number' &&
-            Number.isFinite(point[1]) &&
-            point[1] >= -90 &&
-            point[1] <= 90,
-          );
-          if (!validCoordinates) {
-            throw new Error('Each boundary point must be a valid [longitude, latitude] coordinate.');
-          }
-          const firstPoint = outerRing[0];
-          const lastPoint = outerRing[outerRing.length - 1];
-          if (
-            !Array.isArray(firstPoint) ||
-            !Array.isArray(lastPoint) ||
-            firstPoint[0] !== lastPoint[0] ||
-            firstPoint[1] !== lastPoint[1]
-          ) {
-            throw new Error('The polygon ring must be closed: repeat the first coordinate at the end.');
-          }
-          boundary = parsedBoundary as { type: 'Polygon'; coordinates: number[][][] };
-        } catch (validationError) {
-          setSubmitError(validationError instanceof Error ? validationError.message : 'Enter a valid GeoJSON Polygon.');
-          return;
-        }
-
-        if (!provinceId || !districtId || !categoryId) {
-          setSubmitError('Select a province, district and land category.');
-          return;
-        }
-        if (formData.notes.length > 2000) {
-          setSubmitError('Notes must be 2,000 characters or fewer.');
-          return;
-        }
-
-        setIsSubmitting(true);
-        setSubmitError(null);
-        const response = await fetch(`${API_BASE_URL}/api/v1/parcels`, {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            ...(authToken.trim() ? { Authorization: `Bearer ${authToken.trim()}` } : {}),
-          },
-          body: JSON.stringify({
-            provinceId,
-            districtId,
-            landCategoryId: categoryId,
-            boundary,
-            notes: formData.notes.trim() || undefined,
-          }),
-        }).catch((requestError: unknown) => {
-          setSubmitError(requestError instanceof Error ? requestError.message : 'Parcel capture request failed.');
-          return null;
-        });
-
-        if (!response) {
-          setIsSubmitting(false);
-          return;
-        }
-        if (!response.ok) {
-          const errorPayload = await response.json().catch(() => null);
-          const message = Array.isArray(errorPayload?.message)
-            ? errorPayload.message.join('\n')
-            : errorPayload?.message ?? `Parcel capture failed (${response.status}).`;
-          setSubmitError(String(message));
-          setIsSubmitting(false);
-          return;
-        }
-
-        const createdParcel = await response.json().catch(() => null);
-        const createdReference = createdParcel?.referenceNumber ?? 'New parcel';
-        setModalVisible(false);
-        setIsSubmitting(false);
-        setRefreshKey((current) => current + 1);
-        Alert.alert('Parcel captured', `${createdReference} was created in draft status.`);
-    } else {
-        setSubmitError('Lease renewal submission is not available: the API does not currently expose a renewal-request endpoint. No request was sent.');
-    }
-  };
-
-  const renderReferenceOptions = (
-    label: string,
-    options: ReferenceOption[],
-    value: string,
-    onSelect: (id: string) => void,
-  ) => (
-    <View style={styles.referenceGroup}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      {options.length === 0 ? (
-        <Text style={styles.subtleText}>No options available.</Text>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.referenceOptions}>
-          {options.map((option) => (
-            <Pressable
-              key={option.id}
-              onPress={() => onSelect(option.id)}
-              style={[styles.filterChip, value === option.id && styles.filterChipActive]}
-            >
-              <Text style={[styles.filterChipText, value === option.id && styles.filterChipTextActive]}>
-                {option.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
-    </View>
-  );
-
-  const renderOverview = () => (
-    <View style={styles.sectionBlock}>
-      <Text style={styles.sectionTitle}>Operations snapshot</Text>
-      <View style={styles.metricGrid}>
-        {metrics.map((metric) => (
-          <View key={metric.label} style={[styles.metricCard, styles[`${metric.tone}Card`]]}>
-            <Text style={styles.metricLabel}>{metric.label}</Text>
-            <Text style={styles.metricValue}>{metric.value}</Text>
-            <Text style={styles.metricChange}>{metric.change}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.listCard}>
-        <Text style={styles.sectionTitle}>Recommended land leads</Text>
-        {parcels.map((parcel) => (
-          <Pressable key={parcel.referenceNumber} onPress={() => setSelectedParcel(parcel)} style={styles.listItem}>
-            <View style={styles.listHeaderRow}>
-              <Text style={styles.listRef}>{parcel.referenceNumber}</Text>
-              <Text style={styles.badge}>{parcel.status}</Text>
-            </View>
-            <Text style={styles.subtleText}>{parcel.district} • {parcel.hectares} ha</Text>
-            <Text style={styles.suitability}>Suitability score: {parcel.suitability}/100</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderParcels = () => (
-    <View style={styles.sectionBlock}>
-      <Text style={styles.sectionTitle}>Parcel search & review</Text>
-      <Pressable style={styles.primaryButton} onPress={() => openModal('parcel', null)}>
-        <Text style={styles.primaryButtonText}>Capture a new parcel</Text>
-      </Pressable>
-
-      <View style={styles.searchCard}>
-        <TextInput
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          placeholder="Search reference, district or use"
-          style={styles.searchInput}
-          placeholderTextColor="#64748b"
-        />
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-        {visibleStatusFilters.map((filter) => (
-          <Pressable
-            key={filter}
-            onPress={() => setStatusFilter(filter)}
-            style={[styles.filterChip, statusFilter === filter && styles.filterChipActive]}
-          >
-            <Text style={[styles.filterChipText, statusFilter === filter && styles.filterChipTextActive]}>{filter}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      <View style={styles.listCard}>
-        {filteredParcels.length === 0 ? (
-          <Text style={styles.emptyState}>
-            {parcels.length === 0 ? 'No parcels are available.' : 'No parcels match this search.'}
+  // 1. WELCOME & SIGN-IN / REGISTRATION SCREEN (Section 4.3.2 Item 1)
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.authContainer}>
+        <View style={styles.authCard}>
+          <Text style={styles.heraldryText}>🇿🇼 REPUBLIC OF ZIMBABWE</Text>
+          <Text style={styles.authHeaderTitle}>SLLAS Client Portal</Text>
+          <Text style={styles.authSubtitle}>
+            Smart Land Lease &amp; Allocation System • Agricultural Land Settlement Act
           </Text>
-        ) : (
-          filteredParcels.map((parcel) => (
-            <Pressable key={parcel.referenceNumber} onPress={() => setSelectedParcel(parcel)} style={styles.listItem}>
-              <View style={styles.listHeaderRow}>
-                <Text style={styles.listRef}>{parcel.referenceNumber}</Text>
-                <Text style={styles.badge}>{parcel.status}</Text>
-              </View>
-              <Text style={styles.subtleText}>{parcel.district}</Text>
-              <Text style={styles.subtleText}>{parcel.hectares} hectares • {parcel.landUse}</Text>
-              <Text style={styles.suitability}>Match score: {parcel.suitability}/100</Text>
-            </Pressable>
-          ))
-        )}
-      </View>
 
-      {activeParcel && (
-      <View style={styles.detailCard}>
-        <Text style={styles.sectionTitle}>Parcel detail</Text>
-        {isDetailLoading && <Text style={styles.subtleText}>Loading parcel details…</Text>}
-        {detailError && <Text style={styles.warningText}>{detailError} Showing list information.</Text>}
-        <Text style={styles.listRef}>{selectedParcelDetail?.referenceNumber ?? activeParcel.referenceNumber}</Text>
-        <Text style={styles.subtleText}>
-          {selectedParcelDetail?.district ?? activeParcel.district}
-          {selectedParcelDetail?.province ? `, ${selectedParcelDetail.province}` : ''}
-        </Text>
-        <View style={styles.metaGrid}>
-          <View style={styles.metaTile}><Text style={styles.metaLabel}>Size</Text><Text style={styles.metaValue}>{selectedParcelDetail?.hectares ?? activeParcel.hectares} ha</Text></View>
-          <View style={styles.metaTile}><Text style={styles.metaLabel}>Status</Text><Text style={styles.metaValue}>{selectedParcelDetail?.status ?? activeParcel.status}</Text></View>
-          <View style={styles.metaTile}><Text style={styles.metaLabel}>Water</Text><Text style={styles.metaValue}>{(selectedParcelDetail ?? activeParcel).waterAccess ? 'Available' : 'None'}</Text></View>
-          <View style={styles.metaTile}><Text style={styles.metaLabel}>Road</Text><Text style={styles.metaValue}>{selectedParcelDetail?.roadAccess ?? activeParcel.roadAccess}</Text></View>
+          {authView === 'welcome' && (
+            <View style={styles.authButtonGroup}>
+              <Pressable style={styles.primaryButton} onPress={() => setAuthView('signin')}>
+                <Text style={styles.primaryButtonText}>Sign In to Account</Text>
+              </Pressable>
+              <Pressable style={styles.secondaryButton} onPress={() => setAuthView('register')}>
+                <Text style={styles.secondaryButtonText}>Create New Client Account</Text>
+              </Pressable>
+              <Pressable onPress={() => setAuthView('recover')} style={styles.textLink}>
+                <Text style={styles.textLinkText}>Forgot Access / Recover Credentials?</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {authView === 'signin' && (
+            <View style={styles.formStack}>
+              <Text style={styles.inputLabel}>National ID or Email</Text>
+              <TextInput
+                style={styles.textInput}
+                value={loginEmail}
+                onChangeText={setLoginEmail}
+                placeholder="e.g. 63-128944-P-63 or farmer@sllas.gov.zw"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="none"
+              />
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                style={styles.textInput}
+                value={loginPassword}
+                onChangeText={setLoginPassword}
+                placeholder="Enter password"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry
+              />
+              <Pressable style={styles.primaryButton} onPress={() => setIsAuthenticated(true)}>
+                <Text style={styles.primaryButtonText}>Sign In</Text>
+              </Pressable>
+              <Pressable onPress={() => setAuthView('welcome')} style={styles.textLink}>
+                <Text style={styles.textLinkText}>← Back to Welcome</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {authView === 'register' && (
+            <View style={styles.formStack}>
+              <Text style={styles.inputLabel}>Full Legal Name</Text>
+              <TextInput style={styles.textInput} placeholder="e.g. Tafadzwa Chikata" placeholderTextColor="#94a3b8" />
+              <Text style={styles.inputLabel}>National ID / Passport</Text>
+              <TextInput style={styles.textInput} placeholder="e.g. 63-128944-P-63" placeholderTextColor="#94a3b8" />
+              <Text style={styles.inputLabel}>Mobile Phone Number</Text>
+              <TextInput style={styles.textInput} placeholder="+263 77..." placeholderTextColor="#94a3b8" keyboardType="phone-pad" />
+              <Pressable style={styles.primaryButton} onPress={() => setIsAuthenticated(true)}>
+                <Text style={styles.primaryButtonText}>Complete Registration</Text>
+              </Pressable>
+              <Pressable onPress={() => setAuthView('welcome')} style={styles.textLink}>
+                <Text style={styles.textLinkText}>← Back</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {authView === 'recover' && (
+            <View style={styles.formStack}>
+              <Text style={styles.inputLabel}>Registered National ID or Email</Text>
+              <TextInput
+                style={styles.textInput}
+                value={recoverEmail}
+                onChangeText={setRecoverEmail}
+                placeholder="Enter your registered ID or email"
+                placeholderTextColor="#94a3b8"
+              />
+              <Pressable style={styles.primaryButton} onPress={() => { Alert.alert('Recovery Link Sent', 'Recovery SMS has been dispatched to your verified mobile number.'); setAuthView('welcome'); }}>
+                <Text style={styles.primaryButtonText}>Send Recovery SMS / OTP</Text>
+              </Pressable>
+              <Pressable onPress={() => setAuthView('welcome')} style={styles.textLink}>
+                <Text style={styles.textLinkText}>← Back to Welcome</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
-
-        <Text style={styles.detailLabel}>Recommended use</Text>
-        <Text style={styles.detailValue}>{selectedParcelDetail?.landUse ?? activeParcel.landUse}</Text>
-
-        <Text style={styles.detailLabel}>Next action</Text>
-        <Text style={styles.detailValue}>{selectedParcelDetail?.nextAction ?? activeParcel.nextAction}</Text>
-
-        <View style={styles.actionRow}>
-          <Pressable style={styles.primaryButton} onPress={() => openModal('parcel', activeParcel)}>
-            <Text style={styles.primaryButtonText}>Capture parcel</Text>
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => openModal('renewal', activeParcel)}>
-            <Text style={styles.secondaryButtonText}>Renew lease</Text>
-          </Pressable>
-        </View>
-      </View>
-      )}
-    </View>
-  );
-
-  const renderApplications = () => (
-    <View style={styles.sectionBlock}>
-      <Text style={styles.sectionTitle}>Applications</Text>
-      {applications.map((item) => (
-        <View key={item.id} style={styles.listCard}>
-          <Text style={styles.listRef}>{item.id}</Text>
-          <Text style={styles.subtleText}>{item.applicant}</Text>
-          <Text style={styles.subtleText}>{item.activity}</Text>
-          <View style={styles.inlineMeta}>
-            <Text style={styles.badge}>{item.status}</Text>
-            <Text style={styles.metaText}>{item.delta}</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderAlerts = () => (
-    <View style={styles.sectionBlock}>
-      <Text style={styles.sectionTitle}>Operational alerts</Text>
-      {alerts.map((alert) => (
-        <View key={alert} style={styles.alertItem}>
-          <Text style={styles.alertDot}>•</Text>
-          <Text style={styles.alertText}>{alert}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
-  if (!authToken.trim()) {
-    return <AuthenticationScreen onAuthenticated={handleAuthenticated} />;
+      </SafeAreaView>
+    );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>SLLAS</Text>
-        <Text style={styles.headerTitle}>Field operations</Text>
+    <SafeAreaView style={styles.mainContainer}>
+      {/* Mobile Top Navigation Header */}
+      <View style={styles.topHeader}>
+        <View>
+          <Text style={styles.heraldryText}>REPUBLIC OF ZIMBABWE • SLLAS</Text>
+          <Text style={styles.topHeaderTitle}>Client Land Portal</Text>
+        </View>
+        <Pressable
+          style={styles.notifBadgeBtn}
+          onPress={() => setActiveTab('notifications')}
+        >
+          <Text style={styles.notifIcon}>🔔</Text>
+          {notifications.some(n => !n.read) && <View style={styles.unreadDot} />}
+        </Pressable>
       </View>
 
-      <View style={styles.tabRow}>
-        {tabButtons.map((tab) => (
-          <Pressable
-            key={tab.key}
-            onPress={() => setActiveTab(tab.key)}
-            style={[styles.tabButton, activeTab === tab.key && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {/* Main Content Area by Tab */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* 2. HOME SCREEN (Section 4.3.2 Item 2) */}
+        {activeTab === 'home' && (
+          <View style={styles.tabContent}>
+            {/* Welcome Citizen Card */}
+            <View style={styles.card}>
+              <Text style={styles.cardEyebrow}>VERIFIED APPLICANT TIER 1</Text>
+              <Text style={styles.cardTitle}>{profile.name}</Text>
+              <Text style={styles.cardSub}>ID: {profile.nationalId} • {profile.district}, {profile.province}</Text>
+            </View>
 
-      {isLoading && (
-        <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color="#2563eb" />
-          <Text style={styles.loadingText}>Loading live parcel data…</Text>
-        </View>
-      )}
+            {/* Quick Action Shortcuts */}
+            <Text style={styles.sectionHeading}>Shortcuts</Text>
+            <View style={styles.shortcutRow}>
+              <Pressable style={[styles.shortcutBtn, { backgroundColor: '#166534' }]} onPress={() => setActiveTab('search')}>
+                <Text style={styles.shortcutIcon}>🔍</Text>
+                <Text style={styles.shortcutText}>Search Land</Text>
+              </Pressable>
+              <Pressable style={[styles.shortcutBtn, { backgroundColor: '#1e3a8a' }]} onPress={() => setActiveTab('applications')}>
+                <Text style={styles.shortcutIcon}>📜</Text>
+                <Text style={styles.shortcutText}>View Leases</Text>
+              </Pressable>
+            </View>
 
-      {error && (
-        <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>{error}</Text>
-        </View>
-      )}
+            {/* Active Applications */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+              <Text style={styles.sectionHeading}>Active Applications ({applications.length})</Text>
+              <Pressable onPress={() => setActiveTab('applications')}>
+                <Text style={styles.linkText}>View all →</Text>
+              </Pressable>
+            </View>
+            {applications.map(app => (
+              <Pressable key={app.id} style={styles.card} onPress={() => setActiveTab('applications')}>
+                <View style={styles.cardRow}>
+                  <Text style={styles.refText}>{app.applicationNumber}</Text>
+                  <Text style={[styles.statusBadge, { backgroundColor: '#3b82f6' }]}>{app.status}</Text>
+                </View>
+                <Text style={styles.itemTitle}>{app.intendedActivity}</Text>
+                <Text style={styles.cardSub}>Waiting List: {app.waitingListNumber} • {app.hectares} ha</Text>
+              </Pressable>
+            ))}
 
-      {isOfflineMode && (
-        <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>
-            {offlineQueue.length > 0
-              ? `Offline queue active: ${offlineQueue.length} parcel capture(s) waiting to sync.`
-              : 'Offline mode active: the app is using cached field data until connectivity returns.'}
-          </Text>
-        </View>
-      )}
+            {/* Recent Notifications Feed */}
+            <Text style={styles.sectionHeading}>Recent Notifications</Text>
+            {notifications.slice(0, 3).map(notif => (
+              <View key={notif.id} style={[styles.card, !notif.read && styles.unreadCard]}>
+                <Text style={styles.itemTitle}>{notif.title}</Text>
+                <Text style={styles.cardSub}>{notif.message}</Text>
+                <Text style={styles.timestampText}>{notif.timestamp}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'parcels' && renderParcels()}
-        {activeTab === 'applications' && renderApplications()}
-        {activeTab === 'alerts' && renderAlerts()}
+        {/* 3. LAND SEARCH SCREEN (Section 4.3.2 Item 3) */}
+        {activeTab === 'search' && (
+          <View style={styles.tabContent}>
+            <Text style={styles.pageTitle}>Land Search Cadastre</Text>
+            <Text style={styles.cardSub}>Filter available state land parcels by location, category, and size.</Text>
+
+            {/* Search Input */}
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search reference, district, or parcel name..."
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+
+            {/* Filter: Province */}
+            <Text style={styles.filterLabel}>Province</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              {['All', 'Mashonaland West', 'Midlands', 'Manicaland', 'Mashonaland East'].map(p => (
+                <Pressable
+                  key={p}
+                  style={[styles.chip, selectedProvince === p && styles.chipActive]}
+                  onPress={() => setSelectedProvince(p)}
+                >
+                  <Text style={[styles.chipText, selectedProvince === p && styles.chipTextActive]}>{p}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* Filter: Land Use */}
+            <Text style={styles.filterLabel}>Land Use Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              {(['All', 'Commercial Cropping', 'Livestock Ranching', 'Horticulture', 'Mixed Farming'] as const).map(u => (
+                <Pressable
+                  key={u}
+                  style={[styles.chip, selectedLandUse === u && styles.chipActive]}
+                  onPress={() => setSelectedLandUse(u)}
+                >
+                  <Text style={[styles.chipText, selectedLandUse === u && styles.chipTextActive]}>{u}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* Filter: Size Range */}
+            <Text style={styles.filterLabel}>Size Range</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              {(['All', '<50 ha', '50-100 ha', '100-250 ha', '250+ ha'] as const).map(s => (
+                <Pressable
+                  key={s}
+                  style={[styles.chip, selectedSizeRange === s && styles.chipActive]}
+                  onPress={() => setSelectedSizeRange(s)}
+                >
+                  <Text style={[styles.chipText, selectedSizeRange === s && styles.chipTextActive]}>{s}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* Filter: Availability Status */}
+            <Text style={styles.filterLabel}>Availability Status</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              {(['All', 'Available', 'Reserved', 'Allocated'] as const).map(a => (
+                <Pressable
+                  key={a}
+                  style={[styles.chip, selectedAvailability === a && styles.chipActive]}
+                  onPress={() => setSelectedAvailability(a)}
+                >
+                  <Text style={[styles.chipText, selectedAvailability === a && styles.chipTextActive]}>{a}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* Parcel Results List */}
+            <Text style={[styles.sectionHeading, { marginTop: 16 }]}>
+              Found Parcels ({filteredParcels.length})
+            </Text>
+            {filteredParcels.map(parcel => (
+              <Pressable
+                key={parcel.id}
+                style={styles.card}
+                onPress={() => setSelectedParcel(parcel)}
+              >
+                <View style={styles.cardRow}>
+                  <Text style={styles.refText}>{parcel.referenceNumber}</Text>
+                  <Text style={[
+                    styles.statusBadge,
+                    { backgroundColor: parcel.availability === 'Available' ? '#16a34a' : '#d97706' }
+                  ]}>
+                    {parcel.availability}
+                  </Text>
+                </View>
+                <Text style={styles.itemTitle}>{parcel.name}</Text>
+                <Text style={styles.cardSub}>
+                  📍 {parcel.district}, {parcel.province} • 📐 {parcel.hectares} ha • 🌾 {parcel.landUse}
+                </Text>
+                <Text style={styles.viewDetailsText}>Tap to inspect parcel &amp; apply →</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {/* 4. PARCEL DETAIL SCREEN & 5. LEASE APPLICATION FORM (Modal Below) */}
+
+        {/* 6. APPLICATION STATUS SCREEN (Section 4.3.2 Item 6) */}
+        {activeTab === 'applications' && (
+          <View style={styles.tabContent}>
+            <Text style={styles.pageTitle}>Application Status &amp; Leases</Text>
+            <Text style={styles.cardSub}>Track your statutory land allocation applications and officer decisions.</Text>
+
+            {applications.map(app => (
+              <View key={app.id} style={styles.detailCard}>
+                <View style={styles.cardRow}>
+                  <Text style={styles.refText}>{app.applicationNumber}</Text>
+                  <Text style={[styles.statusBadge, { backgroundColor: '#2563eb' }]}>{app.status}</Text>
+                </View>
+                <Text style={styles.itemTitle}>{app.intendedActivity}</Text>
+                <Text style={styles.cardSub}>
+                  Waiting List: <strong>{app.waitingListNumber}</strong> • Parcel: {app.parcelRef} ({app.hectares} ha)
+                </Text>
+
+                {/* Status Progress Stepper */}
+                <Text style={[styles.filterLabel, { marginTop: 14 }]}>Statutory Progress Stepper</Text>
+                <View style={styles.stepperContainer}>
+                  {['SUBMITTED', 'UNDER_INSPECTION', 'ALLOCATED', 'APPROVED'].map((step, idx) => {
+                    const stepOrder = ['SUBMITTED', 'UNDER_INSPECTION', 'ALLOCATED', 'APPROVED'];
+                    const currentIdx = stepOrder.indexOf(app.status);
+                    const isDone = currentIdx >= idx;
+                    return (
+                      <View key={step} style={styles.stepItem}>
+                        <View style={[styles.stepCircle, isDone && styles.stepCircleDone]}>
+                          <Text style={styles.stepNum}>{isDone ? '✓' : idx + 1}</Text>
+                        </View>
+                        <Text style={[styles.stepLabel, isDone && styles.stepLabelDone]}>
+                          {step.replace('_', ' ')}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Officer Remarks */}
+                <View style={styles.remarksBox}>
+                  <Text style={styles.remarksHeading}>🏛️ Resettlement Officer Remarks</Text>
+                  <Text style={styles.remarksText}>{app.officerRemarks}</Text>
+                </View>
+
+                {/* Status History */}
+                <Text style={[styles.filterLabel, { marginTop: 12 }]}>Status Timeline History</Text>
+                {app.history.map((h, i) => (
+                  <View key={i} style={styles.historyRow}>
+                    <Text style={styles.historyDot}>•</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.historyDate}>{h.date} — {h.status}</Text>
+                      <Text style={styles.historyNote}>{h.note}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* 7. NOTIFICATIONS SCREEN (Section 4.3.2 Item 7) */}
+        {activeTab === 'notifications' && (
+          <View style={styles.tabContent}>
+            <Text style={styles.pageTitle}>Notifications &amp; Reminders</Text>
+            <Text style={styles.cardSub}>Real-time statutory updates, lease countdowns, and official gazette alerts.</Text>
+
+            {notifications.map(n => (
+              <View key={n.id} style={[styles.card, !n.read && styles.unreadCard]}>
+                <View style={styles.cardRow}>
+                  <Text style={[styles.badgeTag, {
+                    backgroundColor: n.type === 'STATUS_UPDATE' ? '#1e3a8a' : n.type === 'EXPIRY_REMINDER' ? '#7f1d1d' : '#14532d'
+                  }]}>
+                    {n.type.replace('_', ' ')}
+                  </Text>
+                  <Text style={styles.timestampText}>{n.timestamp}</Text>
+                </View>
+                <Text style={styles.itemTitle}>{n.title}</Text>
+                <Text style={styles.cardSub}>{n.message}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* 8. PROFILE SCREEN (Section 4.3.2 Item 8) */}
+        {activeTab === 'profile' && (
+          <View style={styles.tabContent}>
+            <Text style={styles.pageTitle}>Client Profile &amp; Preferences</Text>
+            <Text style={styles.cardSub}>Manage your verified identification, contact information, and notifications.</Text>
+
+            <View style={styles.card}>
+              <Text style={styles.inputLabel}>Full Legal Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={profile.name}
+                onChangeText={v => setProfile(p => ({ ...p, name: v }))}
+              />
+
+              <Text style={styles.inputLabel}>National Identification Number</Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: '#1e293b' }]}
+                value={profile.nationalId}
+                editable={false}
+              />
+
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <TextInput
+                style={styles.textInput}
+                value={profile.email}
+                onChangeText={v => setProfile(p => ({ ...p, email: v }))}
+                keyboardType="email-address"
+              />
+
+              <Text style={styles.inputLabel}>Contact Phone Number</Text>
+              <TextInput
+                style={styles.textInput}
+                value={profile.phone}
+                onChangeText={v => setProfile(p => ({ ...p, phone: v }))}
+                keyboardType="phone-pad"
+              />
+
+              <Text style={styles.inputLabel}>Physical Address</Text>
+              <TextInput
+                style={styles.textInput}
+                value={profile.address}
+                onChangeText={v => setProfile(p => ({ ...p, address: v }))}
+              />
+
+              <Pressable
+                style={[styles.primaryButton, { marginTop: 12 }]}
+                onPress={() => Alert.alert('Profile Saved', 'Your contact details have been successfully updated in SLLAS.')}
+              >
+                <Text style={styles.primaryButtonText}>Save Contact Details</Text>
+              </Pressable>
+            </View>
+
+            {/* Notification Preferences */}
+            <Text style={styles.sectionHeading}>Notification Preferences</Text>
+            <View style={styles.card}>
+              <Pressable
+                style={styles.preferenceRow}
+                onPress={() => setProfile(p => ({ ...p, smsNotifications: !p.smsNotifications }))}
+              >
+                <Text style={styles.preferenceText}>📱 SMS Status Progression Alerts</Text>
+                <Text style={styles.toggleState}>{profile.smsNotifications ? 'ON' : 'OFF'}</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.preferenceRow}
+                onPress={() => setProfile(p => ({ ...p, emailNotifications: !p.emailNotifications }))}
+              >
+                <Text style={styles.preferenceText}>📧 Official Email Dispatches</Text>
+                <Text style={styles.toggleState}>{profile.emailNotifications ? 'ON' : 'OFF'}</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.preferenceRow}
+                onPress={() => setProfile(p => ({ ...p, expiryReminders: !p.expiryReminders }))}
+              >
+                <Text style={styles.preferenceText}>⏰ Lease Expiry (90-Day / 60-Day) Reminders</Text>
+                <Text style={styles.toggleState}>{profile.expiryReminders ? 'ON' : 'OFF'}</Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              style={[styles.secondaryButton, { marginTop: 16 }]}
+              onPress={() => setIsAuthenticated(false)}
+            >
+              <Text style={styles.secondaryButtonText}>Sign Out of SLLAS</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
 
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+      {/* 4. PARCEL DETAIL SCREEN MODAL (Section 4.3.2 Item 4) */}
+      {selectedParcel && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setSelectedParcel(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={styles.sectionTitle}>{modalMode === 'parcel' ? 'Parcel capture' : 'Lease renewal'}</Text>
-                <Pressable onPress={() => setModalVisible(false)}>
-                  <Text style={styles.closeButton}>Close</Text>
+                <View>
+                  <Text style={styles.refText}>{selectedParcel.referenceNumber}</Text>
+                  <Text style={styles.modalTitle}>{selectedParcel.name}</Text>
+                </View>
+                <Pressable onPress={() => setSelectedParcel(null)}>
+                  <Text style={styles.closeBtn}>✕</Text>
                 </Pressable>
               </View>
 
-              {modalMode === 'parcel' ? (
-                <>
-                  <Text style={styles.subtleText}>
-                    Reference number and area are generated by the API from the selected jurisdiction and survey boundary.
-                  </Text>
-                  <Text style={styles.detailLabel}>Staff API token</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={authToken}
-                    onChangeText={setAuthToken}
-                    placeholder="Paste token without the Bearer prefix"
-                    placeholderTextColor="#64748b"
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <Text style={styles.subtleText}>Kept in memory only. Required for staff-only parcel creation.</Text>
+              <ScrollView style={{ maxHeight: 360 }}>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Province &amp; District</Text>
+                  <Text style={styles.metaVal}>{selectedParcel.district}, {selectedParcel.province}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Cadastral Area</Text>
+                  <Text style={styles.metaVal}>{selectedParcel.hectares} hectares</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Agro-Ecological Region</Text>
+                  <Text style={styles.metaVal}>{selectedParcel.naturalRegion}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Soil Type</Text>
+                  <Text style={styles.metaVal}>{selectedParcel.soilType}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Water Access</Text>
+                  <Text style={styles.metaVal}>{selectedParcel.waterAccess ? 'Available (Dam/River)' : 'None'}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Road Infrastructure</Text>
+                  <Text style={styles.metaVal}>{selectedParcel.roadAccess}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>Availability Status</Text>
+                  <Text style={[styles.metaVal, { color: '#4ade80' }]}>{selectedParcel.availability}</Text>
+                </View>
+              </ScrollView>
 
-                  {isReferenceDataLoading && (
-                    <View style={styles.loadingRow}>
-                      <ActivityIndicator size="small" color="#2563eb" />
-                      <Text style={styles.loadingText}>Loading provinces and categories…</Text>
-                    </View>
-                  )}
-                  {referenceDataError && <Text style={styles.warningText}>{referenceDataError}</Text>}
-                  {renderReferenceOptions('Province', provinces, provinceId, setProvinceId)}
-                  {renderReferenceOptions('District', districts, districtId, setDistrictId)}
-                  {renderReferenceOptions('Land category', categories, categoryId, setCategoryId)}
-
-                  <Text style={styles.detailLabel}>Survey boundary (GeoJSON Polygon)</Text>
-                  <Text style={styles.subtleText}>
-                    Coordinates use [longitude, latitude]. Close the outer ring by repeating its first point.
-                  </Text>
-                  <TextInput
-                    style={[styles.input, styles.boundaryInput]}
-                    multiline
-                    value={boundaryJson}
-                    onChangeText={setBoundaryJson}
-                    placeholder={'{"type":"Polygon","coordinates":[[[31.0,-17.0],[31.01,-17.0],[31.01,-17.01],[31.0,-17.0]]]}'}
-                    placeholderTextColor="#64748b"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </>
-              ) : (
-                <>
-                  <Text style={styles.warningText}>
-                    The API does not expose a lease-renewal request endpoint yet. No renewal request can be submitted from this app.
-                  </Text>
-                  <Text style={styles.detailLabel}>Parcel reference</Text>
-                  <TextInput style={styles.input} value={formData.parcelRef} editable={false} />
-                </>
-              )}
-
-              {submitError && <Text style={styles.warningText}>{submitError}</Text>}
-              {modalMode === 'parcel' ? (
+              {/* Action: Apply for Lease (Item 4) */}
+              {selectedParcel.availability === 'Available' ? (
                 <Pressable
-                  style={[styles.primaryButton, isSubmitting && styles.disabledButton]}
-                  onPress={handleSaveOrSubmit}
-                  disabled={isSubmitting || isReferenceDataLoading}
+                  style={[styles.primaryButton, { marginTop: 14 }]}
+                  onPress={() => {
+                    setIsApplyModalVisible(true);
+                  }}
                 >
-                  {isSubmitting ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>Create draft parcel</Text>
-                  )}
+                  <Text style={styles.primaryButtonText}>🌱 Apply for 99-Year Lease</Text>
                 </Pressable>
               ) : (
-                <Pressable style={[styles.primaryButton, styles.disabledButton]} disabled>
-                  <Text style={styles.primaryButtonText}>Renewal submission unavailable</Text>
-                </Pressable>
+                <View style={[styles.card, { marginTop: 12 }]}>
+                  <Text style={styles.cardSub}>This parcel is currently {selectedParcel.availability.toLowerCase()}.</Text>
+                </View>
               )}
-            </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
+
+      {/* 5. LEASE APPLICATION FORM MODAL (Section 4.3.2 Item 5) */}
+      {isApplyModalVisible && selectedParcel && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsApplyModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.heraldryText}>AGRICULTURAL LAND SETTLEMENT ACT</Text>
+                  <Text style={styles.modalTitle}>Lease Application Form</Text>
+                </View>
+                <Pressable onPress={() => setIsApplyModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 420 }}>
+                {/* Pre-filled Applicant Profile */}
+                <Text style={styles.filterLabel}>Applicant Details (Pre-filled from Profile)</Text>
+                <View style={styles.prefillBox}>
+                  <Text style={styles.prefillItem}><strong>Applicant:</strong> {profile.name}</Text>
+                  <Text style={styles.prefillItem}><strong>National ID:</strong> {profile.nationalId}</Text>
+                  <Text style={styles.prefillItem}><strong>Contact:</strong> {profile.phone}</Text>
+                  <Text style={styles.prefillItem}><strong>Target Parcel:</strong> {selectedParcel.referenceNumber} ({selectedParcel.hectares} ha)</Text>
+                </View>
+
+                {/* Intended Agricultural Activity */}
+                <Text style={styles.inputLabel}>Intended Activity / Enterprise</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={applyIntendedActivity}
+                  onChangeText={setApplyIntendedActivity}
+                />
+
+                {/* Proposed Investment */}
+                <Text style={styles.inputLabel}>Proposed Capital Investment (USD)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={applyInvestmentUsd}
+                  onChangeText={setApplyInvestmentUsd}
+                  keyboardType="numeric"
+                />
+
+                {/* Supporting Information / Business Plan Summary */}
+                <Text style={styles.inputLabel}>Business Plan &amp; Supporting Information</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 70 }]}
+                  multiline
+                  value={applySupportingInfo}
+                  onChangeText={setApplySupportingInfo}
+                />
+
+                {/* Document Upload */}
+                <Text style={styles.inputLabel}>Supporting Documents (Upload)</Text>
+                <Pressable
+                  style={styles.uploadBtn}
+                  onPress={() => {
+                    Alert.alert('Document Attached', 'Agricultural_Business_Plan_2026.pdf attached from mobile storage.');
+                    setUploadedDocument('Agricultural_Business_Plan_2026.pdf');
+                  }}
+                >
+                  <Text style={styles.uploadBtnText}>
+                    📁 {uploadedDocument ? `Attached: ${uploadedDocument}` : 'Tap to attach PDF / ID'}
+                  </Text>
+                </Pressable>
+              </ScrollView>
+
+              <Pressable
+                style={[styles.primaryButton, { marginTop: 12 }]}
+                onPress={handleSubmitLeaseApplication}
+              >
+                <Text style={styles.primaryButtonText}>Submit Formal Application</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Touch-Friendly Bottom Tab Bar */}
+      <View style={styles.tabBar}>
+        {[
+          { key: 'home', label: 'Home', icon: '🏠' },
+          { key: 'search', label: 'Land Search', icon: '🔍' },
+          { key: 'applications', label: 'My Leases', icon: '📜' },
+          { key: 'notifications', label: 'Alerts', icon: '🔔' },
+          { key: 'profile', label: 'Profile', icon: '👤' },
+        ].map(t => (
+          <Pressable
+            key={t.key}
+            style={[styles.tabBarItem, activeTab === t.key && styles.tabBarItemActive]}
+            onPress={() => setActiveTab(t.key as MobileTabKey)}
+          >
+            <Text style={styles.tabBarIcon}>{t.icon}</Text>
+            <Text style={[styles.tabBarLabel, activeTab === t.key && styles.tabBarLabelActive]}>
+              {t.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  authSafeArea: {
+  mainContainer: {
     flex: 1,
+    backgroundColor: '#0a0f1d',
+  },
+  authContainer: {
+    flex: 1,
+    backgroundColor: '#060913',
     justifyContent: 'center',
-    backgroundColor: '#eef1f4',
-    padding: 24,
+    alignItems: 'center',
+    padding: 20,
   },
   authCard: {
-    borderRadius: 6,
-    backgroundColor: '#ffffff',
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    elevation: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  govLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.1,
-    color: '#334e68',
-  },
-  authTitle: {
-    marginTop: 10,
-    fontSize: 26,
-    lineHeight: 33,
-    fontWeight: '700',
-    color: '#102a43',
-  },
-  authSubtitle: {
-    marginTop: 12,
-    marginBottom: 24,
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#334e68',
-  },
-  authError: {
-    marginBottom: 16,
-    borderRadius: 4,
-    borderLeftWidth: 4,
-    borderLeftColor: '#b42318',
-    backgroundColor: '#fef3f2',
-    padding: 12,
-    color: '#8a1c13',
-    fontSize: 14,
-  },
-  authHint: {
-    marginTop: 18,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#52606d',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#eef1f4',
-  },
-  header: {
-    backgroundColor: '#102a43',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 16,
-  },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
+  heraldryText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#22c55e',
     letterSpacing: 1.2,
-    color: '#d9e2ec',
-    textTransform: 'uppercase',
-  },
-  headerTitle: {
-    marginTop: 6,
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  tabRow: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#cbd5e1',
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 4,
-    backgroundColor: '#f1f5f9',
-  },
-  tabButtonActive: {
-    backgroundColor: '#d9e2ec',
-    borderBottomWidth: 3,
-    borderBottomColor: '#007c91',
-  },
-  tabLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#52606d',
-  },
-  tabLabelActive: {
-    color: '#006778',
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  loadingText: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  warningBanner: {
-    backgroundColor: '#fff8e6',
-    borderColor: '#f2cc66',
-    borderWidth: 1,
-    borderRadius: 4,
-    marginHorizontal: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  warningText: {
-    color: '#7a4b00',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  sectionBlock: {
-    gap: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  metricCard: {
-    width: '48%',
-    padding: 16,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  blueCard: {
-    backgroundColor: '#e6f4f1',
-  },
-  greenCard: {
-    backgroundColor: '#edf7f2',
-  },
-  amberCard: {
-    backgroundColor: '#fff8e6',
-  },
-  redCard: {
-    backgroundColor: '#fef3f2',
-  },
-  metricLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-    marginBottom: 12,
-  },
-  metricValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a',
     marginBottom: 4,
   },
-  metricChange: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  listCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 16,
-    gap: 8,
-  },
-  listItem: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    gap: 4,
-  },
-  listHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  listRef: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  badge: {
-    backgroundColor: '#d9e2ec',
-    color: '#006778',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 10,
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
-  subtleText: {
-    fontSize: 13,
-    color: '#475569',
-  },
-  suitability: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0f766e',
-  },
-  inlineMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  alertItem: {
-    backgroundColor: '#ffffff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#f5d0d0',
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  alertDot: {
-    color: '#dc2626',
+  authHeaderTitle: {
     fontSize: 22,
     fontWeight: '700',
-    lineHeight: 22,
+    color: '#ffffff',
+    marginBottom: 4,
   },
-  alertText: {
-    flex: 1,
-    color: '#334155',
-    fontSize: 14,
-    lineHeight: 20,
+  authSubtitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 20,
+    lineHeight: 16,
   },
-  searchCard: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+  authButtonGroup: {
+    gap: 12,
   },
-  searchInput: {
-    fontSize: 14,
-    color: '#0f172a',
-    paddingVertical: 10,
+  formStack: {
+    gap: 10,
   },
-  filterRow: {
-    paddingVertical: 4,
-    gap: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 4,
-    backgroundColor: '#f1f5f9',
-  },
-  filterChipActive: {
-    backgroundColor: '#d9e2ec',
-  },
-  filterChipText: {
+  inputLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
+    color: '#cbd5e1',
+    marginTop: 6,
   },
-  filterChipTextActive: {
-    color: '#006778',
-  },
-  emptyState: {
-    color: '#64748b',
-    fontSize: 14,
-    paddingVertical: 12,
-  },
-  detailCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 6,
+  textInput: {
+    backgroundColor: '#1e293b',
     borderWidth: 1,
-    borderColor: '#9fb3c8',
-    padding: 16,
-    gap: 10,
-  },
-  metaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  metaTile: {
-    width: '48%',
-    backgroundColor: '#f5f7fa',
-    borderRadius: 4,
+    borderColor: '#334155',
+    borderRadius: 8,
     padding: 10,
-  },
-  metaLabel: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  metaValue: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  detailLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#0f172a',
-    lineHeight: 20,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
+    color: '#ffffff',
   },
   primaryButton: {
-    flex: 1,
-    backgroundColor: '#006778',
-    borderRadius: 4,
-    minHeight: 46,
-    paddingVertical: 13,
+    backgroundColor: '#16a34a',
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
+    marginTop: 8,
   },
   primaryButtonText: {
     color: '#ffffff',
@@ -1492,72 +963,421 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   secondaryButton: {
-    flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#006778',
-    borderRadius: 4,
-    minHeight: 46,
-    paddingVertical: 13,
+    borderColor: '#334155',
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#006778',
-    fontWeight: '700',
+    color: '#e2e8f0',
+    fontWeight: '600',
     fontSize: 14,
   },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(16, 42, 67, 0.55)',
-    padding: 20,
+  textLink: {
+    alignItems: 'center',
+    marginTop: 12,
   },
-  modalCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 6,
-    padding: 18,
-    maxHeight: '90%',
+  textLinkText: {
+    color: '#4ade80',
+    fontSize: 12,
   },
-  modalContent: {
+  topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#0a0f1d',
+  },
+  topHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  notifBadgeBtn: {
+    padding: 8,
+    position: 'relative',
+  },
+  notifIcon: {
+    fontSize: 18,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444',
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  tabContent: {
     gap: 12,
   },
-  referenceGroup: {
-    gap: 6,
+  pageTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
   },
-  referenceOptions: {
-    gap: 8,
+  sectionHeading: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  card: {
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 8,
+  },
+  unreadCard: {
+    borderColor: 'rgba(59, 130, 246, 0.4)',
+    backgroundColor: 'rgba(30, 58, 138, 0.2)',
+  },
+  detailCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginBottom: 12,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  cardEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4ade80',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginTop: 2,
+  },
+  cardSub: {
+    fontSize: 12,
+    color: '#94a3b8',
+    lineHeight: 16,
+  },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  refText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4ade80',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  statusBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+    paddingHorizontal: 8,
     paddingVertical: 2,
+    borderRadius: 4,
+  },
+  shortcutRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+  },
+  shortcutBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  shortcutIcon: {
+    fontSize: 16,
+  },
+  shortcutText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  linkText: {
+    color: '#4ade80',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  timestampText: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  searchInput: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    padding: 10,
+    color: '#ffffff',
+    fontSize: 13,
+    marginTop: 6,
+  },
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94a3b8',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  chipScroll: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#1e293b',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  chipActive: {
+    backgroundColor: '#166534',
+    borderColor: '#4ade80',
+  },
+  chipText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: '#ffffff',
+  },
+  viewDetailsText: {
+    fontSize: 11,
+    color: '#38bdf8',
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#1e293b',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  stepItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  stepCircleDone: {
+    backgroundColor: '#16a34a',
+  },
+  stepNum: {
+    fontSize: 10,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  stepLabel: {
+    fontSize: 8,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  stepLabelDone: {
+    color: '#4ade80',
+    fontWeight: '700',
+  },
+  remarksBox: {
+    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.3)',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+  },
+  remarksHeading: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#facc15',
+    marginBottom: 2,
+  },
+  remarksText: {
+    fontSize: 11,
+    color: '#fef08a',
+    lineHeight: 15,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  historyDot: {
+    color: '#4ade80',
+    fontSize: 14,
+  },
+  historyDate: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  historyNote: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  badgeTag: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ffffff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  preferenceText: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  toggleState: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4ade80',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#0f172a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  closeBtn: {
+    fontSize: 18,
+    color: '#94a3b8',
+    padding: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  metaLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  metaVal: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  prefillBox: {
+    backgroundColor: '#1e293b',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  prefillItem: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    lineHeight: 16,
+  },
+  uploadBtn: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  uploadBtnText: {
+    color: '#60a5fa',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    backgroundColor: '#070b14',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 8,
+  },
+  tabBarItem: {
+    flex: 1,
     alignItems: 'center',
   },
-  closeButton: {
-    fontSize: 14,
+  tabBarItemActive: {
+    transform: [{ scale: 1.05 }],
+  },
+  tabBarIcon: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  tabBarLabel: {
+    fontSize: 9,
+    color: '#64748b',
     fontWeight: '600',
-    color: '#2563eb',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
-    backgroundColor: '#f8fafc',
-  },
-  textArea: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-  boundaryInput: {
-    minHeight: 130,
-    textAlignVertical: 'top',
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-  },
-  disabledButton: {
-    opacity: 0.55,
+  tabBarLabelActive: {
+    color: '#4ade80',
+    fontWeight: '700',
   },
 });

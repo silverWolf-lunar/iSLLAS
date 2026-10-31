@@ -76,6 +76,12 @@ export default function NewParcelPage() {
     return errs;
   }, [boundaryCoords]);
 
+  // Duplicate Reference Check (Section 4.3.1 Specification)
+  const isDuplicateReference = useMemo(() => {
+    if (!referenceNumber.trim()) return false;
+    return parcels.some(p => p.referenceNumber.toLowerCase() === referenceNumber.trim().toLowerCase());
+  }, [referenceNumber, parcels]);
+
   // Real-time overlap check against existing active parcels
   const overlappingParcel = useMemo(() => {
     if (validationErrors.length > 0) return null;
@@ -102,6 +108,14 @@ export default function NewParcelPage() {
   };
 
   const handleSubmit = (targetStatus: ParcelStatus) => {
+    if (!referenceNumber.trim()) {
+      alert('Cannot submit: Parcel Reference Number is mandatory.');
+      return;
+    }
+    if (isDuplicateReference) {
+      alert(`Cadastral duplicate conflict: Parcel reference '${referenceNumber}' is already registered in the system. Duplicate references are strictly prohibited.`);
+      return;
+    }
     if (validationErrors.length > 0) {
       alert(`Cannot submit: ${validationErrors[0]}`);
       return;
@@ -215,10 +229,24 @@ export default function NewParcelPage() {
               <input
                 type="text"
                 className="glass-input"
+                placeholder="e.g. ZW-MSW-MAK-2026-0042"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
                 required
+                style={{
+                  borderColor: isDuplicateReference ? '#ef4444' : referenceNumber.trim() ? '#22c55e' : undefined
+                }}
               />
+              {isDuplicateReference && (
+                <div style={{ color: '#f87171', fontSize: '0.75rem', marginTop: '4px', fontWeight: 600 }}>
+                  ⚠️ Duplicate reference: &apos;{referenceNumber}&apos; already exists in the national cadastre.
+                </div>
+              )}
+              {!isDuplicateReference && referenceNumber.trim() && (
+                <div style={{ color: '#4ade80', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>
+                  ✓ Reference is unique and available for registration
+                </div>
+              )}
             </div>
 
             <div>

@@ -108,11 +108,9 @@ Special recognition is accorded to:
     - 4.2.3 Applications Schema
     - 4.2.4 Allocations Schema
     - 4.2.5 Leases Schema
-  - 4.3 User Interface (UI) Wireframes & Design Specifications
-    - 4.3.1 Public Landing Page
-    - 4.3.2 Farmer KYC & Application Portal
-    - 4.3.3 Resettlement Allocation Workbench
-    - 4.3.4 Estates Lease Generation Interface
+  - 4.3 User Interface (UI) Design & Verification
+    - 4.3.1 Web Dashboard Interface (Sign-in Lock-out, 7-KPI Single-Page Dashboard, Land Registration, Lease Review Screen, Profile & Settings)
+    - 4.3.2 Mobile Application Interface (Welcome & Onboarding, Home Screen, Land Search, Parcel Detail, Lease Application Form, Application Status Stepper, Notifications, Client Profile)
   - 4.4 Security & Guard Design (Jurisdiction Guard, Role Guard, Segregation of Duties Guard)
 - **CHAPTER 5: CODING**
   - 5.1 Development Environment & Tools (Google Antigravity Setup)
@@ -689,10 +687,9 @@ The relational persistence schema is structured to ensure referential integrity,
 
 ---
 
-## 4.3 USER INTERFACE (UI) WIREFRAMES & DESIGN SPECIFICATIONS
+## 4.3 USER INTERFACE (UI) DESIGN & VERIFICATION
 
-### 4.3.1 Public Landing Page (x2 Grid Hero & News Architecture)
-The public landing page is engineered to convey institutional prestige and transparency, utilising a responsive x2 grid layout:
+The SLLAS user experience is partitioned into two specialized environments: the **Web Dashboard Interface** (for Ministry Administrators, Resettlement Officers, Approvers, and Estates Officers) and the touch-optimised **Mobile Application Interface** (primarily engineered for citizen applicants, farmers, and leaseholders).
 
 ```
 +---------------------------------------------------------------------------------------+
@@ -724,16 +721,107 @@ The public landing page is engineered to convey institutional prestige and trans
 |  +--------------------+  +--------------------+  +--------------------+  +----------+ |
 +---------------------------------------------------------------------------------------+
 ```
-*Figure 4.3: Public Landing Page Structural Wireframe (x2 Hero Grid Layout)*
+*Figure 4.3: Public Land Administration Portal & Cadastre Structural Wireframe*
 
-### 4.3.2 Farmer KYC & Application Portal
-- **View Specifications:** Responsive form with step-based wizard, drag-and-drop document upload with client-side file size and MIME-type validation, and real-time Waiting List card rendering upon submission.
+---
 
-### 4.3.3 Resettlement Allocation Workbench
-- **View Specifications:** Split-pane interface featuring a Leaflet/MapLibre cadastral map on the left displaying parcel polygons coloured by status, and a prioritized applicant table on the right with quick-filter facets (Agro-Region, Enterprise, Priority Score).
+### 4.3.1 Web Dashboard Interface
 
-### 4.3.4 Estates Lease Generation Interface
-- **View Specifications:** High-fidelity print-preview pane rendering the official legal indenture, complete with the National Coat of Arms watermark, surveying boundary coordinates table, and an encoded SVG QR code.
+The web dashboard is designed for administrators and Resettlement Officers and is accessed through a secure sign-in page (`apps/web/app/signin/page.tsx`).
+
+#### 1. Sign-in Page
+- **Institutional Introduction:** Introduces the system under the legal auspices of the Agricultural Land Settlement Act [Chapter 20:01] with official Zimbabwean heraldry, Vision 2030 cadastre policy goals, and public announcements.
+- **Credential & SSO Access:** Authenticates staff and citizen users via email/username, password, and role selector (`Role.CLIENT`, `Role.REGISTRY_OFFICER`, `Role.APPROVER`, `Role.ESTATES_OFFICER`, `Role.SYSTEM_ADMIN`, `Role.AUDITOR`) as well as Keycloak OIDC Single Sign-On.
+- **Audit Logging of Attempts:** Every sign-in attempt, whether successful or failed, is written to the immutable audit log (`/api/backend/api/v1/audit/log`) recording actor email, role, IP address, and client timestamp.
+- **Temporary Lock-out Protection:** In accordance with national cyber-security regulations, repeated failures trigger a temporary lock-out after 5 consecutive failed attempts. The interface renders a prominent countdown warning banner and disables credential submission for a 5-minute cooldown period.
+
+#### 2. Administrator & Officer Dashboard
+A single-page consolidated dashboard (`apps/web/app/officer/page.tsx` and `apps/web/app/admin/page.tsx`) providing unified operational command across 7 interconnected panels:
+- **7 Mandatory KPI Cards:**
+  1. *Registered Parcels:* Total surveyed land parcels catalogued in PostGIS spatial database.
+  2. *Available Parcels:* Farmland parcels verified with `AVAILABLE` status ready for resettlement.
+  3. *Applications Received:* Total citizen applications lodged into the national registry.
+  4. *Applications Pending Review:* Applications queued awaiting officer inspection or board docketing.
+  5. *Active Leases:* Number of bankable 99-year agricultural leases legally registered.
+  6. *Leases Expiring Soon:* Leases with fewer than 90 days remaining before statutory anniversary/term expiration.
+  7. *Notifications Sent:* Cumulative SMS, email, and push dispatches issued across the republic.
+- **Live Lease Review Queue:** Real-time queue showing applications awaiting resettlement action, equipped with quick-filter facets by province, application status (`SUBMITTED`, `UNDER_INSPECTION`, `ALLOCATED`), and submission date.
+- **Land Inventory Table:** Searchable, filterable, and sortable inventory table allowing officers to inspect parcels by reference number, province, district, land use category (`COMMERCIAL_CROPPING`, `LIVESTOCK`, `HORTICULTURE`, `MIXED_FARMING`), and availability status.
+- **Lease Register:** Comprehensive register displaying `ACTIVE`, `EXPIRING_SOON` (<90 days), and `EXPIRED` leases, complete with direct links to cryptographic QR deed verification.
+- **Notification History Panel:** Audit log panel displaying dispatched notifications classified by channel (SMS, Email, Push) and status (`SENT`, `FAILED`, `SUPPRESSED` due to deduplication filters).
+- **Reporting Panel:** Executive analytics panel featuring provincial farmland allocation summaries, lease status charts, and one-click statutory CSV export.
+- **Audit Log Viewer:** Real-time cryptographic ledger displaying user action, entity type, target reference, timestamp, and SHA-256 integrity signatures.
+- **User Management for Administrators:** Full identity lifecycle management allowing administrators to provision staff, assign administrative roles, deactivate compromised accounts, and configure provincial jurisdictions.
+
+#### 3. Land Registration Form
+- **Structured Cadastral Form:** Implemented in `apps/web/app/parcels/new/page.tsx` featuring a 4-step wizard (Jurisdiction & Location, Agro-Ecological Characteristics, Spatial Boundary, and Review & Submit).
+- **Mandatory Fields & Inline Validation:** Rigorous form-level checks ensuring required inputs (Parcel Reference, Name, Province, District, Ward, Land Category) are populated with inline error indicators.
+- **Duplicate-Reference Check:** Real-time inline verification that alerts the officer if a parcel reference number is already registered in the cadastre, prohibiting duplicate submissions under Section 14 of the Cadastre Regulations.
+- **Spatial Overlap & Boundary Validation:** Validates coordinate closure, Zimbabwe territorial bounding box, and detects bounding box polygon overlaps against existing registered parcels.
+
+#### 4. Lease Review Screen
+- **Comprehensive Dossier View:** Accessible via the Approver Console (`apps/web/app/approver/page.tsx`) and Officer Allocation Workbench (`apps/web/app/officer/allocate/page.tsx`).
+- **Applicant & Parcel Metadata:** Displays applicant identity (National ID, KYC tier, contact details), target parcel coordinates, hectares, and agro-ecological classification.
+- **Algorithmic Recommendation Results:** Renders the automated suitability score (e.g. 94/100) evaluating rainfall alignment, soil suitability, and affirmative action quotas.
+- **Supporting Documents Preview:** In-line inspection of uploaded applicant credentials (National ID bio-page, 5-Year Farm Business Plan, Bank Asset Declaration).
+- **Status Transitions & Remarks Field:** Statutory action controls allowing board members to Approve (generating a formal 99-year lease offer), Request Changes, or Reject with mandatory written remarks recorded to the legal record.
+
+#### 5. Profile and Settings
+- **User Settings Interface:** Implemented in `apps/web/app/settings/page.tsx`.
+- **Contact Details Management:** Allows users to view and update official first name, surname, email, E.164 phone number, physical address, and jurisdictional district.
+- **Notification Preferences:** Toggles for cellular SMS status alerts, email document dispatches, 90-day/60-day/30-day lease expiry countdowns, Government Gazette statutory bulletins, and security sign-in notifications.
+
+---
+
+### 4.3.2 Mobile Application Interface
+
+The mobile application (`apps/mobile/App.tsx`) is designed primarily for clients and farmers, providing a touch-friendly, low-bandwidth, and offline-resilient interface optimized for mobile devices.
+
+#### 1. Welcome and Sign-in / Registration
+- **Streamlined Onboarding:** Welcome screen with institutional branding, single-touch entry points for existing users, new citizen self-registration, and password/account recovery.
+- **Account Creation:** Captures citizen legal name, National ID, mobile phone number, and password, immediately provisioning a `Role.CLIENT` account.
+- **Access Recovery:** Self-service credential recovery dispatching SMS one-time verification tokens to the user's verified phone number.
+
+#### 2. Home Screen
+- **Client Overview Dashboard:** Displays the client's verified KYC tier, registered National ID, and jurisdiction.
+- **Active Applications Summary:** Highlights current applications with real-time status badges (`SUBMITTED`, `UNDER_INSPECTION`, `ALLOCATED`).
+- **Recent Notifications Feed:** Cards displaying recent status progressions and gazette notices.
+- **Touch Shortcuts:** Instant navigation buttons: *"Search Land"* (jumping to the Cadastre search) and *"View Leases"* (jumping to active tenancies).
+
+#### 3. Land Search Screen
+- **Interactive Multi-Facet Search:** Real-time search query box matching parcel references, farm names, and districts.
+- **Filter Chips:**
+  - *Province:* Harare, Bulawayo, Mashonaland West, Midlands, Manicaland, etc.
+  - *District:* District station filtering.
+  - *Land Use Category:* Commercial Cropping, Livestock Ranching, Horticulture, Mixed Farming.
+  - *Size Range:* `<50 ha`, `50-100 ha`, `100-250 ha`, `250+ ha`.
+  - *Availability Status:* Available, Reserved, Allocated.
+- **Result Cards:** Clean cards displaying parcel reference, location, cadastral area, recommended use, and an availability badge.
+
+#### 4. Parcel Detail Screen
+- **Cadastral & Agro Dossier Modal:** Displays comprehensive parcel characteristics: cadastral hectares, agro-ecological region (Region I to V), soil classification, water access (dam/river), and road infrastructure.
+- **"Apply for Lease" Action:** Direct call-to-action button launching the pre-filled Lease Application Form for available land parcels.
+
+#### 5. Lease Application Form
+- **Pre-filled Profile Data:** Automatically populates applicant legal name, National ID, verified contact number, and target parcel reference from the client profile.
+- **Intended Activity & Investment:** Captures enterprise activity (e.g. Maize & Wheat Cropping), planned capital investment in USD, and business plan summary.
+- **Document Upload:** Mobile attachment trigger for citizen National ID bio-page and farm business plan PDF.
+- **Submission & Waiting List Assignment:** Lodging the form submits the application to the district queue, assigns a statutory Waiting List Number (e.g. `WL-2026-XXXX`), and writes an audit event.
+
+#### 6. Application Status Screen
+- **Progress Stepper:** Visual touch stepper tracing the statutory lifecycle:
+  `SUBMITTED` ➔ `UNDER_INSPECTION` ➔ `ALLOCATED` ➔ `APPROVED`.
+- **Officer Remarks Display:** Dedicated panel showing written feedback, requirements, and directives from the reviewing Resettlement Officer.
+- **Status Timeline History:** Granular chronological ledger recording each milestone date, status transition, and administrative note.
+- **In-App Notifications:** Real-time badge indicators alerting the client to status changes.
+
+#### 7. Notifications Screen
+- **Chronological Alert Feed:** Dedicated screen listing all status updates, board docket notifications, and statutory lease expiry reminders.
+- **Categorized Priority Badges:** High-visibility tags for `STATUS_UPDATE`, `EXPIRY_REMINDER`, and `GAZETTE` bulletins.
+
+#### 8. Profile Screen
+- **Citizen Account Management:** Allows farmers to update legal names, contact numbers, email addresses, and physical farm addresses.
+- **Notification Toggles:** Granular toggles to enable or disable SMS status progression alerts, email indenture dispatches, and lease anniversary countdown reminders.
 
 ---
 

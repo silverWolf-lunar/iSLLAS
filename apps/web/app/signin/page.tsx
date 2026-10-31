@@ -105,6 +105,44 @@ function SignInContent() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Security Lock-out State (Section 4.3.1 Specification)
+  const [failedAttempts, setFailedAttempts] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('sllas_signin_failed_attempts');
+      return stored ? parseInt(stored, 10) : 0;
+    }
+    return 0;
+  });
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('sllas_signin_lockout_until');
+      const val = stored ? parseInt(stored, 10) : null;
+      if (val && val > Date.now()) return val;
+    }
+    return null;
+  });
+  const [lockoutRemainingSec, setLockoutRemainingSec] = useState<number>(0);
+
+  React.useEffect(() => {
+    if (!lockoutUntil) {
+      setLockoutRemainingSec(0);
+      return;
+    }
+    const updateCountdown = () => {
+      const remaining = Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000));
+      setLockoutRemainingSec(remaining);
+      if (remaining <= 0) {
+        setLockoutUntil(null);
+        setFailedAttempts(0);
+        sessionStorage.removeItem('sllas_signin_lockout_until');
+        sessionStorage.removeItem('sllas_signin_failed_attempts');
+      }
+    };
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutUntil]);
+
   // Registration State (Stage 0 Citizen Onboarding)
   const [regClientType, setRegClientType] = useState<ClientType>(ClientType.INDIVIDUAL);
   const [regFirstName, setRegFirstName] = useState('');
@@ -227,6 +265,11 @@ function SignInContent() {
     e.preventDefault();
     setErrorMessage(null);
 
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      setErrorMessage(`Security Lock-Out Active: Too many failed attempts. Please wait ${lockoutRemainingSec}s before retrying.`);
+      return;
+    }
+
     if (!email.trim() || !password.trim()) {
       setErrorMessage('Please enter both your email/username and password.');
       return;
@@ -245,9 +288,48 @@ function SignInContent() {
       });
 
       if (result?.error) {
-        setErrorMessage(result.error);
+        const nextAttempts = failedAttempts + 1;
+        setFailedAttempts(nextAttempts);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('sllas_signin_failed_attempts', String(nextAttempts));
+        }
+
+        // Statutory Audit Log of failed authentication attempt
+        fetch('/api/backend/api/v1/audit/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'LOGIN_FAILED',
+            entityType: 'AUTH',
+            entityId: email.trim(),
+            actorEmail: email.trim(),
+            actorRole: role,
+            metadata: {
+              attemptNumber: nextAttempts,
+              error: result.error,
+              clientTimestamp: new Date().toISOString(),
+            },
+          }),
+        }).catch(() => {});
+
+        if (nextAttempts >= 5) {
+          const lockTime = Date.now() + 5 * 60 * 1000;
+          setLockoutUntil(lockTime);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('sllas_signin_lockout_until', String(lockTime));
+          }
+          setErrorMessage('Security Alert: 5 consecutive failed login attempts detected. Your session has been temporarily locked out for 5 minutes in accordance with Section 4.3 security protocols.');
+        } else {
+          setErrorMessage(`${result.error} (Failed attempt ${nextAttempts}/5 before temporary lockout)`);
+        }
         setLoading(false);
       } else if (result?.ok) {
+        setFailedAttempts(0);
+        setLockoutUntil(null);
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sllas_signin_failed_attempts');
+          sessionStorage.removeItem('sllas_signin_lockout_until');
+        }
         router.push(targetDashboard);
       }
     } catch (err: any) {
@@ -547,11 +629,28 @@ function SignInContent() {
                   </select>
                 </div>
 
+                {/* Temporary Lock-out Banner */}
+                {lockoutRemainingSec > 0 && (
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.5)',
+                    color: '#fca5a5',
+                    fontSize: '0.8125rem',
+                    textAlign: 'center',
+                    lineHeight: 1.5,
+                  }}>
+                    🔒 <strong>Account Temporarily Locked Out</strong><br />
+                    Too many repeated sign-in failures. Retry available in: <strong>{Math.floor(lockoutRemainingSec / 60)}m {lockoutRemainingSec % 60}s</strong>
+                  </div>
+                )}
+
                 {/* Submit Button */}
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={loading}
+                  disabled={loading || lockoutRemainingSec > 0}
                   style={{
                     marginTop: '10px',
                     padding: '12px 18px',
@@ -561,6 +660,8 @@ function SignInContent() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
+                    opacity: lockoutRemainingSec > 0 ? 0.6 : 1,
+                    cursor: lockoutRemainingSec > 0 ? 'not-allowed' : 'pointer',
                   }}
                 >
                   {loading ? (
