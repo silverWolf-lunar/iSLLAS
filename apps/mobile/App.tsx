@@ -8,6 +8,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -992,12 +993,13 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.mainContainer}>
+      <StatusBar barStyle="light-content" />
       {/* Mobile Top Navigation Header */}
       <View style={styles.topHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <SllasLogo variant="icon" size={38} />
+          <SllasLogo variant="icon" size={40} />
           <View>
-            <Text style={styles.heraldryText}>REPUBLIC OF ZIMBABWE • SLLAS</Text>
+            <Text style={styles.heraldryText}>🇿🇼 REPUBLIC OF ZIMBABWE • SLLAS</Text>
             <Text style={styles.topHeaderTitle}>Client Land Portal</Text>
           </View>
         </View>
@@ -2109,36 +2111,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingTop: Platform.select({
+      android: (StatusBar.currentHeight || 24) + 14,
+      web: 22,
+      ios: 12,
+      default: 18,
+    }),
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     backgroundColor: '#0a0f1d',
   },
   topHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 19,
+    fontWeight: '800',
     color: '#ffffff',
+    letterSpacing: 0.2,
   },
   notifBadgeBtn: {
-    padding: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    justifyContent: 'center',
+    alignItems: 'center',
     position: 'relative',
   },
   notifIcon: {
-    fontSize: 18,
+    fontSize: 19,
   },
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
     backgroundColor: '#ef4444',
+    borderWidth: 1.5,
+    borderColor: '#0a0f1d',
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 7,
+    right: 7,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 80,
+    paddingTop: 18,
+    paddingBottom: 88,
   },
   tabContent: {
     gap: 12,
@@ -2659,7 +2678,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    gap: 12,
+    marginTop: 4,
+    marginBottom: 10,
   },
   mapGpsPill: {
     backgroundColor: 'rgba(34, 197, 94, 0.12)',
