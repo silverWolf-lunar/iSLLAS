@@ -188,47 +188,9 @@ export default function LandingPage() {
 
   // Real-time news state
   const [newsArticles, setNewsArticles] = useState<LandNewsArticle[]>(LAND_NEWS_ARTICLES);
-  const [newsTicker, setNewsTicker] = useState<NewsTickerItem[]>([
-    {
-      id: 'ticker-1',
-      source: 'The Herald Agriculture',
-      headline: 'Winter wheat farming: All systems go across commercial irrigated farming blocks',
-      url: 'https://www.heraldonline.co.zw/winter-wheat-farming-all-systems-go/',
-      pubDate: 'Just now',
-    },
-    {
-      id: 'ticker-2',
-      source: 'The Herald Online',
-      headline: '2,701 farming joint ventures approved to expand grain and horticulture output',
-      url: 'https://www.heraldonline.co.zw/2-701-farming-joint-ventures-get-the-nod/',
-      pubDate: '10m ago',
-    },
-    {
-      id: 'ticker-3',
-      source: 'The Herald Livestock',
-      headline: 'Reclaiming degraded rangelands: Rotational grazing and fodder banks rolled out',
-      url: 'https://www.heraldonline.co.zw/reclaiming-degraded-rangelands-lessons-from-across-the-zambezi/',
-      pubDate: '24m ago',
-    },
-    {
-      id: 'ticker-4',
-      source: 'The Herald Agriculture',
-      headline: 'Tobacco farmers count losses from barn fires as curing safety drive launched',
-      url: 'https://www.heraldonline.co.zw/tobacco-farmers-count-losses-from-barn-fires/',
-      pubDate: '38m ago',
-    },
-    {
-      id: 'ticker-5',
-      source: 'ZMX Commodity Wire',
-      headline: 'ZMX mobilises finance for commodity trading and warehouse receipt collateralisation',
-      url: 'https://www.heraldonline.co.zw/zmx-mobilises-finance-for-commodity-trading/',
-      pubDate: '50m ago',
-    },
-  ]);
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [newsLastSynced, setNewsLastSynced] = useState<Date>(new Date());
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'CROPS' | 'TENURE' | 'CADASTRE' | 'LIVESTOCK' | 'FINANCE'>('ALL');
-  const [activeTickerIndex, setActiveTickerIndex] = useState(0);
 
   const fetchLiveNews = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshingNews(true);
@@ -238,9 +200,6 @@ export default function LandingPage() {
         const data = await res.json();
         if (data.articles && data.articles.length > 0) {
           setNewsArticles(data.articles);
-        }
-        if (data.ticker && data.ticker.length > 0) {
-          setNewsTicker(data.ticker);
         }
         setNewsLastSynced(new Date());
       }
@@ -253,23 +212,25 @@ export default function LandingPage() {
     }
   }, []);
 
-  // Initial fetch and 5-second automatic real-time polling interval
+  // Initial fetch, 20-second automatic real-time polling interval, and tab focus revalidation
   useEffect(() => {
     fetchLiveNews();
     const interval = setInterval(() => {
       fetchLiveNews();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [fetchLiveNews]);
+    }, 20000);
 
-  // Rotate ticker every 4.5 seconds
-  useEffect(() => {
-    if (newsTicker.length <= 1) return;
-    const tickerInterval = setInterval(() => {
-      setActiveTickerIndex((prev) => (prev + 1) % newsTicker.length);
-    }, 4500);
-    return () => clearInterval(tickerInterval);
-  }, [newsTicker]);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLiveNews();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchLiveNews]);
 
   const filteredNews = selectedCategory === 'ALL'
     ? newsArticles
@@ -1278,117 +1239,6 @@ export default function LandingPage() {
         margin: '90px auto',
         padding: '0 24px',
       }}>
-        {/* Real-time Breaking News Ticker Strip */}
-        <div style={{
-          marginBottom: '32px',
-          borderRadius: '14px',
-          background: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.95)',
-          border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(239, 68, 68, 0.35)',
-          boxShadow: isLight ? '0 4px 16px rgba(15, 23, 42, 0.05)' : '0 8px 24px rgba(0, 0, 0, 0.4)',
-          padding: '10px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          overflow: 'hidden',
-        }}>
-          {/* Badge */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '5px 12px',
-            borderRadius: '8px',
-            background: 'rgba(22, 163, 74, 0.16)',
-            border: '1px solid rgba(22, 163, 74, 0.4)',
-            color: isLight ? '#15803d' : '#4ade80',
-            fontSize: '0.75rem',
-            fontWeight: 800,
-            letterSpacing: '0.05em',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}>
-            <span className="live-pulse-dot" />
-            <span>FARM &amp; AGRI WIRE</span>
-          </div>
-
-          {/* Active Headline Display */}
-          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            {newsTicker.length > 0 && (
-              <a
-                href={newsTicker[activeTickerIndex]?.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  textDecoration: 'none',
-                  color: isLight ? '#0f172a' : '#f8fafc',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  transition: 'color 0.15s ease',
-                }}
-              >
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.1)',
-                  fontSize: '0.75rem',
-                  color: isLight ? '#1e293b' : '#94a3b8',
-                  fontWeight: 700,
-                }}>
-                  {newsTicker[activeTickerIndex]?.source}
-                </span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {newsTicker[activeTickerIndex]?.headline}
-                </span>
-                <span style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : '#94a3b8', marginLeft: 'auto', flexShrink: 0 }}>
-                  {newsTicker[activeTickerIndex]?.pubDate} ↗
-                </span>
-              </a>
-            )}
-          </div>
-
-          {/* Prev/Next buttons for ticker */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={() => setActiveTickerIndex((prev) => (prev - 1 + newsTicker.length) % newsTicker.length)}
-              style={{
-                background: 'none',
-                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.15)',
-                borderRadius: '6px',
-                color: isLight ? '#475569' : '#cbd5e1',
-                cursor: 'pointer',
-                padding: '3px 8px',
-                fontSize: '0.75rem',
-              }}
-              title="Previous headline"
-            >
-              ◀
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTickerIndex((prev) => (prev + 1) % newsTicker.length)}
-              style={{
-                background: 'none',
-                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.15)',
-                borderRadius: '6px',
-                color: isLight ? '#475569' : '#cbd5e1',
-                cursor: 'pointer',
-                padding: '3px 8px',
-                fontSize: '0.75rem',
-              }}
-              title="Next headline"
-            >
-              ▶
-            </button>
-          </div>
-        </div>
-
         {/* Section Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
@@ -1406,7 +1256,7 @@ export default function LandingPage() {
             textTransform: 'uppercase',
             marginBottom: '12px',
           }}>
-            <span>🌱 Farm &amp; Agriculture Dispatches</span>
+            <span>🌱 Real-time Agricultural &amp; Farm News</span>
           </div>
           <h2 style={{
             fontSize: 'clamp(2rem, 4vw, 2.75rem)',
@@ -1415,17 +1265,155 @@ export default function LandingPage() {
             margin: '0 0 12px',
             letterSpacing: '-0.02em',
           }}>
-            Latest Agricultural &amp; Farm News Updates
+            Live Land, Farm &amp; Agricultural Updates
           </h2>
           <p style={{
             color: isLight ? '#475569' : 'var(--text-muted)',
             maxWidth: '760px',
-            margin: '0 auto',
+            margin: '0 auto 24px',
             fontSize: '0.95rem',
             lineHeight: 1.65,
           }}>
-            Continuous real-time reporting from The Herald Agriculture Desk, The Chronicle, and the Ministry of Lands, Agriculture, Fisheries, Water &amp; Rural Development — covering crop yields, rangelands, 99-year farm leases, and agribusiness financing.
+            Continuously refreshed with real agricultural dispatches, syndications from The Herald Agriculture Desk, The Chronicle, and national farmland tenure authorities.
           </p>
+
+          {/* Real-time Sync & Auto-Refresh Control Bar */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '14px',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            background: isLight ? 'rgba(241, 245, 249, 0.85)' : 'rgba(15, 23, 42, 0.75)',
+            border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+            marginBottom: '20px',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              fontSize: '0.8125rem',
+              color: isLight ? '#334155' : '#cbd5e1',
+            }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '999px',
+                background: 'rgba(22, 163, 74, 0.15)',
+                color: isLight ? '#15803d' : '#4ade80',
+                fontWeight: 700,
+                fontSize: '0.75rem',
+              }}>
+                <span className="live-pulse-dot" />
+                <span>LIVE FEED ACTIVE</span>
+              </span>
+              <span>
+                Last synced: <strong>{newsLastSynced.toLocaleTimeString('en-GB')}</strong> • Auto-refreshes every 20s
+              </span>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: '6px',
+                background: isLight ? '#e2e8f0' : 'rgba(255,255,255,0.08)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+              }}>
+                {filteredNews.length} active updates
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => fetchLiveNews(true)}
+              disabled={isRefreshingNews}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.16)',
+                background: isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.08)',
+                color: isLight ? '#0f172a' : '#ffffff',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                cursor: isRefreshingNews ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              title="Manually trigger immediate refresh of news feed"
+            >
+              <span className={isRefreshingNews ? 'spin-sync-anim' : ''} style={{ display: 'inline-block' }}>
+                🔄
+              </span>
+              <span>{isRefreshingNews ? 'Refreshing Feed...' : 'Refresh Now'}</span>
+            </button>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '8px',
+          }}>
+            {[
+              { id: 'ALL', label: 'All Updates', icon: '🌍' },
+              { id: 'CROPS', label: 'Crops & Irrigation', icon: '🌾' },
+              { id: 'TENURE', label: 'Farm Tenure & 99-Yr Leases', icon: '📜' },
+              { id: 'CADASTRE', label: 'Cadastre & Audits', icon: '🛰️' },
+              { id: 'LIVESTOCK', label: 'Livestock & Pastures', icon: '🐂' },
+              { id: 'FINANCE', label: 'Agri-Finance & JV', icon: '💼' },
+            ].map((cat) => {
+              const isSelected = selectedCategory === cat.id;
+              const count = cat.id === 'ALL'
+                ? newsArticles.length
+                : newsArticles.filter((a) => (a.category || 'TENURE') === cat.id).length;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id as any)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: '999px',
+                    fontSize: '0.8125rem',
+                    fontWeight: isSelected ? 700 : 500,
+                    border: isSelected
+                      ? '1px solid #16a34a'
+                      : isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                    background: isSelected
+                      ? (isLight ? '#16a34a' : '#15803d')
+                      : (isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.6)'),
+                    color: isSelected
+                      ? '#ffffff'
+                      : (isLight ? '#475569' : '#cbd5e1'),
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    padding: '2px 6px',
+                    borderRadius: '999px',
+                    background: isSelected ? 'rgba(255, 255, 255, 0.25)' : (isLight ? '#f1f5f9' : 'rgba(255,255,255,0.08)'),
+                    color: isSelected ? '#ffffff' : (isLight ? '#64748b' : '#94a3b8'),
+                    fontWeight: 700,
+                  }}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Horizontal News Feed */}
@@ -1471,6 +1459,12 @@ export default function LandingPage() {
                 <img
                   src={article.imageUrl}
                   alt={article.title}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.src.includes('harvest-field.jpg')) {
+                      target.src = '/images/harvest-field.jpg';
+                    }
+                  }}
                   style={{
                     width: '100%',
                     height: '100%',

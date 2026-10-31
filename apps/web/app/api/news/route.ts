@@ -316,6 +316,124 @@ async function fetchLiveAgricultureArticles(): Promise<LiveNewsArticle[]> {
   }
 }
 
+async function fetchGoogleAgricultureArticles(): Promise<LiveNewsArticle[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch('https://news.google.com/rss/search?q=Zimbabwe+agriculture+farms+OR+land&hl=en-ZW&gl=ZW&ceid=ZW:en', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SLLAS-AgriFeed/2.0' },
+      signal: controller.signal,
+      next: { revalidate: 15 },
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return [];
+    const xml = await res.text();
+
+    const articles: LiveNewsArticle[] = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match: RegExpExecArray | null;
+    let count = 0;
+
+    const imageRotation = [
+      '/images/harvest-field.jpg',
+      '/images/news-farm-finance.jpg',
+      '/images/news-tenure-reform.jpg',
+      '/images/news-land-audit.jpg',
+      '/images/news-digital-cadastre.jpg',
+      '/images/cadastre-gis.jpg',
+      '/images/hero-farmland.jpg',
+    ];
+
+    while ((match = itemRegex.exec(xml)) !== null && count < 8) {
+      const block = match[1];
+      const titleM = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+      const linkM = block.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/);
+      const dateM = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
+      const sourceM = block.match(/<source[^>]*>([\s\S]*?)<\/source>/);
+
+      if (titleM && linkM) {
+        let cleanTitle = titleM[1]
+          .replace(/&#8217;/g, "'")
+          .replace(/&#8216;/g, "'")
+          .replace(/&#8220;/g, '"')
+          .replace(/&#8221;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&#038;/g, '&')
+          .trim();
+
+        const sourceName = sourceM ? sourceM[1].trim() : 'Agri-Wire News';
+        if (cleanTitle.endsWith(` - ${sourceName}`)) {
+          cleanTitle = cleanTitle.slice(0, -(sourceName.length + 3)).trim();
+        }
+
+        const pubDateRaw = dateM ? dateM[1].trim() : new Date().toUTCString();
+        let formattedDate = pubDateRaw;
+        try {
+          const parsedDate = new Date(pubDateRaw);
+          if (!isNaN(parsedDate.getTime())) {
+            formattedDate = parsedDate.toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }
+        } catch {
+          // fallback
+        }
+
+        let category: LiveNewsArticle['category'] = 'CROPS';
+        const lower = cleanTitle.toLowerCase();
+        if (lower.includes('wheat') || lower.includes('tobacco') || lower.includes('maize') || lower.includes('grain') || lower.includes('crop') || lower.includes('food')) {
+          category = 'CROPS';
+        } else if (lower.includes('joint venture') || lower.includes('finance') || lower.includes('bank') || lower.includes('invest') || lower.includes('market') || lower.includes('credit')) {
+          category = 'FINANCE';
+        } else if (lower.includes('cattle') || lower.includes('livestock') || lower.includes('rangeland') || lower.includes('pasture') || lower.includes('dairy') || lower.includes('beef')) {
+          category = 'LIVESTOCK';
+        } else if (lower.includes('audit') || lower.includes('survey') || lower.includes('cadastre') || lower.includes('drone') || lower.includes('map') || lower.includes('boundary')) {
+          category = 'CADASTRE';
+        } else if (lower.includes('lease') || lower.includes('tenure') || lower.includes('permit') || lower.includes('title') || lower.includes('ownership') || lower.includes('reform') || lower.includes('fallow') || lower.includes('land')) {
+          category = 'TENURE';
+        }
+
+        const articleSlug = cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 36);
+        articles.push({
+          id: `gnews-live-${articleSlug}-${count}`,
+          badge: `${sourceName} • Live Agri Wire`,
+          badgeBg: 'rgba(34, 197, 94, 0.14)',
+          badgeColor: '#16a34a',
+          badgeBorder: 'rgba(34, 197, 94, 0.35)',
+          title: cleanTitle,
+          date: `Live • ${formattedDate}`,
+          readTime: '3 min read',
+          source: sourceName,
+          sourceDomain: sourceName.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com',
+          sourceUrl: linkM[1].trim(),
+          imageUrl: imageRotation[(count + 1) % imageRotation.length],
+          gazetteRef: `Real-time Agricultural Syndicate • ${sourceName}`,
+          summary: `${cleanTitle}. Live syndication covering Zimbabwean agricultural production, agrarian tenure frameworks, and farming development.`,
+          bulletPoints: [
+            `Verified live agricultural reporting sourced directly from ${sourceName}.`,
+            'Continuous syndication covering crop yields, farmland tenure, livestock, and rural agribusiness.',
+            'Direct link to actual external journalistic coverage and analysis.',
+          ],
+          fullGazetteText: `${cleanTitle}. Full investigative reporting and analysis published by ${sourceName}. Dispatched live to the SLLAS digital portal.`,
+          category,
+          isLiveWire: true,
+        });
+        count++;
+      }
+    }
+    return articles;
+  } catch (err) {
+    console.warn('[News API] Google News RSS fetch timed out or offline:', err);
+    return [];
+  }
+}
+
 export async function GET() {
   const now = Date.now();
 
@@ -329,21 +447,38 @@ export async function GET() {
     });
   }
 
-  // Fetch live agricultural stories from The Herald Agriculture Desk
-  const liveAgriArticles = await fetchLiveAgricultureArticles();
+  // Fetch live agricultural stories from both The Herald and Google News syndicate in parallel
+  const [liveHeraldArticles, liveGoogleArticles] = await Promise.all([
+    fetchLiveAgricultureArticles(),
+    fetchGoogleAgricultureArticles(),
+  ]);
 
-  // Merge live stories with our flagship farm & land tenure reports
-  const mergedArticles = [
-    ...(liveAgriArticles.length > 0 ? [liveAgriArticles[0]] : []),
-    CURATED_AGRICULTURE_ARTICLES[0], // Winter Wheat Farming
-    ...(liveAgriArticles.length > 1 ? [liveAgriArticles[1]] : []),
-    CURATED_AGRICULTURE_ARTICLES[1], // 2,701 Joint Ventures
-    CURATED_AGRICULTURE_ARTICLES[2], // Bankable Farm Tenure
-    CURATED_AGRICULTURE_ARTICLES[3], // National Farmland Audit
-    CURATED_AGRICULTURE_ARTICLES[4], // Rangeland Pasture Management
-    CURATED_AGRICULTURE_ARTICLES[5], // e-Cadastre 360,000 Parcels
-    ...(liveAgriArticles.length > 2 ? liveAgriArticles.slice(2) : []),
-  ];
+  // Interleave and merge live real-world news with curated foundational policy articles
+  const mergedArticles: LiveNewsArticle[] = [];
+
+  // Add top live Herald stories
+  if (liveHeraldArticles.length > 0) mergedArticles.push(liveHeraldArticles[0]);
+  if (liveGoogleArticles.length > 0) mergedArticles.push(liveGoogleArticles[0]);
+
+  // Add foundational policy dispatches
+  mergedArticles.push(CURATED_AGRICULTURE_ARTICLES[0]); // Winter Wheat
+  if (liveHeraldArticles.length > 1) mergedArticles.push(liveHeraldArticles[1]);
+  if (liveGoogleArticles.length > 1) mergedArticles.push(liveGoogleArticles[1]);
+
+  mergedArticles.push(CURATED_AGRICULTURE_ARTICLES[1]); // Joint Ventures
+  if (liveGoogleArticles.length > 2) mergedArticles.push(liveGoogleArticles[2]);
+
+  mergedArticles.push(CURATED_AGRICULTURE_ARTICLES[2]); // Bankable 99-Yr Tenure
+  if (liveHeraldArticles.length > 2) mergedArticles.push(liveHeraldArticles[2]);
+  if (liveGoogleArticles.length > 3) mergedArticles.push(liveGoogleArticles[3]);
+
+  mergedArticles.push(CURATED_AGRICULTURE_ARTICLES[3]); // Farmland Audit
+  mergedArticles.push(CURATED_AGRICULTURE_ARTICLES[4]); // Rangeland Pasture Management
+  mergedArticles.push(CURATED_AGRICULTURE_ARTICLES[5]); // e-Cadastre 360,000 Parcels
+
+  // Append any additional live stories
+  if (liveHeraldArticles.length > 3) mergedArticles.push(...liveHeraldArticles.slice(3));
+  if (liveGoogleArticles.length > 4) mergedArticles.push(...liveGoogleArticles.slice(4));
 
   // Dedicated Real-time Farming & Agriculture Ticker Items
   const ticker: LiveNewsTickerItem[] = [
@@ -389,7 +524,7 @@ export async function GET() {
       url: 'https://www.herald.co.zw/surveyor-general-digitises-parcels-ecadastre/',
       pubDate: '1h ago',
     },
-    ...liveAgriArticles.slice(0, 3).map((a, i) => ({
+    ...liveHeraldArticles.slice(0, 3).map((a, i) => ({
       id: `ticker-agri-live-${i}`,
       source: 'Herald Agri Live',
       headline: a.title,
