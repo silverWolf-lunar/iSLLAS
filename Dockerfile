@@ -29,10 +29,15 @@ COPY packages/api-client/package.json packages/api-client/package.json
 COPY --from=build /workspace/packages/api-client/dist packages/api-client/dist
 RUN pnpm install --prod --filter @sllas/web... --frozen-lockfile
 
+# Ensure node user owns the runtime directory to avoid any EACCES filesystem issues
+RUN chown -R node:node /workspace
+
 WORKDIR /workspace/apps/web
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV COREPACK_ENABLE_NETWORK=0
+ENV NEXTAUTH_SECRET="sllas-production-session-fallback-secret-key-32chars-min"
+ENV NEXTAUTH_URL="https://isllas.onrender.com"
 EXPOSE 3000
 USER node
 CMD ["node", "node_modules/next/dist/bin/next", "start"]

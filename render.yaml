@@ -12,7 +12,7 @@ services:
       - key: NEXTAUTH_SECRET
         generateValue: true
       - key: NEXTAUTH_URL
-        value: "https://isllas-clone.onrender.com"
+        value: "https://isllas.onrender.com"
       - key: API_INTERNAL_URL
         value: "http://localhost:3001"
 

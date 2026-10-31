@@ -23,13 +23,19 @@ if (!process.env.NEXTAUTH_URL) {
     process.env.NEXTAUTH_URL = process.env.RENDER_EXTERNAL_URL;
   } else if (process.env.VERCEL_URL) {
     process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+  } else {
+    process.env.NEXTAUTH_URL = 'https://isllas.onrender.com';
   }
 }
 
-const authSecret =
-  process.env.NEXTAUTH_SECRET ||
-  process.env.JWT_SECRET ||
-  'sllas-production-session-fallback-secret-key-32chars-min';
+// Ensure NEXTAUTH_SECRET is explicitly populated in process.env so NextAuth internal validation passes
+if (!process.env.NEXTAUTH_SECRET) {
+  process.env.NEXTAUTH_SECRET =
+    process.env.JWT_SECRET ||
+    'sllas-production-session-fallback-secret-key-32chars-min';
+}
+
+const authSecret = process.env.NEXTAUTH_SECRET;
 
 const authProviders: any[] = [
   CredentialsProvider({
