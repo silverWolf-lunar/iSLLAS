@@ -194,10 +194,8 @@ export default function LandingPage() {
   const [newsPageIndex, setNewsPageIndex] = useState(0);
   const [isAutoUpdatePaused, setIsAutoUpdatePaused] = useState(false);
   const [secondsUntilUpdate, setSecondsUntilUpdate] = useState(10);
-  const [showAllNews, setShowAllNews] = useState(false);
+  const [cardLimit, setCardLimit] = useState<4 | 6>(4); // Strictly 4 to 6 cards max on feed
   const [refreshAnimationKey, setRefreshAnimationKey] = useState(0);
-
-  const CARDS_PER_PAGE = 4;
 
   const fetchLiveNews = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshingNews(true);
@@ -254,11 +252,11 @@ export default function LandingPage() {
     ? newsArticles
     : newsArticles.filter((a) => (a.category || 'TENURE') === selectedCategory);
 
-  const totalNewsPages = Math.ceil(filteredNews.length / CARDS_PER_PAGE) || 1;
+  // Total pages based on strictly 4 to 6 cards max per view
+  const totalNewsPages = Math.ceil(filteredNews.length / cardLimit) || 1;
   const safePageIndex = newsPageIndex % totalNewsPages;
-  const displayedNews = showAllNews
-    ? filteredNews
-    : filteredNews.slice(safePageIndex * CARDS_PER_PAGE, (safePageIndex + 1) * CARDS_PER_PAGE);
+  // Strictly capped to cardLimit (4 or 6 cards max)
+  const displayedNews = filteredNews.slice(safePageIndex * cardLimit, safePageIndex * cardLimit + cardLimit);
 
   const isLight = resolvedTheme === 'light';
   const userRole = (session?.user as any)?.role as Role | undefined;
@@ -1282,7 +1280,7 @@ export default function LandingPage() {
             fontSize: '0.95rem',
             lineHeight: 1.65,
           }}>
-            Continuously refreshed with real agricultural dispatches, syndications from The Herald Agriculture Desk, The Chronicle, and national farmland tenure authorities.
+            Continuously refreshed with real agricultural dispatches, syndications from The Herald Agriculture Desk, The Chronicle, and national farmland tenure authorities (displaying 4–6 cards max, auto-refreshing every 10 seconds).
           </p>
 
 
@@ -1361,15 +1359,70 @@ export default function LandingPage() {
 
           {/* Right: Batch info & Navigation Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {!showAllNews && totalNewsPages > 1 && (
+            {totalNewsPages > 1 && (
               <span style={{
                 fontSize: '0.775rem',
                 fontWeight: 600,
                 color: isLight ? '#475569' : '#94a3b8',
               }}>
-                Batch {safePageIndex + 1} of {totalNewsPages} ({safePageIndex * CARDS_PER_PAGE + 1}–{Math.min((safePageIndex + 1) * CARDS_PER_PAGE, filteredNews.length)} of {filteredNews.length})
+                Batch {safePageIndex + 1} of {totalNewsPages} ({displayedNews.length} of {filteredNews.length} dispatches)
               </span>
             )}
+
+            {/* Strictly 4 to 6 Cards Max Segmented Toggle */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              borderRadius: '8px',
+              padding: '2px',
+              background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+              border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCardLimit(4);
+                  setNewsPageIndex(0);
+                  setRefreshAnimationKey((k) => k + 1);
+                }}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: cardLimit === 4 ? (isLight ? '#0f172a' : '#ffffff') : 'transparent',
+                  color: cardLimit === 4 ? (isLight ? '#ffffff' : '#0f172a') : (isLight ? '#475569' : '#cbd5e1'),
+                  cursor: 'pointer',
+                  fontWeight: cardLimit === 4 ? 700 : 500,
+                  transition: 'all 0.15s ease',
+                }}
+                title="Show 4 cards max (2x2 grid)"
+              >
+                4 Cards
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCardLimit(6);
+                  setNewsPageIndex(0);
+                  setRefreshAnimationKey((k) => k + 1);
+                }}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: cardLimit === 6 ? (isLight ? '#0f172a' : '#ffffff') : 'transparent',
+                  color: cardLimit === 6 ? (isLight ? '#ffffff' : '#0f172a') : (isLight ? '#475569' : '#cbd5e1'),
+                  cursor: 'pointer',
+                  fontWeight: cardLimit === 6 ? 700 : 500,
+                  transition: 'all 0.15s ease',
+                }}
+                title="Show 6 cards max (2x3 grid)"
+              >
+                6 Cards
+              </button>
+            </div>
 
             {/* Pause / Resume Button */}
             <button
@@ -1395,7 +1448,7 @@ export default function LandingPage() {
             </button>
 
             {/* Prev / Next Pagination */}
-            {!showAllNews && totalNewsPages > 1 && (
+            {totalNewsPages > 1 && (
               <div style={{ display: 'inline-flex', gap: '4px' }}>
                 <button
                   type="button"
@@ -1443,30 +1496,6 @@ export default function LandingPage() {
                 </button>
               </div>
             )}
-
-            {/* Toggle View Mode */}
-            <button
-              type="button"
-              onClick={() => setShowAllNews((s) => !s)}
-              className="btn"
-              style={{
-                padding: '5px 12px',
-                fontSize: '0.75rem',
-                borderRadius: '6px',
-                background: showAllNews
-                  ? (isLight ? '#0f172a' : '#ffffff')
-                  : (isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)'),
-                color: showAllNews
-                  ? (isLight ? '#ffffff' : '#0f172a')
-                  : (isLight ? '#334155' : '#e2e8f0'),
-                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-              title="Toggle between 4 cards 10-second rotation or viewing all news cards"
-            >
-              {showAllNews ? 'Rotate 4 per 10s' : `View All (${filteredNews.length})`}
-            </button>
 
             {/* Manual Sync Button */}
             <button
