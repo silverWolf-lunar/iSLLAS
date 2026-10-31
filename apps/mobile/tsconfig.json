@@ -6,8 +6,7 @@
     "esModuleInterop": true,
     "strict": true,
     "noEmit": true,
-    "types": ["react", "react-native"],
-    "baseUrl": "."
+    "types": ["react", "react-native"]
   },
   "include": ["App.tsx", "**/*.ts", "**/*.tsx"]
 }
