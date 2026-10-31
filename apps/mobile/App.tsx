@@ -13,14 +13,24 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Path, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Path,
+  Rect,
+  Defs,
+  LinearGradient,
+  Stop,
+  Circle,
+  G,
+  Line,
+  Text as SvgText,
+} from 'react-native-svg';
 
 declare const process: {
   env: Record<string, string | undefined>;
 };
 
 // 4.3.2 Mobile Application Screen Keys
-type MobileTabKey = 'home' | 'search' | 'applications' | 'notifications' | 'profile';
+type MobileTabKey = 'home' | 'search' | 'applications' | 'map' | 'profile' | 'notifications';
 
 type LandUseCategory = 'All' | 'Commercial Cropping' | 'Livestock Ranching' | 'Horticulture' | 'Mixed Farming';
 type SizeRangeFilter = 'All' | '<50 ha' | '50-100 ha' | '100-250 ha' | '250+ ha';
@@ -52,6 +62,10 @@ interface MobileParcel {
   soilType: string;
   waterAccess: boolean;
   roadAccess: string;
+  mapX?: number;
+  mapY?: number;
+  gpsCoords?: string;
+  surveyBeacons?: string;
 }
 
 interface ApplicationStatusItem {
@@ -103,6 +117,10 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Red Clay Loam',
     waterAccess: true,
     roadAccess: 'Tarred Highway Access',
+    mapX: 165,
+    mapY: 105,
+    gpsCoords: '17°21\'15"S 30°11\'54"E',
+    surveyBeacons: 'BM-401, BM-402, BM-403, BM-404',
   },
   {
     id: 'p-2',
@@ -117,6 +135,10 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Sandy Loam',
     waterAccess: true,
     roadAccess: 'All-Weather Gravel',
+    mapX: 175,
+    mapY: 180,
+    gpsCoords: '19°27\'32"S 29°50\'16"E',
+    surveyBeacons: 'BM-118A, BM-118B, BM-118C',
   },
   {
     id: 'p-3',
@@ -130,7 +152,11 @@ const MOCK_PARCELS: MobileParcel[] = [
     naturalRegion: 'Region I',
     soilType: 'Humic Forest Soil',
     waterAccess: true,
-    roadAccess: 'Tarred',
+    roadAccess: 'Tarred Mountain Road',
+    mapX: 295,
+    mapY: 155,
+    gpsCoords: '18°34\'18"S 32°50\'53"E',
+    surveyBeacons: 'HV-089A, HV-089B',
   },
   {
     id: 'p-4',
@@ -145,6 +171,82 @@ const MOCK_PARCELS: MobileParcel[] = [
     soilType: 'Red Loam',
     waterAccess: false,
     roadAccess: 'Gravel Track',
+    mapX: 235,
+    mapY: 125,
+    gpsCoords: '17°49\'42"S 31°19\'57"E',
+    surveyBeacons: 'GOR-145/1, GOR-145/2',
+  },
+  {
+    id: 'p-5',
+    referenceNumber: 'ZW-MAS-CHI-2026-0204',
+    name: 'Chiredzi Sugarcane Estate Section 7',
+    province: 'Masvingo',
+    district: 'Chiredzi',
+    hectares: 160,
+    landUse: 'Commercial Cropping',
+    availability: 'Available',
+    naturalRegion: 'Region V',
+    soilType: 'Alluvial Heavy Clay',
+    waterAccess: true,
+    roadAccess: 'Canal Service Road',
+    mapX: 240,
+    mapY: 235,
+    gpsCoords: '21°02\'54"S 31°40\'01"E',
+    surveyBeacons: 'CS-204A, CS-204B, CS-204C',
+  },
+  {
+    id: 'p-6',
+    referenceNumber: 'ZW-MTS-MAT-2026-0062',
+    name: 'Matobo Rangeland Grazing Scheme',
+    province: 'Matabeleland South',
+    district: 'Matobo',
+    hectares: 480,
+    landUse: 'Livestock Ranching',
+    availability: 'Available',
+    naturalRegion: 'Region IV',
+    soilType: 'Granitic Coarse Sand',
+    waterAccess: true,
+    roadAccess: 'District Graded Road',
+    mapX: 135,
+    mapY: 220,
+    gpsCoords: '20°35\'00"S 28°31\'00"E',
+    surveyBeacons: 'MB-062/X, MB-062/Y',
+  },
+  {
+    id: 'p-7',
+    referenceNumber: 'ZW-MSC-MAZ-2026-0177',
+    name: 'Mazowe Citrus & Irrigation Estate',
+    province: 'Mashonaland Central',
+    district: 'Mazowe',
+    hectares: 75,
+    landUse: 'Horticulture',
+    availability: 'Allocated',
+    naturalRegion: 'Region II',
+    soilType: 'Rich Ferrosol Clay',
+    waterAccess: true,
+    roadAccess: 'Tarred Strip Road',
+    mapX: 215,
+    mapY: 90,
+    gpsCoords: '17°31\'00"S 30°59\'00"E',
+    surveyBeacons: 'MZ-177/1, MZ-177/2',
+  },
+  {
+    id: 'p-8',
+    referenceNumber: 'ZW-MTN-UMG-2026-0094',
+    name: 'Nyamandlovu Aquifer Horticulture Scheme',
+    province: 'Matabeleland North',
+    district: 'Umguza',
+    hectares: 60,
+    landUse: 'Horticulture',
+    availability: 'Available',
+    naturalRegion: 'Region IV',
+    soilType: 'Kalahari Deep Sand Loam',
+    waterAccess: true,
+    roadAccess: 'All-Weather Gravel',
+    mapX: 85,
+    mapY: 155,
+    gpsCoords: '19°52\'00"S 28°16\'00"E',
+    surveyBeacons: 'NY-094A, NY-094B',
   },
 ];
 
@@ -552,6 +654,18 @@ export default function App() {
   const [applySupportingInfo, setApplySupportingInfo] = useState('Mechanised crop production with center-pivot irrigation infrastructure.');
   const [uploadedDocument, setUploadedDocument] = useState<string | null>('National_ID_63-128944.pdf');
 
+  // Cadastre GIS Map View States
+  const [mapSelectedProvince, setMapSelectedProvince] = useState<string>('All');
+  const [mapLayerMode, setMapLayerMode] = useState<'cadastre' | 'satellite' | 'agro'>('cadastre');
+
+  // Filtered Parcels for Map View
+  const mapFilteredParcels = useMemo(() => {
+    return MOCK_PARCELS.filter(p => {
+      if (mapSelectedProvince === 'All') return true;
+      return p.province === mapSelectedProvince;
+    });
+  }, [mapSelectedProvince]);
+
   // Filtered Parcels for Search Screen
   const filteredParcels = useMemo(() => {
     return MOCK_PARCELS.filter(p => {
@@ -744,11 +858,15 @@ export default function App() {
             <View style={styles.shortcutRow}>
               <Pressable style={[styles.shortcutBtn, { backgroundColor: '#166534' }]} onPress={() => setActiveTab('search')}>
                 <Text style={styles.shortcutIcon}>🔍</Text>
-                <Text style={styles.shortcutText}>Search Land</Text>
+                <Text style={styles.shortcutText}>Search</Text>
+              </Pressable>
+              <Pressable style={[styles.shortcutBtn, { backgroundColor: '#0f766e' }]} onPress={() => setActiveTab('map')}>
+                <Text style={styles.shortcutIcon}>🗺️</Text>
+                <Text style={styles.shortcutText}>Map View</Text>
               </Pressable>
               <Pressable style={[styles.shortcutBtn, { backgroundColor: '#1e3a8a' }]} onPress={() => setActiveTab('applications')}>
                 <Text style={styles.shortcutIcon}>📜</Text>
-                <Text style={styles.shortcutText}>View Leases</Text>
+                <Text style={styles.shortcutText}>My Leases</Text>
               </Pressable>
             </View>
 
@@ -943,9 +1061,499 @@ export default function App() {
           </View>
         )}
 
+        {/* 6. CADASTRE GIS MAP VIEW SCREEN */}
+        {activeTab === 'map' && (
+          <View style={styles.tabContent}>
+            {/* Header with Datum / Spatial Badge */}
+            <View style={styles.mapHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pageTitle}>Cadastre GIS Map</Text>
+                <Text style={styles.cardSub}>
+                  Interactive national parcel boundary explorer & agro-ecological zones
+                </Text>
+              </View>
+              <View style={styles.mapGpsPill}>
+                <Text style={styles.mapGpsText}>📍 WGS84 / Arc1950</Text>
+              </View>
+            </View>
+
+            {/* Province Filter Pills */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mapFilterScroll}>
+              {[
+                'All',
+                'Mashonaland West',
+                'Midlands',
+                'Manicaland',
+                'Mashonaland East',
+                'Masvingo',
+                'Mashonaland Central',
+                'Matabeleland South',
+                'Matabeleland North',
+              ].map(prov => (
+                <Pressable
+                  key={prov}
+                  style={[
+                    styles.mapFilterChip,
+                    mapSelectedProvince === prov && styles.mapFilterChipActive,
+                  ]}
+                  onPress={() => setMapSelectedProvince(prov)}
+                >
+                  <Text
+                    style={[
+                      styles.mapFilterChipText,
+                      mapSelectedProvince === prov && styles.mapFilterChipTextActive,
+                    ]}
+                  >
+                    {prov === 'All' ? 'All Zimbabwe' : prov}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* Layer switches */}
+            <View style={styles.mapLayerRow}>
+              {[
+                { id: 'cadastre', label: '🛰️ Cadastre' },
+                { id: 'agro', label: '🌱 Agro Zones' },
+                { id: 'satellite', label: '💧 Watercourses' },
+              ].map(layer => (
+                <Pressable
+                  key={layer.id}
+                  style={[
+                    styles.layerToggleBtn,
+                    mapLayerMode === layer.id && styles.layerToggleBtnActive,
+                  ]}
+                  onPress={() => setMapLayerMode(layer.id as any)}
+                >
+                  <Text
+                    style={[
+                      styles.layerToggleText,
+                      mapLayerMode === layer.id && styles.layerToggleTextActive,
+                    ]}
+                  >
+                    {layer.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* The Interactive SVG Map Canvas */}
+            <View style={styles.mapCanvasCard}>
+              {/* Map HUD Overlay */}
+              <View style={styles.mapHudBar}>
+                <View style={styles.mapHudItem}>
+                  <Text style={styles.mapHudLabel}>ACTIVE CADASTRE</Text>
+                  <Text style={styles.mapHudVal}>{mapFilteredParcels.length} Mapped Parcels</Text>
+                </View>
+                <View style={styles.mapLegendRow}>
+                  <View style={styles.legendDotItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+                    <Text style={styles.legendText}>Available</Text>
+                  </View>
+                  <View style={styles.legendDotItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#f59e0b' }]} />
+                    <Text style={styles.legendText}>Reserved</Text>
+                  </View>
+                  <View style={styles.legendDotItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#60a5fa' }]} />
+                    <Text style={styles.legendText}>Allocated</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Vector SVG Cadastre Map */}
+              <View style={styles.svgWrapper}>
+                <Svg width="100%" height={320} viewBox="0 0 360 280">
+                  <Defs>
+                    <LinearGradient id="mapBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <Stop offset="0%" stopColor="#080e1b" />
+                      <Stop offset="100%" stopColor="#020617" />
+                    </LinearGradient>
+                  </Defs>
+
+                  {/* Dark Map Canvas Background */}
+                  <Rect x="0" y="0" width="360" height="280" rx="12" fill="url(#mapBgGrad)" />
+
+                  {/* UTM Coordinate Grid Lines */}
+                  {[70, 140, 210].map(y => (
+                    <Line
+                      key={`h-${y}`}
+                      x1="0"
+                      y1={y}
+                      x2="360"
+                      y2={y}
+                      stroke="rgba(255, 255, 255, 0.05)"
+                      strokeWidth="1"
+                      strokeDasharray="4,4"
+                    />
+                  ))}
+                  {[90, 180, 270].map(x => (
+                    <Line
+                      key={`v-${x}`}
+                      x1={x}
+                      y1="0"
+                      x2={x}
+                      y2="280"
+                      stroke="rgba(255, 255, 255, 0.05)"
+                      strokeWidth="1"
+                      strokeDasharray="4,4"
+                    />
+                  ))}
+
+                  {/* Geographic Grid Labels */}
+                  <SvgText x="6" y="73" fill="#475569" fontSize="8" fontWeight="600">17°S</SvgText>
+                  <SvgText x="6" y="143" fill="#475569" fontSize="8" fontWeight="600">19°S</SvgText>
+                  <SvgText x="6" y="213" fill="#475569" fontSize="8" fontWeight="600">21°S</SvgText>
+                  <SvgText x="93" y="16" fill="#475569" fontSize="8" fontWeight="600">28°E</SvgText>
+                  <SvgText x="183" y="16" fill="#475569" fontSize="8" fontWeight="600">30°E</SvgText>
+                  <SvgText x="273" y="16" fill="#475569" fontSize="8" fontWeight="600">32°E</SvgText>
+
+                  {/* Lake Kariba / Zambezi Watercourse */}
+                  <Path
+                    d="M 45,95 Q 85,60 120,52 Q 160,50 190,55"
+                    fill="none"
+                    stroke="#06b6d4"
+                    strokeWidth={mapLayerMode === 'satellite' ? 4 : 2.5}
+                    strokeLinecap="round"
+                  />
+                  <SvgText x="95" y="44" fill="#38bdf8" fontSize="8" fontStyle="italic">Lake Kariba</SvgText>
+
+                  {/* Save River Catchment */}
+                  <Path
+                    d="M 255,140 Q 275,185 270,235"
+                    fill="none"
+                    stroke="#0284c7"
+                    strokeWidth="1.8"
+                    strokeDasharray="3,3"
+                  />
+                  <SvgText x="275" y="195" fill="#38bdf8" fontSize="7" fontStyle="italic">Save River</SvgText>
+
+                  {/* Provincial Vector Polygons */}
+                  {/* Mashonaland West */}
+                  <Path
+                    d="M 110,50 L 190,55 L 205,110 L 160,135 L 125,100 Z"
+                    fill={mapSelectedProvince === 'Mashonaland West' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.10)'}
+                    stroke={mapSelectedProvince === 'Mashonaland West' ? '#4ade80' : 'rgba(74, 222, 128, 0.35)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Mashonaland West')}
+                  />
+                  <SvgText x="145" y="85" fill="#86efac" fontSize="9" fontWeight="700">Mash West</SvgText>
+
+                  {/* Mashonaland Central */}
+                  <Path
+                    d="M 190,55 L 245,60 L 250,110 L 205,110 Z"
+                    fill={mapSelectedProvince === 'Mashonaland Central' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
+                    stroke={mapSelectedProvince === 'Mashonaland Central' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Mashonaland Central')}
+                  />
+                  <SvgText x="208" y="80" fill="#86efac" fontSize="8" fontWeight="600">Mash Central</SvgText>
+
+                  {/* Mashonaland East */}
+                  <Path
+                    d="M 205,110 L 250,110 L 275,130 L 245,170 L 195,145 Z"
+                    fill={mapSelectedProvince === 'Mashonaland East' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.09)'}
+                    stroke={mapSelectedProvince === 'Mashonaland East' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Mashonaland East')}
+                  />
+                  <SvgText x="220" y="140" fill="#86efac" fontSize="8" fontWeight="600">Mash East</SvgText>
+
+                  {/* Harare Metro */}
+                  <Rect
+                    x="218"
+                    y="114"
+                    width="14"
+                    height="14"
+                    rx="3"
+                    fill="#15803d"
+                    stroke="#86efac"
+                    strokeWidth="1"
+                  />
+                  <SvgText x="220" y="124" fill="#ffffff" fontSize="7" fontWeight="bold">HRE</SvgText>
+
+                  {/* Manicaland */}
+                  <Path
+                    d="M 275,130 L 320,135 L 315,210 L 270,220 L 245,170 Z"
+                    fill={mapSelectedProvince === 'Manicaland' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(16, 185, 129, 0.08)'}
+                    stroke={mapSelectedProvince === 'Manicaland' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Manicaland')}
+                  />
+                  <SvgText x="278" y="175" fill="#86efac" fontSize="8" fontWeight="600">Manicaland</SvgText>
+
+                  {/* Midlands */}
+                  <Path
+                    d="M 125,100 L 160,135 L 195,145 L 225,200 L 165,225 L 130,175 Z"
+                    fill={mapSelectedProvince === 'Midlands' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.10)'}
+                    stroke={mapSelectedProvince === 'Midlands' ? '#4ade80' : 'rgba(74, 222, 128, 0.35)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Midlands')}
+                  />
+                  <SvgText x="165" y="165" fill="#86efac" fontSize="9" fontWeight="700">Midlands</SvgText>
+
+                  {/* Masvingo */}
+                  <Path
+                    d="M 225,200 L 270,220 L 285,255 L 220,265 L 180,240 Z"
+                    fill={mapSelectedProvince === 'Masvingo' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
+                    stroke={mapSelectedProvince === 'Masvingo' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Masvingo')}
+                  />
+                  <SvgText x="228" y="240" fill="#86efac" fontSize="8" fontWeight="600">Masvingo</SvgText>
+
+                  {/* Matabeleland North */}
+                  <Path
+                    d="M 40,90 L 110,50 L 125,100 L 130,175 L 105,190 L 45,140 Z"
+                    fill={mapSelectedProvince === 'Matabeleland North' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
+                    stroke={mapSelectedProvince === 'Matabeleland North' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Matabeleland North')}
+                  />
+                  <SvgText x="70" y="125" fill="#86efac" fontSize="8" fontWeight="600">Mat North</SvgText>
+
+                  {/* Matabeleland South */}
+                  <Path
+                    d="M 105,190 L 130,175 L 165,225 L 180,240 L 175,265 L 115,255 Z"
+                    fill={mapSelectedProvince === 'Matabeleland South' ? 'rgba(34, 197, 94, 0.28)' : 'rgba(34, 197, 94, 0.08)'}
+                    stroke={mapSelectedProvince === 'Matabeleland South' ? '#4ade80' : 'rgba(74, 222, 128, 0.3)'}
+                    strokeWidth="1.2"
+                    onPress={() => setMapSelectedProvince('Matabeleland South')}
+                  />
+                  <SvgText x="130" y="245" fill="#86efac" fontSize="8" fontWeight="600">Mat South</SvgText>
+
+                  {/* Agro-ecological Region Indicators (when agro layer active) */}
+                  {mapLayerMode === 'agro' && (
+                    <G>
+                      <SvgText x="285" y="145" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region I</SvgText>
+                      <SvgText x="160" y="98" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region II</SvgText>
+                      <SvgText x="175" y="150" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region III</SvgText>
+                      <SvgText x="85" y="145" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region IV</SvgText>
+                      <SvgText x="235" y="250" fill="#e2e8f0" fontSize="7" fontWeight="bold">Region V</SvgText>
+                    </G>
+                  )}
+
+                  {/* Interactive Georeferenced Parcel Beacons */}
+                  {mapFilteredParcels.map(p => {
+                    const isSelected = selectedParcel?.id === p.id;
+                    const x = p.mapX || 180;
+                    const y = p.mapY || 140;
+                    const pinColor =
+                      p.availability === 'Available'
+                        ? '#22c55e'
+                        : p.availability === 'Reserved'
+                        ? '#f59e0b'
+                        : '#60a5fa';
+
+                    return (
+                      <G
+                        key={p.id}
+                        onPress={() => {
+                          setSelectedParcel(p);
+                        }}
+                      >
+                        {/* Radar Pulse on Selected Beacon */}
+                        {isSelected && (
+                          <>
+                            <Circle
+                              cx={x}
+                              cy={y}
+                              r={18}
+                              fill="rgba(34, 197, 94, 0.2)"
+                              stroke="#4ade80"
+                              strokeWidth="1.5"
+                            />
+                            <Circle
+                              cx={x}
+                              cy={y}
+                              r={26}
+                              fill="none"
+                              stroke="rgba(74, 222, 128, 0.4)"
+                              strokeWidth="1"
+                              strokeDasharray="2,2"
+                            />
+                          </>
+                        )}
+
+                        {/* Parcel Outer Halo */}
+                        <Circle
+                          cx={x}
+                          cy={y}
+                          r={isSelected ? 9 : 6}
+                          fill={pinColor}
+                          stroke="#ffffff"
+                          strokeWidth={isSelected ? 2 : 1.2}
+                        />
+
+                        {/* Beacon Center Core */}
+                        <Circle
+                          cx={x}
+                          cy={y}
+                          r={isSelected ? 3.5 : 2}
+                          fill="#0f172a"
+                        />
+
+                        {/* Parcel Pin Callout Tag */}
+                        <G x={x + 7} y={y - 8}>
+                          <Rect
+                            x="0"
+                            y="0"
+                            width={isSelected ? 58 : 46}
+                            height={14}
+                            rx="3"
+                            fill={isSelected ? '#14532d' : 'rgba(15, 23, 42, 0.85)'}
+                            stroke={isSelected ? '#4ade80' : 'rgba(255, 255, 255, 0.2)'}
+                            strokeWidth="0.8"
+                          />
+                          <SvgText
+                            x="3"
+                            y="10"
+                            fill={isSelected ? '#86efac' : '#e2e8f0'}
+                            fontSize="7"
+                            fontWeight={isSelected ? 'bold' : 'normal'}
+                          >
+                            {p.district.substring(0, 5)} • {p.hectares}ha
+                          </SvgText>
+                        </G>
+                      </G>
+                    );
+                  })}
+                </Svg>
+              </View>
+            </View>
+
+            {/* Quick Parcel Inspection Drawer / Card */}
+            {selectedParcel && (
+              <View style={styles.mapInspectorCard}>
+                <View style={styles.cardRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.refText}>{selectedParcel.referenceNumber}</Text>
+                    <Text style={styles.itemTitle}>{selectedParcel.name}</Text>
+                    <Text style={styles.cardSub}>
+                      📍 {selectedParcel.district}, {selectedParcel.province} • {selectedParcel.gpsCoords || '17°21\'S 30°12\'E'}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor:
+                          selectedParcel.availability === 'Available'
+                            ? '#166534'
+                            : selectedParcel.availability === 'Reserved'
+                            ? '#854d0e'
+                            : '#1e3a8a',
+                      },
+                    ]}
+                  >
+                    {selectedParcel.availability}
+                  </Text>
+                </View>
+
+                {/* Key Spec Badges */}
+                <View style={styles.metaRow}>
+                  <View style={styles.mapSpecBadge}>
+                    <Text style={styles.mapSpecLabel}>AREA</Text>
+                    <Text style={styles.mapSpecVal}>{selectedParcel.hectares} ha</Text>
+                  </View>
+                  <View style={styles.mapSpecBadge}>
+                    <Text style={styles.mapSpecLabel}>REGION</Text>
+                    <Text style={styles.mapSpecVal}>{selectedParcel.naturalRegion}</Text>
+                  </View>
+                  <View style={styles.mapSpecBadge}>
+                    <Text style={styles.mapSpecLabel}>SOIL</Text>
+                    <Text style={styles.mapSpecVal}>{selectedParcel.soilType}</Text>
+                  </View>
+                  <View style={styles.mapSpecBadge}>
+                    <Text style={styles.mapSpecLabel}>WATER</Text>
+                    <Text style={styles.mapSpecVal}>
+                      {selectedParcel.waterAccess ? 'Dam/Canal' : 'Groundwater'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.mapActionRow}>
+                  {selectedParcel.availability === 'Available' && (
+                    <Pressable
+                      style={[styles.primaryButton, { flex: 1, paddingVertical: 10 }]}
+                      onPress={() => setIsApplyModalVisible(true)}
+                    >
+                      <Text style={styles.primaryButtonText}>Apply for 99-Year Lease →</Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    style={[styles.secondaryButton, { marginLeft: 8, paddingHorizontal: 12, paddingVertical: 10 }]}
+                    onPress={() => setSelectedParcel(null)}
+                  >
+                    <Text style={styles.secondaryButtonText}>Deselect</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {/* Horizontal Swipeable Parcels Quick-Carousel */}
+            <View style={{ marginTop: 14 }}>
+              <Text style={styles.sectionHeading}>
+                Browse Mapped Parcels ({mapFilteredParcels.length})
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingVertical: 6, gap: 10 }}
+              >
+                {mapFilteredParcels.map(p => {
+                  const isCurrent = selectedParcel?.id === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      style={[
+                        styles.mapCarouselCard,
+                        isCurrent && styles.mapCarouselCardActive,
+                      ]}
+                      onPress={() => setSelectedParcel(p)}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.refText}>{p.referenceNumber}</Text>
+                        <View
+                          style={[
+                            styles.badgeDot,
+                            {
+                              backgroundColor:
+                                p.availability === 'Available'
+                                  ? '#22c55e'
+                                  : p.availability === 'Reserved'
+                                  ? '#f59e0b'
+                                  : '#3b82f6',
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.itemTitle, { fontSize: 13, marginTop: 4 }]} numberOfLines={1}>
+                        {p.name}
+                      </Text>
+                      <Text style={styles.cardSub}>
+                        {p.district} • {p.hectares} ha • {p.naturalRegion}
+                      </Text>
+                      <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={[styles.linkText, { fontSize: 11 }]}>
+                          {isCurrent ? '📍 Focused on Map' : 'Focus on Map →'}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        )}
+
         {/* 7. NOTIFICATIONS SCREEN (Section 4.3.2 Item 7) */}
         {activeTab === 'notifications' && (
           <View style={styles.tabContent}>
+            <Pressable onPress={() => setActiveTab('home')} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back to Home</Text>
+            </Pressable>
             <Text style={styles.pageTitle}>Notifications &amp; Reminders</Text>
             <Text style={styles.cardSub}>Real-time statutory updates, lease countdowns, and official gazette alerts.</Text>
 
@@ -1212,7 +1820,7 @@ export default function App() {
           { key: 'home', label: 'Home', icon: '🏠' },
           { key: 'search', label: 'Land Search', icon: '🔍' },
           { key: 'applications', label: 'My Leases', icon: '📜' },
-          { key: 'notifications', label: 'Alerts', icon: '🔔' },
+          { key: 'map', label: 'Map View', icon: '🗺️' },
           { key: 'profile', label: 'Profile', icon: '👤' },
         ].map(t => (
           <Pressable
@@ -1871,6 +2479,211 @@ const styles = StyleSheet.create({
   },
   splashSkipText: {
     color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // --- Cadastre GIS Map View Styles ---
+  mapHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  mapGpsPill: {
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.3)',
+  },
+  mapGpsText: {
+    color: '#4ade80',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  mapFilterScroll: {
+    marginBottom: 10,
+  },
+  mapFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginRight: 8,
+  },
+  mapFilterChipActive: {
+    backgroundColor: '#166534',
+    borderColor: '#4ade80',
+  },
+  mapFilterChipText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  mapFilterChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  mapLayerRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  layerToggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+  },
+  layerToggleBtnActive: {
+    backgroundColor: '#064e3b',
+    borderColor: '#22c55e',
+  },
+  layerToggleText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  layerToggleTextActive: {
+    color: '#86efac',
+    fontWeight: '700',
+  },
+  mapCanvasCard: {
+    backgroundColor: '#030712',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  mapHudBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  mapHudItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mapHudLabel: {
+    color: '#64748b',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  mapHudVal: {
+    color: '#38bdf8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  mapLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  legendDotItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  legendText: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  svgWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapInspectorCard: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.35)',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mapSpecBadge: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  mapSpecLabel: {
+    color: '#64748b',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  mapSpecVal: {
+    color: '#f8fafc',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  mapActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  mapCarouselCard: {
+    width: 220,
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  mapCarouselCardActive: {
+    borderColor: '#4ade80',
+    backgroundColor: '#062d1f',
+  },
+  badgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  backButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    color: '#94a3b8',
     fontSize: 12,
     fontWeight: '600',
   },
