@@ -297,6 +297,122 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OFFICIAL SLLAS LOGO COMPONENT (React Native)
+// ─────────────────────────────────────────────────────────────────────────────
+interface SllasLogoProps {
+  variant?: 'full' | 'compact' | 'icon';
+  size?: number;
+}
+
+export function SllasLogo({ variant = 'full', size = 42 }: SllasLogoProps) {
+  const stripeColors = ['#006B3F', '#FFD200', '#D40000', '#000000'];
+  const iconSize = size;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: variant === 'full' ? 12 : 8 }}>
+      <Svg width={iconSize} height={iconSize} viewBox="0 0 48 48">
+        <Defs>
+          <LinearGradient id="sllasBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#ffffff" />
+            <Stop offset="100%" stopColor="#f8fafc" />
+          </LinearGradient>
+        </Defs>
+
+        {/* Clean rounded squircle badge base */}
+        <Rect
+          x="1"
+          y="1"
+          width="46"
+          height="46"
+          rx="10"
+          fill="url(#sllasBadgeGrad)"
+          stroke="rgba(255, 255, 255, 0.4)"
+          strokeWidth="1.2"
+        />
+
+        {/* Top Central Leaf */}
+        <Path
+          d="M 24.00 5.29 Q 25.62 6.91 27.06 9.11 Q 27.82 10.92 28.20 13.12 Q 28.01 15.79 27.44 17.51 Q 26.39 19.51 24.10 22.19 Q 22.85 21.14 21.33 19.23 Q 20.37 17.41 19.80 15.03 Q 19.99 12.16 20.75 9.96 Q 22.38 7.20 24.00 5.29 Z"
+          fill="#2785a1"
+        />
+
+        {/* Left Leaf with negative-space vein */}
+        <Path
+          d="M 11.11 19.13 Q 14.55 19.42 16.46 19.99 Q 18.37 21.04 19.61 22.19 Q 20.56 23.62 21.23 25.34 Q 21.61 27.82 21.52 29.92 Q 20.18 27.63 18.84 26.10 Q 17.22 24.86 15.60 24.10 Q 15.22 24.29 15.22 24.67 Q 18.37 28.11 19.80 30.30 Q 19.99 30.97 17.89 30.97 Q 15.88 30.59 13.97 29.73 Q 12.16 28.11 10.54 25.34 Q 9.68 21.99 9.49 19.32 Q 11.02 19.23 11.11 19.13 Z"
+          fill="#2785a1"
+        />
+
+        {/* Right Leaf with negative-space vein */}
+        <Path
+          d="M 36.79 21.04 Q 37.94 21.04 37.56 23.90 Q 36.32 27.44 35.08 29.35 Q 33.83 30.59 32.40 31.45 Q 30.59 32.02 28.58 32.12 Q 29.44 30.11 30.21 28.96 Q 32.50 26.48 32.59 26.01 Q 32.21 25.72 30.97 26.29 Q 29.63 27.25 28.01 28.96 Q 26.20 31.73 26.10 29.54 Q 26.58 27.15 27.34 25.53 Q 28.20 24.38 29.35 23.33 Q 31.35 22.19 34.41 21.33 Q 36.70 21.14 36.79 21.04 Z"
+          fill="#2785a1"
+        />
+
+        {/* Stem Trunk */}
+        <Path
+          d="M 22.28 30.11 Q 23.33 32.69 24.00 35.46 Q 24.57 40.04 24.57 41.85 Q 24.29 42.05 23.90 41.85 Q 23.62 37.18 23.05 34.12 Q 22.09 31.26 22.19 30.21 Z"
+          fill="#0a4b69"
+        />
+        {/* Stem Branch to right leaf */}
+        <Path
+          d="M 25.43 32.12 Q 25.91 32.40 25.91 32.59 Q 24.76 35.65 24.48 34.03 Q 25.43 32.21 25.43 32.12 Z"
+          fill="#0a4b69"
+        />
+
+        {/* Soil Base / Ground Lobes */}
+        <Path
+          d="M 28.11 40.90 Q 29.54 40.90 30.59 41.19 Q 31.83 41.85 33.07 43.00 Q 24.14 43.00 15.22 43.00 Q 15.88 42.24 16.74 41.66 Q 18.56 40.99 20.18 40.99 Q 21.80 41.47 24.29 43.00 Q 26.58 41.38 28.01 40.99 Z"
+          fill="#0a4b69"
+        />
+      </Svg>
+
+      {variant !== 'icon' && (
+        <View style={{
+          justifyContent: 'center',
+          ...(variant === 'full' ? { borderLeftWidth: 1, borderLeftColor: '#475569', paddingLeft: 12 } : {}),
+        }}>
+          <Text style={{
+            color: '#ffffff',
+            fontSize: variant === 'compact' ? 17 : 19,
+            fontWeight: '800',
+            letterSpacing: 0.5,
+          }}>
+            SLLAS
+          </Text>
+          {variant === 'full' && (
+            <>
+              <Text style={{
+                color: '#94a3b8',
+                fontSize: 9.5,
+                fontWeight: '500',
+                marginTop: 1,
+              }}>
+                Smart Land Lease &amp; Allocation System
+              </Text>
+              <View style={{ marginTop: 3 }}>
+                <Text style={{
+                  color: '#64748b',
+                  fontSize: 7,
+                  letterSpacing: 1.1,
+                  fontWeight: '600',
+                }}>
+                  REPUBLIC OF ZIMBABWE
+                </Text>
+                <View style={{ flexDirection: 'row', width: 44, height: 3, marginTop: 2, borderRadius: 1.5, overflow: 'hidden' }}>
+                  {stripeColors.map((color, index) => (
+                    <View key={index} style={{ backgroundColor: color, flex: 1 }} />
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SLLAS ANIMATED MOTION SPLASH / LOADING SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 function SllasMotionSplashScreen({ onFinish }: { onFinish: () => void }) {
@@ -477,18 +593,9 @@ function SllasMotionSplashScreen({ onFinish }: { onFinish: () => void }) {
           >
             <Svg width={120} height={120} viewBox="0 0 48 48">
               <Defs>
-                <LinearGradient id="splashBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#064e3b" />
-                  <Stop offset="100%" stopColor="#022c22" />
-                </LinearGradient>
-                <LinearGradient id="splashLeafGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#86efac" />
-                  <Stop offset="50%" stopColor="#4ade80" />
-                  <Stop offset="100%" stopColor="#22c55e" />
-                </LinearGradient>
-                <LinearGradient id="splashStemGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <Stop offset="0%" stopColor="#bbf7d0" />
-                  <Stop offset="100%" stopColor="#15803d" />
+                <LinearGradient id="motionSplashBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor="#ffffff" />
+                  <Stop offset="100%" stopColor="#f8fafc" />
                 </LinearGradient>
               </Defs>
 
@@ -499,45 +606,45 @@ function SllasMotionSplashScreen({ onFinish }: { onFinish: () => void }) {
                 width="46"
                 height="46"
                 rx="10"
-                fill="url(#splashBadgeGrad)"
-                stroke="rgba(74, 222, 128, 0.55)"
+                fill="url(#motionSplashBadgeGrad)"
+                stroke="rgba(255, 255, 255, 0.4)"
                 strokeWidth="1.2"
               />
 
               {/* Central Sprout Leaf */}
               <Path
                 d="M 24.00 5.29 Q 25.62 6.91 27.06 9.11 Q 27.82 10.92 28.20 13.12 Q 28.01 15.79 27.44 17.51 Q 26.39 19.51 24.10 22.19 Q 22.85 21.14 21.33 19.23 Q 20.37 17.41 19.80 15.03 Q 19.99 12.16 20.75 9.96 Q 22.38 7.20 24.00 5.29 Z"
-                fill="url(#splashLeafGrad)"
+                fill="#2785a1"
               />
 
               {/* Left Leaf */}
               <Path
                 d="M 11.11 19.13 Q 14.55 19.42 16.46 19.99 Q 18.37 21.04 19.61 22.19 Q 20.56 23.62 21.23 25.34 Q 21.61 27.82 21.52 29.92 Q 20.18 27.63 18.84 26.10 Q 17.22 24.86 15.60 24.10 Q 15.22 24.29 15.22 24.67 Q 18.37 28.11 19.80 30.30 Q 19.99 30.97 17.89 30.97 Q 15.88 30.59 13.97 29.73 Q 12.16 28.11 10.54 25.34 Q 9.68 21.99 9.49 19.32 Q 11.02 19.23 11.11 19.13 Z"
-                fill="url(#splashLeafGrad)"
+                fill="#2785a1"
               />
 
               {/* Right Leaf */}
               <Path
                 d="M 36.79 21.04 Q 37.94 21.04 37.56 23.90 Q 36.32 27.44 35.08 29.35 Q 33.83 30.59 32.40 31.45 Q 30.59 32.02 28.58 32.12 Q 29.44 30.11 30.21 28.96 Q 32.50 26.48 32.59 26.01 Q 32.21 25.72 30.97 26.29 Q 29.63 27.25 28.01 28.96 Q 26.20 31.73 26.10 29.54 Q 26.58 27.15 27.34 25.53 Q 28.20 24.38 29.35 23.33 Q 31.35 22.19 34.41 21.33 Q 36.70 21.14 36.79 21.04 Z"
-                fill="url(#splashLeafGrad)"
+                fill="#2785a1"
               />
 
               {/* Stem Trunk */}
               <Path
                 d="M 22.28 30.11 Q 23.33 32.69 24.00 35.46 Q 24.57 40.04 24.57 41.85 Q 24.29 42.05 23.90 41.85 Q 23.62 37.18 23.05 34.12 Q 22.09 31.26 22.19 30.21 Z"
-                fill="url(#splashStemGrad)"
+                fill="#0a4b69"
               />
 
               {/* Stem Branch to right leaf */}
               <Path
                 d="M 25.43 32.12 Q 25.91 32.40 25.91 32.59 Q 24.76 35.65 24.48 34.03 Q 25.43 32.21 25.43 32.12 Z"
-                fill="url(#splashStemGrad)"
+                fill="#0a4b69"
               />
 
               {/* Soil Base / Ground Lobes */}
               <Path
                 d="M 28.11 40.90 Q 29.54 40.90 30.59 41.19 Q 31.83 41.85 33.07 43.00 Q 24.14 43.00 15.22 43.00 Q 15.88 42.24 16.74 41.66 Q 18.56 40.99 20.18 40.99 Q 21.80 41.47 24.29 43.00 Q 26.58 41.38 28.01 40.99 Z"
-                fill="#166534"
+                fill="#0a4b69"
               />
             </Svg>
           </Animated.View>
@@ -735,6 +842,9 @@ export default function App() {
     return (
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.authCard}>
+          <View style={{ alignItems: 'center', marginBottom: 20 }}>
+            <SllasLogo variant="full" size={56} />
+          </View>
           <Text style={styles.heraldryText}>🇿🇼 REPUBLIC OF ZIMBABWE</Text>
           <Text style={styles.authHeaderTitle}>SLLAS Client Portal</Text>
           <Text style={styles.authSubtitle}>
@@ -828,9 +938,12 @@ export default function App() {
     <SafeAreaView style={styles.mainContainer}>
       {/* Mobile Top Navigation Header */}
       <View style={styles.topHeader}>
-        <View>
-          <Text style={styles.heraldryText}>REPUBLIC OF ZIMBABWE • SLLAS</Text>
-          <Text style={styles.topHeaderTitle}>Client Land Portal</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <SllasLogo variant="icon" size={38} />
+          <View>
+            <Text style={styles.heraldryText}>REPUBLIC OF ZIMBABWE • SLLAS</Text>
+            <Text style={styles.topHeaderTitle}>Client Land Portal</Text>
+          </View>
         </View>
         <Pressable
           style={styles.notifBadgeBtn}

@@ -6,6 +6,12 @@
     "scheme": "sllas-mobile",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#030712"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -16,6 +22,7 @@
       "package": "zw.gov.sllas.mobile",
       "versionCode": 1,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#030712"
       },
       "permissions": [
