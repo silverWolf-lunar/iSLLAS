@@ -1,0 +1,14 @@
+{
+  "json.schemaDownload.enable": false,
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "tsconfig.json",
+        "tsconfig.*.json",
+        "**/tsconfig.json",
+        "**/tsconfig.*.json"
+      ],
+      "url": "./.vscode/schemas/tsconfig.schema.json"
+    }
+  ]
+}
