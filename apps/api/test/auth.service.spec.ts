@@ -5,7 +5,10 @@ import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../src/modules/identity/auth.service';
 import { User } from '../src/modules/identity/user.entity';
 import { UserIdentity } from '../src/modules/identity/user-identity.entity';
+import { ClientProfile } from '../src/modules/client-profiles/client-profile.entity';
+import { AdminArea } from '../src/modules/organizations/admin-area.entity';
 import { AccessControlService } from '../src/modules/access-control/access-control.service';
+import { AuditService } from '../src/modules/audit/audit.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { Role, UserStatus } from '@sllas/contracts';
 import * as jwt from 'jsonwebtoken';
@@ -14,7 +17,10 @@ describe('AuthService (Authentication & Session Tokens)', () => {
   let service: AuthService;
   let mockUserRepo: any;
   let mockIdentityRepo: any;
+  let mockClientProfileRepo: any;
+  let mockAdminAreaRepo: any;
   let mockAccessControlService: any;
+  let mockAuditService: any;
 
   beforeEach(async () => {
     mockUserRepo = {
@@ -29,6 +35,18 @@ describe('AuthService (Authentication & Session Tokens)', () => {
     mockIdentityRepo = {
       findOne: jest.fn(),
     };
+    mockClientProfileRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation(dto => dto),
+      save: jest.fn().mockImplementation(entity => Promise.resolve(entity)),
+    };
+    mockAdminAreaRepo = {
+      findOne: jest.fn().mockResolvedValue({ id: 'zw-ha', name: 'Harare' }),
+    };
+    mockAuditService = {
+      record: jest.fn().mockResolvedValue({}),
+      recordEvent: jest.fn().mockResolvedValue({}),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -42,8 +60,20 @@ describe('AuthService (Authentication & Session Tokens)', () => {
           useValue: mockIdentityRepo,
         },
         {
+          provide: getRepositoryToken(ClientProfile),
+          useValue: mockClientProfileRepo,
+        },
+        {
+          provide: getRepositoryToken(AdminArea),
+          useValue: mockAdminAreaRepo,
+        },
+        {
           provide: AccessControlService,
           useValue: mockAccessControlService,
+        },
+        {
+          provide: AuditService,
+          useValue: mockAuditService,
         },
       ],
     }).compile();

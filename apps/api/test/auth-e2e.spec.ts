@@ -14,6 +14,9 @@ import { MetricsController } from '../src/modules/observability/metrics.controll
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
 import { APP_GUARD } from '@nestjs/core';
+import { ClientProfile } from '../src/modules/client-profiles/client-profile.entity';
+import { AdminArea } from '../src/modules/organizations/admin-area.entity';
+import { AuditService } from '../src/modules/audit/audit.service';
 import { Role, UserStatus } from '@sllas/contracts';
 import { SYSTEM_CONFIG } from '@sllas/config';
 
@@ -21,7 +24,10 @@ describe('Auth & Identity End-to-End API (/api/v1/auth)', () => {
   let app: INestApplication;
   let mockUserRepo: any;
   let mockIdentityRepo: any;
+  let mockClientProfileRepo: any;
+  let mockAdminAreaRepo: any;
   let mockAccessControlService: any;
+  let mockAuditService: any;
   let mockDataSource: any;
 
   const testUser: Partial<User> = {
@@ -57,6 +63,21 @@ describe('Auth & Identity End-to-End API (/api/v1/auth)', () => {
       save: jest.fn().mockResolvedValue({}),
     };
 
+    mockClientProfileRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((dto) => dto),
+      save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+    };
+
+    mockAdminAreaRepo = {
+      findOne: jest.fn().mockResolvedValue({ id: 'zw-ha', name: 'Harare' }),
+    };
+
+    mockAuditService = {
+      record: jest.fn().mockResolvedValue({}),
+      recordEvent: jest.fn().mockResolvedValue({}),
+    };
+
     mockAccessControlService = {
       getRolePermissions: jest.fn().mockResolvedValue([
         'parcel:create',
@@ -82,6 +103,18 @@ describe('Auth & Identity End-to-End API (/api/v1/auth)', () => {
         {
           provide: getRepositoryToken(UserIdentity),
           useValue: mockIdentityRepo,
+        },
+        {
+          provide: getRepositoryToken(ClientProfile),
+          useValue: mockClientProfileRepo,
+        },
+        {
+          provide: getRepositoryToken(AdminArea),
+          useValue: mockAdminAreaRepo,
+        },
+        {
+          provide: AuditService,
+          useValue: mockAuditService,
         },
         {
           provide: AccessControlService,

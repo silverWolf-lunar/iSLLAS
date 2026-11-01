@@ -68,11 +68,11 @@ export default function PublicLeaseVerificationPage({ params }: { params: { id: 
             margin: '0 auto 16px',
           }} />
           <p style={{ fontSize: '1rem', fontWeight: 600 }}>Verifying deed against National Cadastre Register…</p>
-          <style jsx>{`
+          <style dangerouslySetInnerHTML={{ __html: `
             @keyframes spin {
               to { transform: rotate(360deg); }
             }
-          `}</style>
+          ` }} />
         </div>
       </div>
     );
