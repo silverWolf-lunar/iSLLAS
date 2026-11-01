@@ -577,31 +577,6 @@ function SignInContent() {
                   />
                 </div>
 
-                {/* Target Role Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                    Assigned Role / Department
-                  </label>
-                  <select
-                    className="select-field"
-                    value={role}
-                    onChange={e => setRole(e.target.value as Role)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.8)',
-                      border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
-                      color: isLight ? '#0f172a' : '#ffffff',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    <option value={Role.SYSTEM_ADMIN}>🛡️ System Admin (Executive Console)</option>
-                    <option value={Role.ESTATES_OFFICER}>📜 Estates Officer (Master Waiting List & Leases)</option>
-                    <option value={Role.REGISTRY_OFFICER}>📋 Resettlement Officer (Cadastre & Allocation)</option>
-                  </select>
-                </div>
-
                 {/* Temporary Lock-out Banner */}
                 {lockoutRemainingSec > 0 && (
                   <div style={{
@@ -692,42 +667,6 @@ function SignInContent() {
                 </button>
               </div>
 
-              {/* Divider */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '22px 0 16px',
-                color: isLight ? '#94a3b8' : 'var(--text-dim)',
-                fontSize: '0.75rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}>
-                <div style={{ flex: 1, height: '1px', background: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }} />
-                <span style={{ padding: '0 12px' }}>Or single sign-on</span>
-                <div style={{ flex: 1, height: '1px', background: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }} />
-              </div>
-
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={handleKeycloakSso}
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  fontSize: '0.8125rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: isLight ? '#f8fafc' : undefined,
-                  borderColor: isLight ? '#cbd5e1' : undefined,
-                  color: isLight ? '#1e293b' : undefined,
-                }}
-              >
-                <span>🏛️</span>
-                <span>Sign in with Government SSO (Keycloak)</span>
-              </button>
             </>
           )}
 
