@@ -16,13 +16,15 @@ const SpatialMap = dynamic(
 export default function ParcelDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { parcels, updateParcelStatus } = useApp();
+  const { parcels, submitParcel } = useApp();
 
   const parcelId = params?.id as string;
   const parcel = parcels.find(p => p.id === parcelId);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'geometry' | 'audit'>('overview');
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (!parcel) {
     return (
@@ -38,8 +40,12 @@ export default function ParcelDetailPage() {
     );
   }
 
-  const handleStatusChange = (newStatus: ParcelStatus) => {
-    updateParcelStatus(parcel.id, newStatus);
+  const handleSubmitForVerification = async () => {
+    setActionBusy(true);
+    setActionError(null);
+    const result = await submitParcel(parcel.id);
+    setActionBusy(false);
+    if (!result.success) setActionError(result.message);
   };
 
   return (
@@ -78,10 +84,11 @@ export default function ParcelDetailPage() {
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           {parcel.status === ParcelStatus.DRAFT && (
             <button
-              onClick={() => handleStatusChange(ParcelStatus.PENDING_VERIFICATION)}
+              onClick={handleSubmitForVerification}
               className="btn btn-primary"
+              disabled={actionBusy}
             >
-              Submit for Verification →
+              {actionBusy ? 'Submitting…' : 'Submit for Verification →'}
             </button>
           )}
 
@@ -101,32 +108,23 @@ export default function ParcelDetailPage() {
               >
                 🌱 Apply for This Land Parcel
               </button>
-              <button
-                onClick={() => handleStatusChange(ParcelStatus.RESERVED)}
-                className="btn btn-outline"
-                style={{ borderColor: 'rgba(99, 102, 241, 0.4)', color: '#a5b4fc' }}
-              >
-                Mark Reserved
-              </button>
-              <button
-                onClick={() => handleStatusChange(ParcelStatus.ALLOCATED)}
+              <Link
+                href="/officer/allocate"
                 className="btn btn-outline"
                 style={{ borderColor: 'rgba(249, 115, 22, 0.4)', color: '#fdba74' }}
               >
                 Allocate Lease
-              </button>
+              </Link>
             </>
           )}
-
-          <button
-            onClick={() => handleStatusChange(ParcelStatus.WITHDRAWN)}
-            className="btn btn-outline"
-            style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}
-          >
-            Withdraw Parcel
-          </button>
         </div>
       </div>
+
+      {actionError && (
+        <div role="alert" style={{ padding: '12px 16px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.8125rem' }}>
+          {actionError}
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
@@ -339,7 +337,7 @@ export default function ParcelDetailPage() {
                   Recorded by <strong>{parcel.registeredByUserName}</strong> (User ID: {parcel.registeredByUserId})
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                  Boundary polygon ingested with calculated area of {parcel.areaHectares} ha. Initial status: {ParcelStatus.PENDING_VERIFICATION}.
+                  Boundary polygon ingested with calculated area of {parcel.areaHectares} ha. Current status: {parcel.status}.
                 </div>
               </div>
             </div>

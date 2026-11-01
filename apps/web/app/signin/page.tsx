@@ -343,11 +343,6 @@ function SignInContent() {
     }
   };
 
-  const handleKeycloakSso = async () => {
-    setLoading(true);
-    await signIn('keycloak', { callbackUrl: '/' });
-  };
-
   return (
     <div style={{
       minHeight: '100vh',

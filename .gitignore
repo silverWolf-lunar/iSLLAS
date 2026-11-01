@@ -10,3 +10,7 @@ apps/web/.next/
 coverage/
 *.tsbuildinfo
 scratch/
+.expo/
+**/.expo/
+apps/mobile/android/
+apps/mobile/ios/

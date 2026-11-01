@@ -1,0 +1,16 @@
+# Expo local state
+.expo/
+dist/
+web-build/
+
+# Native prebuild directories (CNG / Continuous Native Generation)
+/android
+/ios
+
+# Native build artifacts & cache
+.gradle/
+build/
+*.orig.*
+
+# Node modules
+node_modules/

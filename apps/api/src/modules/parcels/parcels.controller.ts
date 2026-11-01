@@ -17,6 +17,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { Role, UserProfile } from '@sllas/contracts';
 import {
   CreateParcelInput,
@@ -24,6 +25,10 @@ import {
   VerifyParcelInput,
   BulkImportParcelsInput,
   ParcelSearchQuery,
+  createParcelSchema,
+  updateParcelSchema,
+  verifyParcelSchema,
+  bulkImportParcelsSchema,
 } from '@sllas/validation';
 
 @ApiTags('Land Registry — Parcels')
@@ -40,7 +45,7 @@ export class ParcelsController {
   @ApiResponse({ status: 400, description: 'Invalid geometry or coordinate bounds' })
   @ApiResponse({ status: 409, description: 'Spatial overlap with an active parcel' })
   async create(
-    @Body() dto: CreateParcelInput,
+    @Body(new ZodValidationPipe(createParcelSchema)) dto: CreateParcelInput,
     @CurrentUser() user: UserProfile,
   ) {
     return this.parcelsService.create(dto, user);
@@ -75,7 +80,7 @@ export class ParcelsController {
   @ApiOperation({ summary: 'Update parcel details and boundary with optimistic locking' })
   async update(
     @Param('id') id: string,
-    @Body() dto: UpdateParcelInput,
+    @Body(new ZodValidationPipe(updateParcelSchema)) dto: UpdateParcelInput,
     @CurrentUser() user: UserProfile,
   ) {
     return this.parcelsService.update(id, dto, user);
@@ -98,7 +103,7 @@ export class ParcelsController {
   @ApiOperation({ summary: 'Verify or return parcel for correction' })
   async verify(
     @Param('id') id: string,
-    @Body() dto: VerifyParcelInput,
+    @Body(new ZodValidationPipe(verifyParcelSchema)) dto: VerifyParcelInput,
     @CurrentUser() user: UserProfile,
   ) {
     return this.parcelsService.verify(id, dto, user);
@@ -108,7 +113,7 @@ export class ParcelsController {
   @Roles(Role.REGISTRY_OFFICER, Role.SYSTEM_ADMIN)
   @ApiOperation({ summary: 'Bulk parcel import with dry-run preview and row-level diagnostics' })
   async bulkImport(
-    @Body() dto: BulkImportParcelsInput,
+    @Body(new ZodValidationPipe(bulkImportParcelsSchema)) dto: BulkImportParcelsInput,
     @CurrentUser() user: UserProfile,
   ) {
     return this.parcelsService.bulkImport(dto, user);

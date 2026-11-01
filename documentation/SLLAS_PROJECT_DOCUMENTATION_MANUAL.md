@@ -731,7 +731,7 @@ The web dashboard is designed for administrators and Resettlement Officers and i
 
 #### 1. Sign-in Page
 - **Institutional Introduction:** Introduces the system under the legal auspices of the Agricultural Land Settlement Act [Chapter 20:01] with official Zimbabwean heraldry, Vision 2030 cadastre policy goals, and public announcements.
-- **Credential & SSO Access:** Authenticates staff and citizen users via email/username, password, and role selector (`Role.CLIENT`, `Role.REGISTRY_OFFICER`, `Role.APPROVER`, `Role.ESTATES_OFFICER`, `Role.SYSTEM_ADMIN`, `Role.AUDITOR`) as well as Keycloak OIDC Single Sign-On.
+- **Credential Access:** Authenticates staff and citizen users via email/username, password, and role selector (`Role.CLIENT`, `Role.REGISTRY_OFFICER`, `Role.APPROVER`, `Role.ESTATES_OFFICER`, `Role.SYSTEM_ADMIN`, `Role.AUDITOR`).
 - **Audit Logging of Attempts:** Every sign-in attempt, whether successful or failed, is written to the immutable audit log (`/api/backend/api/v1/audit/log`) recording actor email, role, IP address, and client timestamp.
 - **Temporary Lock-out Protection:** In accordance with national cyber-security regulations, repeated failures trigger a temporary lock-out after 5 consecutive failed attempts. The interface renders a prominent countdown warning banner and disables credential submission for a 5-minute cooldown period.
 

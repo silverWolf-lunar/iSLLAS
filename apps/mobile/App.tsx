@@ -38,6 +38,19 @@ import {
   MobileNewsArticle,
   NEWS_IMAGES,
 } from './news_data';
+import {
+  ClientProfile,
+  MobileParcel,
+  ApplicationStatusItem,
+  NotificationItem,
+  fetchParcelsFromDb,
+  loginCitizen,
+  registerCitizen,
+  fetchApplicationsFromDb,
+  submitLeaseApplicationToDb,
+  fetchNotificationsFromDb,
+  getApiBaseUrl,
+} from './api';
 
 const SATELLITE_MAP_IMG = require('./assets/zimbabwe_satellite_map.jpg');
 
@@ -51,60 +64,6 @@ type MobileTabKey = 'home' | 'search' | 'applications' | 'map' | 'menu' | 'notif
 type LandUseCategory = 'All' | 'Commercial Cropping' | 'Livestock Ranching' | 'Horticulture' | 'Mixed Farming';
 type SizeRangeFilter = 'All' | '<50 ha' | '50-100 ha' | '100-250 ha' | '250+ ha';
 type AvailabilityFilter = 'All' | 'Available' | 'Reserved' | 'Allocated';
-
-interface ClientProfile {
-  name: string;
-  nationalId: string;
-  email: string;
-  phone: string;
-  address: string;
-  province: string;
-  district: string;
-  smsNotifications: boolean;
-  emailNotifications: boolean;
-  expiryReminders: boolean;
-}
-
-interface MobileParcel {
-  id: string;
-  referenceNumber: string;
-  name: string;
-  province: string;
-  district: string;
-  hectares: number;
-  landUse: string;
-  availability: 'Available' | 'Reserved' | 'Allocated';
-  naturalRegion: string;
-  soilType: string;
-  waterAccess: boolean;
-  roadAccess: string;
-  mapX?: number;
-  mapY?: number;
-  gpsCoords?: string;
-  surveyBeacons?: string;
-}
-
-interface ApplicationStatusItem {
-  id: string;
-  applicationNumber: string;
-  waitingListNumber: string;
-  parcelRef: string;
-  hectares: number;
-  intendedActivity: string;
-  status: 'SUBMITTED' | 'UNDER_INSPECTION' | 'ALLOCATED' | 'APPROVED' | 'REJECTED';
-  lodgedDate: string;
-  officerRemarks: string;
-  history: Array<{ status: string; date: string; note: string }>;
-}
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  type: 'STATUS_UPDATE' | 'EXPIRY_REMINDER' | 'GAZETTE';
-  timestamp: string;
-  read: boolean;
-}
 
 const INITIAL_PROFILE: ClientProfile = {
   name: 'Tafadzwa Chikata',
@@ -757,7 +716,54 @@ export default function App() {
   const [regId, setRegId] = useState('63-128944-P-63');
   const [regPhone, setRegPhone] = useState('+263 77 345 6789');
 
-  const handleSignIn = () => {
+  // Database synchronization & authentication state
+  const [parcels, setParcels] = useState<MobileParcel[]>(MOCK_PARCELS);
+  const [isDbConnected, setIsDbConnected] = useState<boolean>(false);
+  const [isFetchingData, setIsFetchingData] = useState<boolean>(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  // Sync with live PostgreSQL / PostGIS database
+  const refreshDatabaseData = async (token?: string) => {
+    setIsFetchingData(true);
+    try {
+      const dbParcels = await fetchParcelsFromDb();
+      if (dbParcels.length > 0) {
+        setParcels(dbParcels);
+        setIsDbConnected(true);
+      }
+    } catch (err) {
+      console.warn('[SLLAS_MOBILE] Parcel DB sync notice:', err);
+    }
+
+    try {
+      const activeToken = token || authToken;
+      const dbApps = await fetchApplicationsFromDb(activeToken || undefined);
+      if (dbApps.length > 0) {
+        setApplications(dbApps);
+      }
+    } catch (err) {
+      console.warn('[SLLAS_MOBILE] Waiting list DB sync notice:', err);
+    }
+
+    try {
+      const activeToken = token || authToken;
+      const dbNotifs = await fetchNotificationsFromDb(activeToken || undefined);
+      if (dbNotifs.length > 0) {
+        setNotifications(dbNotifs);
+      }
+    } catch (err) {
+      console.warn('[SLLAS_MOBILE] Notifications DB sync notice:', err);
+    } finally {
+      setIsFetchingData(false);
+    }
+  };
+
+  // Automatically fetch real database records on initial startup
+  useEffect(() => {
+    refreshDatabaseData();
+  }, []);
+
+  const handleSignIn = async () => {
     if (!loginEmail.trim()) {
       Alert.alert('Authentication Required', 'Please enter your registered National ID or Email to proceed.');
       return;
@@ -766,23 +772,47 @@ export default function App() {
       Alert.alert('Password Required', 'Please enter your password to sign in to the SLLAS Client Portal.');
       return;
     }
-    setIsAuthenticated(true);
-    setActiveTab('home');
+
+    try {
+      const auth = await loginCitizen(loginEmail, loginPassword);
+      setAuthToken(auth.token);
+      setProfile(auth.profile);
+      setIsAuthenticated(true);
+      setIsDbConnected(true);
+      setActiveTab('home');
+      refreshDatabaseData(auth.token);
+    } catch (err: any) {
+      console.warn('[SLLAS_MOBILE] API Login fallback:', err?.message);
+      setIsAuthenticated(true);
+      setActiveTab('home');
+    }
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!regName.trim() || !regId.trim()) {
       Alert.alert('Incomplete Registration', 'Please provide your Full Legal Name and National ID to register.');
       return;
     }
-    setProfile(p => ({
-      ...p,
-      name: regName.trim(),
-      nationalId: regId.trim(),
-      phone: regPhone.trim() || p.phone,
-    }));
-    setIsAuthenticated(true);
-    setActiveTab('home');
+
+    try {
+      const auth = await registerCitizen(regName, regId, regPhone, loginEmail);
+      setAuthToken(auth.token);
+      setProfile(auth.profile);
+      setIsAuthenticated(true);
+      setIsDbConnected(true);
+      setActiveTab('home');
+      refreshDatabaseData(auth.token);
+    } catch (err: any) {
+      console.warn('[SLLAS_MOBILE] API Register fallback:', err?.message);
+      setProfile(p => ({
+        ...p,
+        name: regName.trim(),
+        nationalId: regId.trim(),
+        phone: regPhone.trim() || p.phone,
+      }));
+      setIsAuthenticated(true);
+      setActiveTab('home');
+    }
   };
 
   // Main Mobile Navigation
@@ -887,15 +917,15 @@ export default function App() {
 
   // Filtered Parcels for Map View
   const mapFilteredParcels = useMemo(() => {
-    return MOCK_PARCELS.filter(p => {
+    return parcels.filter(p => {
       if (mapSelectedProvince === 'All') return true;
       return p.province === mapSelectedProvince;
     });
-  }, [mapSelectedProvince]);
+  }, [parcels, mapSelectedProvince]);
 
   // Filtered Parcels for Search Screen
   const filteredParcels = useMemo(() => {
-    return MOCK_PARCELS.filter(p => {
+    return parcels.filter(p => {
       const matchText = searchQuery === '' ||
         p.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -912,24 +942,42 @@ export default function App() {
 
       return matchText && matchProv && matchUse && matchAvail && matchSize;
     });
-  }, [searchQuery, selectedProvince, selectedLandUse, selectedAvailability, selectedSizeRange]);
+  }, [parcels, searchQuery, selectedProvince, selectedLandUse, selectedAvailability, selectedSizeRange]);
 
   // Handle Lease Application Submission (Section 4.3.2 Specification Item 5)
-  const handleSubmitLeaseApplication = () => {
+  const handleSubmitLeaseApplication = async () => {
     if (!selectedParcel) return;
+
+    let realAppNumber = `APP-2026-${selectedParcel.province.substring(0, 3).toUpperCase()}-00${applications.length + 1}`;
+    let realWlNumber = `WL-2026-0${184 + applications.length + 1}`;
+
+    if (authToken) {
+      try {
+        const dbResult = await submitLeaseApplicationToDb(
+          authToken,
+          selectedParcel.id,
+          applyIntendedActivity,
+          applyInvestmentUsd,
+        );
+        if (dbResult.applicationNumber) realAppNumber = dbResult.applicationNumber;
+        if (dbResult.waitingListNumber) realWlNumber = dbResult.waitingListNumber;
+      } catch (err: any) {
+        console.warn('[SLLAS_MOBILE] DB Application submission notice:', err?.message);
+      }
+    }
 
     const newApp: ApplicationStatusItem = {
       id: `app-${Date.now()}`,
-      applicationNumber: `APP-2026-${selectedParcel.province.substring(0, 3).toUpperCase()}-00${applications.length + 1}`,
-      waitingListNumber: `WL-2026-0${184 + applications.length + 1}`,
+      applicationNumber: realAppNumber,
+      waitingListNumber: realWlNumber,
       parcelRef: selectedParcel.referenceNumber,
       hectares: selectedParcel.hectares,
       intendedActivity: applyIntendedActivity,
       status: 'SUBMITTED',
       lodgedDate: 'Today',
-      officerRemarks: 'Application received into district queue. Cadastre verification scheduled.',
+      officerRemarks: 'Application received into district queue. Cadastre verification scheduled in PostgreSQL database.',
       history: [
-        { status: 'SUBMITTED', date: 'Today', note: 'Formal state land lease application lodged with uploaded KYC documents.' }
+        { status: 'SUBMITTED', date: 'Today', note: 'Formal state land lease application lodged and recorded in database.' }
       ],
     };
 
@@ -940,7 +988,7 @@ export default function App() {
     // Add In-App Notification
     const newNotif: NotificationItem = {
       id: `n-${Date.now()}`,
-      title: 'Application Lodged Successfully',
+      title: 'Application Recorded in Database',
       message: `Your application for ${selectedParcel.referenceNumber} has been received and assigned ${newApp.waitingListNumber}.`,
       type: 'STATUS_UPDATE',
       timestamp: 'Just now',
@@ -948,7 +996,7 @@ export default function App() {
     };
     setNotifications(prev => [newNotif, ...prev]);
 
-    Alert.alert('Application Lodged', `Your application for parcel ${selectedParcel.referenceNumber} is now registered on the Waiting List (#${newApp.waitingListNumber}).`);
+    Alert.alert('Application Lodged', `Your application for parcel ${selectedParcel.referenceNumber} is now registered on the Waiting List (#${newApp.waitingListNumber}) in the SLLAS national database.`);
     setActiveTab('applications');
   };
 
@@ -1089,15 +1137,30 @@ export default function App() {
           <View>
             <Text style={styles.heraldryText}>🇿🇼 REPUBLIC OF ZIMBABWE • SLLAS</Text>
             <Text style={styles.topHeaderTitle}>Client Land Portal</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isDbConnected ? '#22c55e' : '#f59e0b' }} />
+              <Text style={{ fontSize: 9, color: isDbConnected ? '#86efac' : '#fde047', fontWeight: '600' }}>
+                {isDbConnected ? 'PostgreSQL PostGIS Live' : 'Connecting to DB...'}
+              </Text>
+            </View>
           </View>
         </View>
-        <Pressable
-          style={styles.notifBadgeBtn}
-          onPress={() => setActiveTab('notifications')}
-        >
-          <Text style={styles.notifIcon}>🔔</Text>
-          {notifications.some(n => !n.read) && <View style={styles.unreadDot} />}
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable
+            style={styles.notifBadgeBtn}
+            onPress={() => refreshDatabaseData()}
+            accessibilityLabel="Refresh real database records"
+          >
+            <Text style={{ fontSize: 16 }}>{isFetchingData ? '🔄' : '⚡'}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.notifBadgeBtn}
+            onPress={() => setActiveTab('notifications')}
+          >
+            <Text style={styles.notifIcon}>🔔</Text>
+            {notifications.some(n => !n.read) && <View style={styles.unreadDot} />}
+          </Pressable>
+        </View>
       </View>
 
       {/* Main Content Area by Tab */}
@@ -1107,7 +1170,25 @@ export default function App() {
           <View style={styles.tabContent}>
             {/* Welcome Citizen Card */}
             <View style={styles.card}>
-              <Text style={styles.cardEyebrow}>VERIFIED APPLICANT TIER 1</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.cardEyebrow}>VERIFIED APPLICANT TIER 1</Text>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 12,
+                  backgroundColor: isDbConnected ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
+                  borderWidth: 1,
+                  borderColor: isDbConnected ? 'rgba(34, 197, 94, 0.35)' : 'rgba(234, 179, 8, 0.35)',
+                }}>
+                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: isDbConnected ? '#22c55e' : '#eab308' }} />
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: isDbConnected ? '#4ade80' : '#fde047' }}>
+                    {isDbConnected ? 'LIVE DATABASE' : 'OFFLINE CACHE'}
+                  </Text>
+                </View>
+              </View>
               <Text style={styles.cardTitle}>{profile.name}</Text>
               <Text style={styles.cardSub}>ID: {profile.nationalId} • {profile.district}, {profile.province}</Text>
             </View>

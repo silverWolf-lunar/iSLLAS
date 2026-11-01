@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useApp } from '../../components/AppContext';
@@ -9,7 +9,7 @@ import {
   calculateCentroid,
   checkBoundingBoxOverlap,
 } from '../../lib/parcel-data';
-import { ParcelStatus, NaturalRegion, SoilType } from '@sllas/contracts';
+import { ParcelStatus, NaturalRegion, SoilType, RoadAccess, Terrain } from '@sllas/contracts';
 
 const SpatialMap = dynamic(
   () => import('../../components/SpatialMap').then(module => module.SpatialMap),
@@ -18,27 +18,41 @@ const SpatialMap = dynamic(
 
 export default function NewParcelPage() {
   const router = useRouter();
-  const { parcels, provinces, addParcel } = useApp();
+  const { parcels, provinces, districts, landCategories, createParcel, currentUser } = useApp();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Form State
-  const [referenceNumber, setReferenceNumber] = useState('');
   const [name, setName] = useState('');
-  const [province, setProvince] = useState('');
-  const [district, setDistrict] = useState('');
-  const [ward, setWard] = useState('');
-  const [landCategory, setLandCategory] = useState('');
+  const [provinceId, setProvinceId] = useState('');
+  const [districtId, setDistrictId] = useState('');
+  const [landCategoryId, setLandCategoryId] = useState('');
   const [naturalRegion, setNaturalRegion] = useState<NaturalRegion | ''>('');
   const [soilType, setSoilType] = useState<SoilType | ''>('');
   const [waterSources, setWaterSources] = useState('');
-  const [roadAccess, setRoadAccess] = useState(false);
+  const [roadAccess, setRoadAccess] = useState<RoadAccess | ''>('');
   const [electricityAccess, setElectricityAccess] = useState(false);
   const [gridProximityKm, setGridProximityKm] = useState<number | ''>('');
-  const [terrain, setTerrain] = useState('');
+  const [terrain, setTerrain] = useState<Terrain | ''>('');
   const [currentUse, setCurrentUse] = useState('');
   const [permittedUses, setPermittedUses] = useState('');
   const [knownRestrictions, setKnownRestrictions] = useState('');
+
+  const provinceDistricts = useMemo(
+    () => districts.filter(d => d.parentId === provinceId),
+    [districts, provinceId],
+  );
+  const selectedProvinceName = provinces.find(p => p.id === provinceId)?.name ?? '';
+  const selectedDistrictName = districts.find(d => d.id === districtId)?.name ?? '';
+
+  // Default to the officer's own province once profile and reference data are loaded.
+  useEffect(() => {
+    if (!provinceId && currentUser?.provinceId && provinces.some(p => p.id === currentUser.provinceId)) {
+      setProvinceId(currentUser.provinceId);
+    }
+  }, [provinceId, currentUser?.provinceId, provinces]);
 
   // Boundary State
   const [boundaryCoords, setBoundaryCoords] = useState<number[][]>(
@@ -76,11 +90,6 @@ export default function NewParcelPage() {
     return errs;
   }, [boundaryCoords]);
 
-  // Duplicate Reference Check (Section 4.3.1 Specification)
-  const isDuplicateReference = useMemo(() => {
-    if (!referenceNumber.trim()) return false;
-    return parcels.some(p => p.referenceNumber.toLowerCase() === referenceNumber.trim().toLowerCase());
-  }, [referenceNumber, parcels]);
 
   // Real-time overlap check against existing active parcels
   const overlappingParcel = useMemo(() => {
@@ -107,54 +116,59 @@ export default function NewParcelPage() {
     }
   };
 
-  const handleSubmit = (targetStatus: ParcelStatus) => {
-    if (!referenceNumber.trim()) {
-      alert('Cannot submit: Parcel Reference Number is mandatory.');
-      return;
-    }
-    if (isDuplicateReference) {
-      alert(`Cadastral duplicate conflict: Parcel reference '${referenceNumber}' is already registered in the system. Duplicate references are strictly prohibited.`);
+  const handleSubmit = async (targetStatus: ParcelStatus) => {
+    setSubmitError(null);
+
+    if (!provinceId || !districtId || !landCategoryId) {
+      setSubmitError('Province, district and land category are required (Step 1).');
+      setCurrentStep(1);
       return;
     }
     if (validationErrors.length > 0) {
-      alert(`Cannot submit: ${validationErrors[0]}`);
+      setSubmitError(`Cannot submit: ${validationErrors[0]}`);
       return;
     }
     if (overlappingParcel) {
-      alert(`Cadastral conflict: Boundary overlaps with registered parcel ${overlappingParcel.referenceNumber} (${overlappingParcel.name}). Overlapping allocations are prohibited by law.`);
+      setSubmitError(`Cadastral conflict: Boundary overlaps with registered parcel ${overlappingParcel.referenceNumber} (${overlappingParcel.name}). Overlapping allocations are prohibited by law.`);
       return;
     }
 
-    const created = addParcel({
-      referenceNumber,
-      name: name.trim() || `Parcel ${referenceNumber}`,
-      province,
-      district,
-      ward,
-      landCategory,
-      areaHectares: computedArea,
-      status: targetStatus,
-      boundary: {
-        type: 'Polygon',
-        coordinates: [boundaryCoords],
+    setSaving(true);
+    const result = await createParcel(
+      {
+        provinceId,
+        districtId,
+        landCategoryId,
+        boundary: { type: 'Polygon', coordinates: [boundaryCoords] },
+        notes: name.trim() || undefined,
+        attributes: {
+          naturalRegion: naturalRegion || null,
+          soilType: soilType || null,
+          waterAccess: waterSources.trim().length > 0,
+          waterSources: waterSources.trim() || null,
+          roadAccess: roadAccess || null,
+          electricityAvailable: electricityAccess,
+          gridProximityKm: gridProximityKm === '' ? null : gridProximityKm,
+          terrain: terrain || null,
+          currentUse: currentUse.trim() || null,
+          zoningPermittedUses: permittedUses.trim() || null,
+          restrictions: knownRestrictions.trim() || null,
+        },
       },
-      centroid: computedCentroid,
-      naturalRegion: naturalRegion || null,
-      soilType: soilType || null,
-      waterSources: waterSources.split(',').map(s => s.trim()).filter(Boolean),
-      roadAccess,
-      electricityAccess,
-      gridProximityKm: gridProximityKm === '' ? null : gridProximityKm,
-      terrain,
-      currentUse,
-      permittedUses: permittedUses.split(',').map(s => s.trim()).filter(Boolean),
-      knownRestrictions,
-    });
+      targetStatus === ParcelStatus.PENDING_VERIFICATION,
+    );
+    setSaving(false);
+
+    if (!result.success) {
+      setSubmitError(result.message);
+      if (result.savedAsDraft && result.parcelId) router.push(`/parcels/${result.parcelId}`);
+      return;
+    }
 
     if (targetStatus === ParcelStatus.PENDING_VERIFICATION) {
       router.push('/parcels/verify');
     } else {
-      router.push(`/parcels/${created.id}`);
+      router.push(`/parcels/${result.parcelId}`);
     }
   };
 
@@ -222,45 +236,21 @@ export default function NewParcelPage() {
           <h2 style={{ fontSize: '1.125rem', color: '#ffffff' }}>Step 1: Jurisdiction & Identification</h2>
 
           <div className="form-grid mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
-            <div>
+            <div style={{ gridColumn: 'span 2' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Parcel Reference Number *
-              </label>
-              <input
-                type="text"
-                className="glass-input"
-                placeholder="e.g. ZW-MSW-MAK-2026-0042"
-                value={referenceNumber}
-                onChange={(e) => setReferenceNumber(e.target.value)}
-                required
-                style={{
-                  borderColor: isDuplicateReference ? '#ef4444' : referenceNumber.trim() ? '#22c55e' : undefined
-                }}
-              />
-              {isDuplicateReference && (
-                <div style={{ color: '#f87171', fontSize: '0.75rem', marginTop: '4px', fontWeight: 600 }}>
-                  ⚠️ Duplicate reference: &apos;{referenceNumber}&apos; already exists in the national cadastre.
-                </div>
-              )}
-              {!isDuplicateReference && referenceNumber.trim() && (
-                <div style={{ color: '#4ade80', fontSize: '0.75rem', marginTop: '4px', fontWeight: 500 }}>
-                  ✓ Reference is unique and available for registration
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Descriptive Parcel Name *
+                Parcel Description / Notes
               </label>
               <input
                 type="text"
                 className="glass-input"
                 placeholder="e.g. Norton Agricultural Commercial Plot 4"
                 value={name}
+                maxLength={2000}
                 onChange={(e) => setName(e.target.value)}
-                required
               />
+              <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '4px' }}>
+                The official reference number is generated by the registry when the parcel is saved.
+              </div>
             </div>
 
             <div>
@@ -269,11 +259,15 @@ export default function NewParcelPage() {
               </label>
               <select
                 className="glass-input"
-                value={province}
-                onChange={(e) => setProvince(e.target.value)}
+                value={provinceId}
+                onChange={(e) => {
+                  setProvinceId(e.target.value);
+                  setDistrictId('');
+                }}
               >
+                <option value="">Select province…</option>
                 {provinces.map(p => (
-                  <option key={p.code} value={p.name}>{p.name}</option>
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>
@@ -282,47 +276,42 @@ export default function NewParcelPage() {
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
                 District *
               </label>
-              <input
-                type="text"
+              <select
                 className="glass-input"
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-                required
-              />
+                value={districtId}
+                onChange={(e) => setDistrictId(e.target.value)}
+                disabled={!provinceId}
+              >
+                <option value="">{provinceId ? 'Select district…' : 'Select a province first'}</option>
+                {provinceDistricts.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Ward / Sub-location
-              </label>
-              <input
-                type="text"
-                className="glass-input"
-                value={ward}
-                onChange={(e) => setWard(e.target.value)}
-              />
-            </div>
-
-            <div>
+            <div style={{ gridColumn: 'span 2' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
                 Tenure / Land Category *
               </label>
               <select
                 className="glass-input"
-                value={landCategory}
-                onChange={(e) => setLandCategory(e.target.value)}
+                value={landCategoryId}
+                onChange={(e) => setLandCategoryId(e.target.value)}
               >
-                <option value="State Land">State Land</option>
-                <option value="Commercial Farmland">Commercial Farmland (A2 Scheme)</option>
-                <option value="Resettlement Area">Resettlement Area (A1 Scheme)</option>
-                <option value="Municipal Council Land">Municipal Council Land</option>
-                <option value="Communal Land">Communal Land (Trust Land)</option>
+                <option value="">Select land category…</option>
+                {landCategories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
               </select>
             </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-            <button onClick={() => setCurrentStep(2)} className="btn btn-primary">
+            <button
+              onClick={() => setCurrentStep(2)}
+              className="btn btn-primary"
+              disabled={!provinceId || !districtId || !landCategoryId}
+            >
               Continue to Step 2 →
             </button>
           </div>
@@ -342,8 +331,9 @@ export default function NewParcelPage() {
               <select
                 className="glass-input"
                 value={naturalRegion}
-                onChange={(e) => setNaturalRegion(e.target.value as NaturalRegion)}
+                onChange={(e) => setNaturalRegion(e.target.value as NaturalRegion | '')}
               >
+                <option value="">Select region…</option>
                 <option value={NaturalRegion.I}>Region I — High rainfall (over 1000mm), specialised &amp; diversified</option>
                 <option value={NaturalRegion.II}>Region II — Intensive cropping (750-1000mm rainfall)</option>
                 <option value={NaturalRegion.III}>Region III — Semi-intensive, drought-resistant crops</option>
@@ -359,8 +349,9 @@ export default function NewParcelPage() {
               <select
                 className="glass-input"
                 value={soilType}
-                onChange={(e) => setSoilType(e.target.value as SoilType)}
+                onChange={(e) => setSoilType(e.target.value as SoilType | '')}
               >
+                <option value="">Select soil type…</option>
                 <option value={SoilType.LOAM}>Rich Loam (Fertile Arable)</option>
                 <option value={SoilType.CLAY}>Red Clay / Black Cotton</option>
                 <option value={SoilType.SANDY}>Sandy Veldt</option>
@@ -385,24 +376,38 @@ export default function NewParcelPage() {
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
                 Terrain Topography
               </label>
-              <input
-                type="text"
+              <select
                 className="glass-input"
                 value={terrain}
-                onChange={(e) => setTerrain(e.target.value)}
-              />
+                onChange={(e) => setTerrain(e.target.value as Terrain | '')}
+              >
+                <option value="">Select terrain…</option>
+                <option value={Terrain.FLAT}>Flat</option>
+                <option value={Terrain.GENTLY_UNDULATING}>Gently undulating</option>
+                <option value={Terrain.HILLY}>Hilly</option>
+                <option value={Terrain.MOUNTAINOUS}>Mountainous</option>
+                <option value={Terrain.VALLEY}>Valley</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                Road Access
+              </label>
+              <select
+                className="glass-input"
+                value={roadAccess}
+                onChange={(e) => setRoadAccess(e.target.value as RoadAccess | '')}
+              >
+                <option value="">Select road access…</option>
+                <option value={RoadAccess.TARRED}>Tarred road</option>
+                <option value={RoadAccess.GRAVEL}>Gravel road</option>
+                <option value={RoadAccess.DIRT_TRACK}>Dirt track</option>
+                <option value={RoadAccess.NONE}>No road access</option>
+              </select>
             </div>
 
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>
-                <input
-                  type="checkbox"
-                  checked={roadAccess}
-                  onChange={(e) => setRoadAccess(e.target.checked)}
-                />
-                All-weather Road Access
-              </label>
-
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>
                 <input
                   type="checkbox"
@@ -422,7 +427,7 @@ export default function NewParcelPage() {
                 step="0.1"
                 className="glass-input"
                 value={gridProximityKm}
-                onChange={(e) => setGridProximityKm(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setGridProximityKm(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value) || 0))}
               />
             </div>
 
@@ -579,15 +584,15 @@ export default function NewParcelPage() {
           <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '8px' }}>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Reference Number</div>
-              <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--primary-400)' }}>{referenceNumber}</div>
+              <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--primary-400)' }}>Assigned on save</div>
             </div>
             <div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Parcel Name</div>
-              <div style={{ fontWeight: 600, color: '#ffffff' }}>{name || `Parcel ${referenceNumber}`}</div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Description</div>
+              <div style={{ fontWeight: 600, color: '#ffffff' }}>{name || '—'}</div>
             </div>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Jurisdiction</div>
-              <div style={{ fontWeight: 500 }}>{district}, {province} ({ward})</div>
+              <div style={{ fontWeight: 500 }}>{selectedDistrictName}, {selectedProvinceName}</div>
             </div>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Calculated Size</div>
@@ -595,7 +600,7 @@ export default function NewParcelPage() {
             </div>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Agro-Ecological Region</div>
-              <div>Region {naturalRegion}</div>
+              <div>{naturalRegion ? `Region ${naturalRegion}` : '—'}</div>
             </div>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Soil & Water</div>
@@ -603,7 +608,7 @@ export default function NewParcelPage() {
             </div>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Road & Electricity</div>
-              <div>{roadAccess ? 'Road Accessible' : 'No Road'} • {electricityAccess ? 'Grid Connected' : `Grid ${gridProximityKm}km`}</div>
+              <div>{roadAccess ? roadAccess.replace('_', ' ') : 'Road access not specified'} • {electricityAccess ? 'Grid Connected' : gridProximityKm === '' ? 'Grid proximity not specified' : `Grid ${gridProximityKm}km`}</div>
             </div>
             <div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Cadastral Overlap Status</div>
@@ -613,8 +618,14 @@ export default function NewParcelPage() {
             </div>
           </div>
 
+          {submitError && (
+            <div role="alert" style={{ padding: '12px 16px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontSize: '0.8125rem' }}>
+              {submitError}
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-            <button onClick={() => setCurrentStep(3)} className="btn btn-outline">
+            <button onClick={() => setCurrentStep(3)} className="btn btn-outline" disabled={saving}>
               ← Edit Boundary
             </button>
 
@@ -622,16 +633,16 @@ export default function NewParcelPage() {
               <button
                 onClick={() => handleSubmit(ParcelStatus.DRAFT)}
                 className="btn btn-outline"
-                disabled={Boolean(overlappingParcel) || validationErrors.length > 0}
+                disabled={saving || Boolean(overlappingParcel) || validationErrors.length > 0}
               >
-                Save as Draft
+                {saving ? 'Saving…' : 'Save as Draft'}
               </button>
               <button
                 onClick={() => handleSubmit(ParcelStatus.PENDING_VERIFICATION)}
                 className="btn btn-primary"
-                disabled={Boolean(overlappingParcel) || validationErrors.length > 0}
+                disabled={saving || Boolean(overlappingParcel) || validationErrors.length > 0}
               >
-                Submit for Verification →
+                {saving ? 'Saving…' : 'Submit for Verification →'}
               </button>
             </div>
           </div>

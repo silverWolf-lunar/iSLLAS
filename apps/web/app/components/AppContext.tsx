@@ -1,10 +1,62 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { CurrentUser } from './Header';
-import { mapApiParcel, ParcelRecord, ProvinceStat } from '../lib/parcel-data';
-import { ParcelStatus, Role, UserProfile } from '@sllas/contracts';
+import {
+  AdminAreaRecord,
+  buildProvinceStats,
+  GeoPolygon,
+  LandCategoryRecord,
+  mapApiParcel,
+  ParcelRecord,
+  ProvinceStat,
+} from '../lib/parcel-data';
+import { apiRequest } from '../lib/api';
+import { Role, UserProfile } from '@sllas/contracts';
+
+/** Payload accepted by `POST /api/v1/parcels` (mirrors `createParcelSchema`). */
+export interface CreateParcelPayload {
+  provinceId: string;
+  districtId: string;
+  wardId?: string;
+  landCategoryId: string;
+  boundary: GeoPolygon;
+  notes?: string;
+  attributes?: {
+    soilType?: string | null;
+    naturalRegion?: string | null;
+    waterAccess?: boolean | null;
+    waterSources?: string | null;
+    roadAccess?: string | null;
+    electricityAvailable?: boolean | null;
+    gridProximityKm?: number | null;
+    terrain?: string | null;
+    currentUse?: string | null;
+    zoningPermittedUses?: string | null;
+    restrictions?: string | null;
+  };
+}
+
+export interface ActionResult {
+  success: boolean;
+  message: string;
+}
+
+export interface CreateParcelResult extends ActionResult {
+  parcelId?: string;
+  referenceNumber?: string;
+  /** True when the parcel was persisted but the follow-up submit step failed. */
+  savedAsDraft?: boolean;
+}
+
+export interface BulkImportResult extends ActionResult {
+  dryRun: boolean;
+  total: number;
+  validCount: number;
+  errorCount: number;
+  results: Array<{ index: number; success: boolean; referenceNumber?: string; error?: string }>;
+}
 
 interface AppContextType {
   currentUser: CurrentUser | null;
@@ -14,10 +66,13 @@ interface AppContextType {
   switchDevRole: (role: Role) => Promise<void>;
   parcels: ParcelRecord[];
   provinces: ProvinceStat[];
-  addParcel: (p: Omit<ParcelRecord, 'id' | 'registeredAt' | 'registeredByUserId' | 'registeredByUserName'>) => ParcelRecord;
-  updateParcelStatus: (id: string, status: ParcelStatus, notes?: string) => void;
-  verifyParcel: (id: string, decision: 'VERIFY' | 'RETURN_FOR_CORRECTION', notes: string) => Promise<{ success: boolean; message: string }>;
-  bulkImportParcels: (parcelsData: Array<Partial<ParcelRecord>>) => { imported: number; failed: number };
+  districts: AdminAreaRecord[];
+  landCategories: LandCategoryRecord[];
+  refreshParcels: () => Promise<void>;
+  createParcel: (payload: CreateParcelPayload, submitForVerification: boolean) => Promise<CreateParcelResult>;
+  submitParcel: (id: string) => Promise<ActionResult>;
+  verifyParcel: (id: string, decision: 'VERIFY' | 'RETURN_FOR_CORRECTION', notes: string) => Promise<ActionResult>;
+  bulkImportParcels: (rows: unknown[], dryRun: boolean) => Promise<BulkImportResult>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -26,16 +81,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [parcels, setParcels] = useState<ParcelRecord[]>([]);
-  const [provinces, setProvinces] = useState<ProvinceStat[]>([]);
+  const [rawParcels, setRawParcels] = useState<Array<Record<string, any>>>([]);
+  const [provinceRefs, setProvinceRefs] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [districts, setDistricts] = useState<AdminAreaRecord[]>([]);
+  const [landCategories, setLandCategories] = useState<LandCategoryRecord[]>([]);
   const [profileRetryKey, setProfileRetryKey] = useState(0);
+
+  // Parcels and province statistics are always derived from what the API returned.
+  const parcels = useMemo(() => rawParcels.map(parcel => mapApiParcel(parcel)), [rawParcels]);
+  const provinces = useMemo(() => buildProvinceStats(provinceRefs, rawParcels), [provinceRefs, rawParcels]);
+
+  const refreshParcels = useCallback(async () => {
+    const result = await apiRequest<any>('parcels?limit=100', undefined, 'Unable to load parcels');
+    if (result.ok && result.data) {
+      const rows = result.data.data ?? result.data;
+      setRawParcels(Array.isArray(rows) ? rows : []);
+    }
+  }, []);
 
   useEffect(() => {
     if (status !== 'authenticated') {
       setCurrentUser(null);
       setProfileError(null);
-      setParcels([]);
-      setProvinces([]);
+      setRawParcels([]);
+      setProvinceRefs([]);
+      setDistricts([]);
+      setLandCategories([]);
       return;
     }
 
@@ -104,17 +175,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
 
         const parcelRows = parcelPayload.data?.data ?? parcelPayload.data ?? [];
-        setParcels(parcelRows.map((parcel: Record<string, any>) => mapApiParcel(parcel)));
+        setRawParcels(Array.isArray(parcelRows) ? parcelRows : []);
 
         const provinceRows = provincePayload.data ?? provincePayload;
-        setProvinces(provinceRows.map((province: Record<string, any>) => ({
+        setProvinceRefs(provinceRows.map((province: Record<string, any>) => ({
           id: province.id,
           code: province.code,
           name: province.name,
-          totalParcels: 0,
-          idleHectares: 0,
-          availableHectares: 0,
-          pendingCount: 0,
         })));
         setProfileError(null);
       })
@@ -123,6 +190,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setProfileError(error instanceof Error ? error.message : 'Unable to load registry data');
         }
       });
+
+    // Reference data used by registration forms. Non-blocking: pages that do not
+    // need it keep working if these public endpoints are briefly unavailable.
+    apiRequest<any[]>('districts').then(result => {
+      if (!controller.signal.aborted && result.ok && Array.isArray(result.data)) {
+        setDistricts(result.data.map(area => ({
+          id: area.id,
+          code: area.code,
+          name: area.name,
+          level: area.level,
+          parentId: area.parentId ?? null,
+        })));
+      }
+    });
+    apiRequest<any[]>('parcels/categories').then(result => {
+      if (!controller.signal.aborted && result.ok && Array.isArray(result.data)) {
+        setLandCategories(result.data.map(category => ({ id: category.id, name: category.name })));
+      }
+    });
 
     return () => controller.abort();
   }, [status, session?.error, profileRetryKey]);
@@ -140,41 +226,103 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addParcel = (): ParcelRecord => {
-    throw new Error('Parcel creation requires persisted province, district, ward, and category identifiers');
+  const submitParcel = async (id: string): Promise<ActionResult> => {
+    const result = await apiRequest(`parcels/${id}/submit`, { method: 'POST' }, 'Unable to submit parcel for verification');
+    if (!result.ok) return { success: false, message: result.message ?? 'Unable to submit parcel for verification' };
+    await refreshParcels();
+    return { success: true, message: 'Parcel submitted for verification.' };
   };
 
-  const updateParcelStatus = (id: string, nextStatus: ParcelStatus): void => {
-    throw new Error(`Parcel status changes must be submitted through the API: ${id} -> ${nextStatus}`);
+  const createParcel = async (
+    payload: CreateParcelPayload,
+    submitForVerification: boolean,
+  ): Promise<CreateParcelResult> => {
+    const created = await apiRequest<any>(
+      'parcels',
+      { method: 'POST', body: JSON.stringify(payload) },
+      'Unable to register parcel',
+    );
+    if (!created.ok || !created.data?.id) {
+      return { success: false, message: created.message ?? 'Unable to register parcel' };
+    }
+
+    const parcelId: string = created.data.id;
+    const referenceNumber: string = created.data.referenceNumber;
+
+    if (submitForVerification) {
+      const submitted = await apiRequest(`parcels/${parcelId}/submit`, { method: 'POST' }, 'Unable to submit parcel');
+      if (!submitted.ok) {
+        await refreshParcels();
+        return {
+          success: false,
+          savedAsDraft: true,
+          parcelId,
+          referenceNumber,
+          message: `Parcel ${referenceNumber} was saved as a draft but could not be submitted: ${submitted.message}`,
+        };
+      }
+    }
+
+    await refreshParcels();
+    return {
+      success: true,
+      parcelId,
+      referenceNumber,
+      message: submitForVerification
+        ? `Parcel ${referenceNumber} submitted for verification.`
+        : `Parcel ${referenceNumber} saved as draft.`,
+    };
   };
 
   const verifyParcel = async (
     id: string,
     decision: 'VERIFY' | 'RETURN_FOR_CORRECTION',
     notes: string,
-  ): Promise<{ success: boolean; message: string }> => {
-    const response = await fetch(`/api/backend/api/v1/parcels/${id}/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision, notes }),
-    });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => undefined);
-      return { success: false, message: payload?.message ?? 'Verification request failed' };
-    }
-    const payload = await response.json();
-    const updated = payload.data ?? payload;
-    setParcels(current => current.map(parcel => parcel.id === id ? mapApiParcel(updated) : parcel));
+  ): Promise<ActionResult> => {
+    const result = await apiRequest(
+      `parcels/${id}/verify`,
+      { method: 'POST', body: JSON.stringify({ decision, notes }) },
+      'Verification request failed',
+    );
+    if (!result.ok) return { success: false, message: result.message ?? 'Verification request failed' };
+    await refreshParcels();
     return {
       success: true,
       message: decision === 'VERIFY' ? 'Parcel verified and published.' : 'Parcel returned for correction.',
     };
   };
 
-  const bulkImportParcels = (items: Array<Partial<ParcelRecord>>): { imported: number; failed: number } => ({
-    imported: 0,
-    failed: items.length,
-  });
+  const bulkImportParcels = async (rows: unknown[], dryRun: boolean): Promise<BulkImportResult> => {
+    const result = await apiRequest<any>(
+      'parcels/bulk-import',
+      { method: 'POST', body: JSON.stringify({ dryRun, parcels: rows }) },
+      'Bulk import failed',
+    );
+    if (!result.ok || !result.data) {
+      return {
+        success: false,
+        message: result.message ?? 'Bulk import failed',
+        dryRun,
+        total: rows.length,
+        validCount: 0,
+        errorCount: rows.length,
+        results: [],
+      };
+    }
+    if (!dryRun && result.data.validCount > 0) await refreshParcels();
+    const summary = result.data;
+    return {
+      success: true,
+      message: dryRun
+        ? `Dry run complete: ${summary.validCount} valid, ${summary.errorCount} rejected.`
+        : `Imported ${summary.validCount} parcel(s); rejected ${summary.errorCount}.`,
+      dryRun,
+      total: summary.total,
+      validCount: summary.validCount,
+      errorCount: summary.errorCount,
+      results: summary.results ?? [],
+    };
+  };
 
   return (
     <AppContext.Provider value={{
@@ -188,8 +336,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       switchDevRole,
       parcels,
       provinces,
-      addParcel,
-      updateParcelStatus,
+      districts,
+      landCategories,
+      refreshParcels,
+      createParcel,
+      submitParcel,
       verifyParcel,
       bulkImportParcels,
     }}>

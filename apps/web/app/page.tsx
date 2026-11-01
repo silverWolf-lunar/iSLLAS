@@ -185,6 +185,28 @@ export default function LandingPage() {
   const { resolvedTheme } = useTheme();
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [selectedNews, setSelectedNews] = useState<LandNewsArticle | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Lock body scrolling when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   // Real-time news state
   const [newsArticles, setNewsArticles] = useState<LandNewsArticle[]>(LAND_NEWS_ARTICLES);
@@ -318,7 +340,7 @@ export default function LandingPage() {
           <span>•</span>
           <span>Ministry of Lands & Rural Development</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="landing-top-ribbon-sub" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span>Agricultural Land Settlement Act (Cap 20:01)</span>
           <span>•</span>
           <span style={{ color: '#ffffff', fontWeight: 600 }}>Vision 2030 Cadastre</span>
@@ -334,7 +356,7 @@ export default function LandingPage() {
         WebkitBackdropFilter: 'blur(20px)',
         background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(6, 9, 19, 0.88)',
         borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-        padding: '14px 28px',
+        padding: '14px 24px',
         transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}>
         <div style={{
@@ -343,12 +365,19 @@ export default function LandingPage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: '16px',
         }}>
           <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Logo variant="full" theme={isLight ? 'light' : 'dark'} />
+            <div className="landing-logo-full">
+              <Logo variant="full" theme={isLight ? 'light' : 'dark'} />
+            </div>
+            <div className="landing-logo-compact">
+              <Logo variant="compact" theme={isLight ? 'light' : 'dark'} />
+            </div>
           </Link>
 
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          {/* Desktop Navigation Links */}
+          <nav className="landing-nav-desktop" aria-label="Desktop primary navigation">
             <a href="#process" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
               Application Process
             </a>
@@ -399,8 +428,208 @@ export default function LandingPage() {
               </div>
             )}
           </nav>
+
+          {/* Mobile Right Controls: Theme Switcher & Hamburger Toggle Button */}
+          <div className="landing-nav-mobile-actions">
+            <ThemeSwitcher />
+            <button
+              type="button"
+              className="landing-hamburger-btn"
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Mobile Drawer Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="landing-mobile-backdrop"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile Navigation Drawer */}
+      <div
+        className={`landing-mobile-drawer ${mobileMenuOpen ? 'is-open' : ''}`}
+        style={{
+          background: isLight ? '#ffffff' : '#090e1a',
+          color: isLight ? '#0f172a' : '#f8fafc',
+          borderLeft: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation Menu"
+      >
+        {/* Drawer Header */}
+        <div className="landing-drawer-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Logo variant="compact" theme={isLight ? 'light' : 'dark'} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: isLight ? '#0f172a' : '#ffffff' }}>
+                SLLAS Portal
+              </div>
+              <div style={{ fontSize: '0.72rem', color: isLight ? '#64748b' : '#94a3b8' }}>
+                Navigation &amp; Land Services
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="landing-drawer-close-btn"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close menu"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Official Zimbabwe Banner Chip */}
+        <div className="landing-drawer-govt-badge">
+          <ZimbabweFlag width={18} height={12} />
+          <span>Ministry of Lands &amp; Rural Development</span>
+        </div>
+
+        {/* Mobile Navigation Links */}
+        <nav className="landing-drawer-nav" aria-label="Mobile menu navigation">
+          {[
+            { label: 'Application Process', href: '#process', icon: '📋', desc: 'Statutory 7-stage lease workflow' },
+            { label: 'Spatial Cadastre', href: '#cadastre-preview', icon: '🗺️', desc: 'Interactive GIS provincial parcels' },
+            { label: 'Land Schemes', href: '#schemes', icon: '🌾', desc: 'A1 smallholder & A2 commercial' },
+            { label: 'Land News', href: '#news', icon: '📰', desc: 'Real-time gazette & agriculture feed' },
+            { label: 'Eligibility Checklist', href: '#eligibility', icon: '✅', desc: 'Statutory qualification requirements' },
+            { label: 'FAQs', href: '#faqs', icon: '❓', desc: 'Tenure, leases & bankability' },
+          ].map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="landing-drawer-nav-item"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <span className="landing-drawer-nav-icon">{item.icon}</span>
+              <div className="landing-drawer-nav-content">
+                <span className="landing-drawer-nav-title">{item.label}</span>
+                <span className="landing-drawer-nav-sub" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>
+                  {item.desc}
+                </span>
+              </div>
+              <span className="landing-drawer-nav-arrow">→</span>
+            </a>
+          ))}
+        </nav>
+
+        {/* Drawer Authentication & Action Section */}
+        <div className="landing-drawer-footer">
+          {session?.user ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
+                fontSize: '0.8rem',
+              }}>
+                <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.7rem' }}>Signed in as</div>
+                <div style={{ fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff' }}>
+                  {(session.user as any)?.name || session.user.email}
+                </div>
+                <div style={{ marginTop: '4px' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    background: 'rgba(34, 197, 94, 0.2)',
+                    color: '#22c55e',
+                  }}>
+                    {roleName || 'Active Session'}
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                href={userDashboard || '/client'}
+                className="btn btn-primary"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontWeight: 600,
+                }}
+              >
+                <span>Go to {roleName || 'Portal'}</span>
+                <span>→</span>
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Link
+                href="/signin"
+                className="btn btn-primary"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  textAlign: 'center',
+                  display: 'block',
+                }}
+              >
+                Sign In to SLLAS
+              </Link>
+              <Link
+                href="/signin"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  fontSize: '0.8rem',
+                  textAlign: 'center',
+                  color: isLight ? '#166534' : '#4ade80',
+                  textDecoration: 'none',
+                  fontWeight: 500,
+                }}
+              >
+                Create New Citizen Account →
+              </Link>
+            </div>
+          )}
+
+          <div style={{
+            fontSize: '0.7rem',
+            color: isLight ? '#94a3b8' : '#64748b',
+            textAlign: 'center',
+            marginTop: '4px',
+          }}>
+            Agricultural Land Settlement Act (Cap 20:01) • Vision 2030
+          </div>
+        </div>
+      </div>
 
       {/* Authenticated Floating Quick Access Bar */}
       {session?.user && (
@@ -1273,18 +1502,6 @@ export default function LandingPage() {
           }}>
             Live Land, Farm &amp; Agricultural Updates
           </h2>
-          <p style={{
-            color: isLight ? '#475569' : 'var(--text-muted)',
-            maxWidth: '760px',
-            margin: '0 auto 24px',
-            fontSize: '0.95rem',
-            lineHeight: 1.65,
-          }}>
-            Continuously refreshed with real agricultural dispatches, syndications from The Herald Agriculture Desk, The Chronicle, and national farmland tenure authorities (displaying 4–6 cards max, auto-refreshing every 10 seconds).
-          </p>
-
-
-
         </div>
 
         {/* 10-Second Auto-Update Banner & Real-Time Controls (Hidden from view per user request) */}

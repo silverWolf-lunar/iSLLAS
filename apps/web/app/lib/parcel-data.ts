@@ -85,7 +85,7 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
     naturalRegion: parcel.naturalRegion,
     soilType: parcel.soilType,
     waterSources: parcel.waterSources ? parcel.waterSources.split(',').map((item: string) => item.trim()) : [],
-    roadAccess: Boolean(parcel.roadAccess),
+    roadAccess: Boolean(parcel.roadAccess) && parcel.roadAccess !== 'NONE',
     electricityAccess: Boolean(parcel.electricityAvailable),
     gridProximityKm: parcel.gridProximityKm == null ? null : Number(parcel.gridProximityKm),
     terrain: parcel.terrain ?? '',
@@ -111,6 +111,30 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
         }
       : undefined,
   };
+}
+
+/**
+ * Builds province statistics from the parcels returned by the API so the
+ * numbers always reflect what is stored in the database.
+ */
+export function buildProvinceStats(
+  provinces: Array<{ id: string; code: string; name: string }>,
+  rawParcels: Array<Record<string, any>>,
+): ProvinceStat[] {
+  return provinces.map(province => {
+    const inProvince = rawParcels.filter(parcel => parcel.provinceId === province.id);
+    const hectares = (rows: Array<Record<string, any>>) =>
+      rows.reduce((sum, parcel) => sum + (Number(parcel.areaHectares) || 0), 0);
+    return {
+      id: province.id,
+      code: province.code,
+      name: province.name,
+      totalParcels: inProvince.length,
+      idleHectares: hectares(inProvince),
+      availableHectares: hectares(inProvince.filter(parcel => parcel.status === ParcelStatus.AVAILABLE)),
+      pendingCount: inProvince.filter(parcel => parcel.status === ParcelStatus.PENDING_VERIFICATION).length,
+    };
+  });
 }
 
 export function calculatePolygonAreaHa(coords: number[][]): number {
