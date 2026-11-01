@@ -450,11 +450,11 @@ function SignInContent() {
 
       {/* Main Container */}
       <main style={{
-        maxWidth: '1000px',
+        maxWidth: authMode === 'register' ? '860px' : '1000px',
         width: '100%',
         margin: 'auto',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+        gridTemplateColumns: authMode === 'register' ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))',
         gap: '32px',
         alignItems: 'start',
       }}>
@@ -1544,175 +1544,115 @@ function SignInContent() {
           )}
         </div>
 
-        {/* Right Column: Fast Demo Access & System Assurance */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Statutory Registration Guidance Panel (shown in register mode) */}
-          {authMode === 'register' && (
+        {/* Right Column: Fast Demo Access & System Assurance (only shown in Sign In mode) */}
+        {authMode === 'signin' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Quick Demo Switcher Card */}
             <div className="glass-panel" style={{
-              padding: '24px 28px',
+              padding: '28px',
               borderRadius: '16px',
               background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.6)',
               border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
               boxShadow: isLight ? '0 4px 12px rgba(0, 0, 0, 0.05)' : undefined,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '1.25rem' }}>🇿🇼</span>
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: isLight ? '#0f172a' : '#ffffff' }}>
-                  Citizen Onboarding Guidelines
-                </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <span style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: isLight ? '#dcfce7' : 'rgba(22, 163, 74, 0.2)',
+                  color: isLight ? '#15803d' : 'var(--primary-400)',
+                  border: isLight ? '1px solid #bbf7d0' : '1px solid rgba(22, 163, 74, 0.3)',
+                }}>
+                  RAPID ACCESS
+                </span>
+                <span style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
+                  Demonstration & Role Verification
+                </span>
               </div>
-              <p style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)', lineHeight: 1.5, marginBottom: '14px' }}>
-                Public registration provides immediate access to the <strong>Citizen & Farmer Portal</strong> for land settlement, waiting list tracking, and 99-year lease management.
+
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '8px' }}>
+                Select a Persona to Sign In Directly
+              </h2>
+              <p style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.5 }}>
+                Click any verified role below to automatically authenticate and launch that role's specialized workbench.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem' }}>
-                <div style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)',
-                  border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
-                }}>
-                  <div style={{ fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '2px' }}>
-                    🌾 Smallholder Farmers (A1)
-                  </div>
-                  <div style={{ color: isLight ? '#64748b' : 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Requires a valid Zimbabwe National ID. Enables applying for resettlement land up to standard regional agro-ecological boundaries.
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)',
-                  border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
-                }}>
-                  <div style={{ fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '2px' }}>
-                    🏢 Commercial Enterprises (A2)
-                  </div>
-                  <div style={{ color: isLight ? '#64748b' : 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Provides agribusiness entities with bankable 99-year leasehold rights, subject to business plan and tax clearance verification.
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: isLight ? '#fffbeb' : 'rgba(245, 158, 11, 0.1)',
-                  border: isLight ? '1px solid #fde68a' : '1px solid rgba(245, 158, 11, 0.25)',
-                  color: isLight ? '#b45309' : 'var(--accent-400)',
-                  fontSize: '0.75rem',
-                }}>
-                  <strong>⚠️ Government Officer Accounts:</strong> Ministry Registry Officers, Land Board Approvers, Estates Officers, and Auditors are provisioned exclusively by the System Administrator and cannot self-register.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Demo Switcher Card */}
-          <div className="glass-panel" style={{
-            padding: '28px',
-            borderRadius: '16px',
-            background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.6)',
-            border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: isLight ? '0 4px 12px rgba(0, 0, 0, 0.05)' : undefined,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <span style={{
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: '4px',
-                background: isLight ? '#dcfce7' : 'rgba(22, 163, 74, 0.2)',
-                color: isLight ? '#15803d' : 'var(--primary-400)',
-                border: isLight ? '1px solid #bbf7d0' : '1px solid rgba(22, 163, 74, 0.3)',
-              }}>
-                RAPID ACCESS
-              </span>
-              <span style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
-                Demonstration & Role Verification
-              </span>
-            </div>
-
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '8px' }}>
-              Select a Persona to Sign In Directly
-            </h2>
-            <p style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.5 }}>
-              Click any verified role below to automatically authenticate and launch that role's specialized workbench.
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
-              {DEMO_ACCOUNTS.map(demo => (
-                <button
-                  key={demo.role}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => handleQuickDemoLogin(demo)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)',
-                    border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = demo.badgeColor;
-                    e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(2, 6, 23, 0.8)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.background = isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)';
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '1.25rem' }}>{demo.icon}</span>
-                    <div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff' }}>
-                        {demo.label}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
-                        {demo.description}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+                {DEMO_ACCOUNTS.map(demo => (
+                  <button
+                    key={demo.role}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleQuickDemoLogin(demo)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)',
+                      border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = demo.badgeColor;
+                      e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(2, 6, 23, 0.8)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.background = isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '1.25rem' }}>{demo.icon}</span>
+                      <div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff' }}>
+                          {demo.label}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
+                          {demo.description}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <span style={{
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: `${demo.badgeColor}22`,
-                    color: demo.badgeColor,
-                    border: `1px solid ${demo.badgeColor}44`,
-                  }}>
-                    Log in →
-                  </span>
-                </button>
-              ))}
+                    <span style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: `${demo.badgeColor}22`,
+                      color: demo.badgeColor,
+                      border: `1px solid ${demo.badgeColor}44`,
+                    }}>
+                      Log in →
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Statutory Security Note */}
+            <div className="glass-panel" style={{
+              padding: '20px 24px',
+              borderRadius: '12px',
+              background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.4)',
+              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
+              fontSize: '0.75rem',
+              color: isLight ? '#475569' : 'var(--text-dim)',
+              lineHeight: 1.6,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isLight ? '#0f172a' : '#cbd5e1', fontWeight: 600, marginBottom: '4px' }}>
+                <span>⚖️</span>
+                <span>Statutory Compliance Notice</span>
+              </div>
+              Access to SLLAS is governed by the <strong>Agricultural Land Settlement Act (Chapter 20:01)</strong> and the <strong>Gazetted Land Act</strong>. All login attempts, spatial queries, and allocation actions are recorded in an immutable, cryptographically verifiable audit trail.
             </div>
           </div>
-
-          {/* Statutory Security Note */}
-          <div className="glass-panel" style={{
-            padding: '20px 24px',
-            borderRadius: '12px',
-            background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.4)',
-            border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
-            fontSize: '0.75rem',
-            color: isLight ? '#475569' : 'var(--text-dim)',
-            lineHeight: 1.6,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isLight ? '#0f172a' : '#cbd5e1', fontWeight: 600, marginBottom: '4px' }}>
-              <span>⚖️</span>
-              <span>Statutory Compliance Notice</span>
-            </div>
-            Access to SLLAS is governed by the <strong>Agricultural Land Settlement Act (Chapter 20:01)</strong> and the <strong>Gazetted Land Act</strong>. All login attempts, spatial queries, and allocation actions are recorded in an immutable, cryptographically verifiable audit trail.
-          </div>
-        </div>
+        )}
       </main>
 
       {/* Footer */}
