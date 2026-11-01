@@ -34,9 +34,9 @@ export function Header({
   const { data: session } = useSession();
 
   const sessionUser = session?.user as any;
-  const role =
+  const role: Role =
     currentUser?.role ||
-    sessionUser?.role ||
+    (sessionUser?.role as Role) ||
     (pathname.startsWith('/admin')
       ? Role.SYSTEM_ADMIN
       : pathname.startsWith('/officer')
@@ -46,7 +46,7 @@ export function Header({
       : pathname.startsWith('/approver')
       ? Role.APPROVER
       : Role.CLIENT);
-  const roleConfig = ROLE_CONFIG[role];
+  const roleConfig = ROLE_CONFIG[role] || ROLE_CONFIG[Role.CLIENT];
 
   const handleRoleChange = async (newRole: Role) => {
     if (newRole === currentUser?.role || switchingRole) return;

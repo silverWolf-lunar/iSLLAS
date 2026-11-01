@@ -769,7 +769,7 @@ export function SpatialMap({
                 type: 'Polygon',
                 coordinates: [highlightPolygon],
               },
-            }}
+            } as any}
             style={{
               color: '#38bdf8',
               weight: 3,
