@@ -620,7 +620,7 @@ export default function LandingPage() {
                 Sign In to SLLAS
               </Link>
               <Link
-                href="/signin"
+                href="/signin?mode=register"
                 onClick={() => setMobileMenuOpen(false)}
                 style={{
                   width: '100%',
@@ -1404,7 +1404,7 @@ export default function LandingPage() {
               </div>
 
               <div style={{ marginTop: '28px' }}>
-                <Link href="/signin" className="btn btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
+                <Link href="/signin?mode=register" className="btn btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
                   Apply for A1 Parcel
                 </Link>
               </div>
@@ -1452,7 +1452,7 @@ export default function LandingPage() {
               </div>
 
               <div style={{ marginTop: '28px' }}>
-                <Link href="/signin" className="btn btn-primary" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
+                <Link href="/signin?mode=register" className="btn btn-primary" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
                   Apply for A2 Parcel
                 </Link>
               </div>
@@ -1490,7 +1490,7 @@ export default function LandingPage() {
               </div>
 
               <div style={{ marginTop: '28px' }}>
-                <Link href="/signin" className="btn btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
+                <Link href="/signin?mode=register" className="btn btn-outline" style={{ width: '100%', textAlign: 'center', display: 'block' }}>
                   Apply for Ranching Land
                 </Link>
               </div>
