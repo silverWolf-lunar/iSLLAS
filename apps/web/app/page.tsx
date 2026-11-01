@@ -321,140 +321,157 @@ export default function LandingPage() {
       overflowX: 'hidden',
       transition: 'background-color 0.25s ease, color 0.25s ease',
     }}>
-      {/* Top Government Ribbon */}
-      <div style={{
-        background: isLight ? 'linear-gradient(90deg, #15803d 0%, #166534 50%, #92400e 100%)' : 'linear-gradient(90deg, #166534 0%, #064e3b 50%, #854d0e 100%)',
-        padding: '7px 20px',
-        fontSize: '0.75rem',
-        color: '#fef08a',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '8px',
-        borderBottom: '1px solid rgba(254, 240, 138, 0.25)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ZimbabweFlag width={20} height={13} />
-          <strong style={{ letterSpacing: '0.04em' }}>REPUBLIC OF ZIMBABWE</strong>
-          <span>•</span>
-          <span>Ministry of Lands & Rural Development</span>
-        </div>
-        <div className="landing-top-ribbon-sub" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span>Agricultural Land Settlement Act (Cap 20:01)</span>
-          <span>•</span>
-          <span style={{ color: '#ffffff', fontWeight: 600 }}>Vision 2030 Cadastre</span>
-        </div>
-      </div>
-
-      {/* Main Navigation Bar */}
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(6, 9, 19, 0.88)',
-        borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-        padding: '14px 24px',
-        transition: 'background-color 0.2s ease, border-color 0.2s ease',
-      }}>
+      {/* Fixed National Header (Top Ribbon + Navigation Bar) */}
+      <header
+        className="landing-fixed-header"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          width: '100%',
+          zIndex: 1000,
+          boxShadow: isLight
+            ? '0 4px 20px rgba(0, 0, 0, 0.08)'
+            : '0 4px 24px rgba(0, 0, 0, 0.45)',
+          transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+        }}
+      >
+        {/* Top Government Ribbon */}
         <div style={{
-          maxWidth: '1360px',
-          margin: '0 auto',
+          background: isLight ? 'linear-gradient(90deg, #15803d 0%, #166534 50%, #92400e 100%)' : 'linear-gradient(90deg, #166534 0%, #064e3b 50%, #854d0e 100%)',
+          padding: '7px 20px',
+          fontSize: '0.75rem',
+          color: '#fef08a',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '16px',
+          flexWrap: 'wrap',
+          gap: '8px',
+          borderBottom: '1px solid rgba(254, 240, 138, 0.25)',
         }}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="landing-logo-full">
-              <Logo variant="full" theme={isLight ? 'light' : 'dark'} />
-            </div>
-            <div className="landing-logo-compact">
-              <Logo variant="compact" theme={isLight ? 'light' : 'dark'} />
-            </div>
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ZimbabweFlag width={20} height={13} />
+            <strong style={{ letterSpacing: '0.04em' }}>REPUBLIC OF ZIMBABWE</strong>
+            <span>•</span>
+            <span>Ministry of Lands & Rural Development</span>
+          </div>
+          <div className="landing-top-ribbon-sub" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span>Agricultural Land Settlement Act (Cap 20:01)</span>
+            <span>•</span>
+            <span style={{ color: '#ffffff', fontWeight: 600 }}>Vision 2030 Cadastre</span>
+          </div>
+        </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="landing-nav-desktop" aria-label="Desktop primary navigation">
-            <a href="#process" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
-              Application Process
-            </a>
-            <a href="#cadastre-preview" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
-              Spatial Cadastre
-            </a>
-            <a href="#schemes" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
-              Land Schemes
-            </a>
-            <a href="#news" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
-              Land News
-            </a>
-            <a href="#eligibility" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
-              Eligibility Checklist
-            </a>
-            <a href="#faqs" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
-              FAQs
-            </a>
-
-            {/* Quick Theme Switcher Function */}
-            <ThemeSwitcher />
-
-            {/* Authentication Action */}
-            {session?.user ? (
-              <Link
-                href={userDashboard || '/client'}
-                className="btn btn-primary"
-                style={{
-                  padding: '9px 18px',
-                  fontSize: '0.875rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <span>Go to {roleName || 'Portal'}</span>
-                <span>→</span>
-              </Link>
-            ) : (
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <Link
-                  href="/signin"
-                  className="btn btn-primary"
-                  style={{ padding: '9px 20px', fontSize: '0.875rem', fontWeight: 600 }}
-                >
-                  Sign In to SLLAS
-                </Link>
+        {/* Main Navigation Bar */}
+        <div style={{
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          background: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(6, 9, 19, 0.92)',
+          borderBottom: isLight ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '14px 24px',
+          transition: 'background-color 0.2s ease, border-color 0.2s ease',
+        }}>
+          <div style={{
+            maxWidth: '1360px',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '16px',
+          }}>
+            <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="landing-logo-full">
+                <Logo variant="full" theme={isLight ? 'light' : 'dark'} />
               </div>
-            )}
-          </nav>
+              <div className="landing-logo-compact">
+                <Logo variant="compact" theme={isLight ? 'light' : 'dark'} />
+              </div>
+            </Link>
 
-          {/* Mobile Right Controls: Theme Switcher & Hamburger Toggle Button */}
-          <div className="landing-nav-mobile-actions">
-            <ThemeSwitcher />
-            <button
-              type="button"
-              className="landing-hamburger-btn"
-              onClick={() => setMobileMenuOpen(prev => !prev)}
-              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              aria-expanded={mobileMenuOpen}
-            >
-              {mobileMenuOpen ? (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+            {/* Desktop Navigation Links */}
+            <nav className="landing-nav-desktop" aria-label="Desktop primary navigation">
+              <a href="#process" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+                Application Process
+              </a>
+              <a href="#cadastre-preview" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+                Spatial Cadastre
+              </a>
+              <a href="#schemes" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+                Land Schemes
+              </a>
+              <a href="#news" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+                Land News
+              </a>
+              <a href="#eligibility" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+                Eligibility Checklist
+              </a>
+              <a href="#faqs" style={{ color: isLight ? '#334155' : '#cbd5e1', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.15s' }}>
+                FAQs
+              </a>
+
+              {/* Quick Theme Switcher Function */}
+              <ThemeSwitcher />
+
+              {/* Authentication Action */}
+              {session?.user ? (
+                <Link
+                  href={userDashboard || '/client'}
+                  className="btn btn-primary"
+                  style={{
+                    padding: '9px 18px',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <span>Go to {roleName || 'Portal'}</span>
+                  <span>→</span>
+                </Link>
               ) : (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <Link
+                    href="/signin"
+                    className="btn btn-primary"
+                    style={{ padding: '9px 20px', fontSize: '0.875rem', fontWeight: 600 }}
+                  >
+                    Sign In to SLLAS
+                  </Link>
+                </div>
               )}
-            </button>
+            </nav>
+
+            {/* Mobile Right Controls: Theme Switcher & Hamburger Toggle Button */}
+            <div className="landing-nav-mobile-actions">
+              <ThemeSwitcher />
+              <button
+                type="button"
+                className="landing-hamburger-btn"
+                onClick={() => setMobileMenuOpen(prev => !prev)}
+                aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                aria-expanded={mobileMenuOpen}
+              >
+                {mobileMenuOpen ? (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Spacer to offset content under fixed header */}
+      <div className="landing-header-spacer" aria-hidden="true" />
 
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (

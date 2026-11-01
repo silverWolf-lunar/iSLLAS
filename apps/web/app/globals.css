@@ -236,9 +236,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 115px;
+}
+
 html, body {
   max-width: 100%;
   overflow-x: hidden;
+}
+
+.landing-header-spacer {
+  height: 104px;
+}
+
+@media (max-width: 900px) {
+  .landing-header-spacer {
+    height: 114px;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-header-spacer {
+    height: 122px;
+  }
 }
 
 button, a, input, select, textarea {
