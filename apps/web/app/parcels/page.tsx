@@ -5,7 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useApp } from '../components/AppContext';
 import { ParcelRecord } from '../lib/parcel-data';
-import { ParcelStatus, NaturalRegion, Role } from '@sllas/contracts';
+import { ParcelStatus, NaturalRegion, Role, LeaseClassification } from '@sllas/contracts';
 import { ApplyForParcelModal } from '../components/ApplyForParcelModal';
 
 const SpatialMap = dynamic(
@@ -20,6 +20,7 @@ export default function ParcelsExplorerPage() {
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedClassification, setSelectedClassification] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
   const [selectedParcel, setSelectedParcel] = useState<ParcelRecord | null>(null);
   const [applyingParcel, setApplyingParcel] = useState<ParcelRecord | null>(null);
@@ -30,8 +31,10 @@ export default function ParcelsExplorerPage() {
       const statusParam = params.get('status');
       const viewParam = params.get('view');
       const parcelIdParam = params.get('parcelId');
+      const classParam = params.get('classification');
 
       if (statusParam) setSelectedStatus(statusParam);
+      if (classParam) setSelectedClassification(classParam);
       if (viewParam === 'map') setViewMode('map');
       if (parcelIdParam) {
         const found = parcels.find(p => p.id === parcelIdParam);
@@ -56,12 +59,15 @@ export default function ParcelsExplorerPage() {
       const matchesRegion = selectedRegion === '' ||
         p.naturalRegion === selectedRegion;
 
-      return matchesSearch && matchesProvince && matchesStatus && matchesRegion;
+      const matchesClassification = selectedClassification === '' ||
+        p.leaseClassification.code === selectedClassification;
+
+      return matchesSearch && matchesProvince && matchesStatus && matchesRegion && matchesClassification;
     });
-  }, [parcels, searchTerm, selectedProvince, selectedStatus, selectedRegion]);
+  }, [parcels, searchTerm, selectedProvince, selectedStatus, selectedRegion, selectedClassification]);
 
   const handleExportCSV = () => {
-    const headers = ['Reference', 'Name', 'Province', 'District', 'Ward', 'Category', 'Hectares', 'Status', 'NaturalRegion', 'SoilType'];
+    const headers = ['Reference', 'Name', 'Province', 'District', 'Ward', 'Category', 'Hectares', 'Status', 'LeaseClassification', 'StatutoryAct', 'TermYears', 'Bankability', 'NaturalRegion', 'SoilType'];
     const rows = filteredParcels.map(p => [
       p.referenceNumber,
       `"${p.name}"`,
@@ -71,6 +77,10 @@ export default function ParcelsExplorerPage() {
       p.landCategory,
       p.areaHectares,
       p.status,
+      `"${p.leaseClassification.fullName}"`,
+      `"${p.leaseClassification.statutoryAct}"`,
+      p.leaseClassification.termYears,
+      `"${p.leaseClassification.bankability}"`,
       p.naturalRegion,
       p.soilType,
     ]);
@@ -204,13 +214,29 @@ export default function ParcelsExplorerPage() {
           </select>
         </div>
 
-        {(searchTerm || selectedProvince || selectedStatus || selectedRegion) && (
+        <div>
+          <select
+            className="glass-input"
+            value={selectedClassification}
+            onChange={(e) => setSelectedClassification(e.target.value)}
+          >
+            <option value="">All Lease Classifications</option>
+            <option value={LeaseClassification.A2_COMMERCIAL}>A2 Commercial Agricultural (99-Year Bankable)</option>
+            <option value={LeaseClassification.A1_SETTLEMENT}>A1 Smallholder Permit / Lease</option>
+            <option value={LeaseClassification.PERI_URBAN_COMMERCIAL}>Peri-Urban Commercial Agro-Plot</option>
+            <option value={LeaseClassification.RANGELAND_PASTORAL}>Extensive Rangeland Pastoral Lease</option>
+            <option value={LeaseClassification.AGRO_INDUSTRIAL}>Specialized Agro-Industrial Concession</option>
+          </select>
+        </div>
+
+        {(searchTerm || selectedProvince || selectedStatus || selectedRegion || selectedClassification) && (
           <button
             onClick={() => {
               setSearchTerm('');
               setSelectedProvince('');
               setSelectedStatus('');
               setSelectedRegion('');
+              setSelectedClassification('');
             }}
             style={{
               background: 'transparent',
@@ -260,6 +286,35 @@ export default function ParcelsExplorerPage() {
                 </h3>
                 <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                   {selectedParcel.district}, {selectedParcel.province} • {selectedParcel.ward}
+                </div>
+              </div>
+
+              {/* Statutory Lease Classification Card */}
+              <div style={{
+                background: selectedParcel.leaseClassification.bgColor,
+                border: `1px solid ${selectedParcel.leaseClassification.borderColor}`,
+                borderRadius: '8px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 800, textTransform: 'uppercase', color: selectedParcel.leaseClassification.color, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>📜</span> Statutory Lease Classification
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(0,0,0,0.4)', color: selectedParcel.leaseClassification.color, fontWeight: 700 }}>
+                    {selectedParcel.leaseClassification.termLabel}
+                  </span>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#ffffff' }}>
+                  {selectedParcel.leaseClassification.fullName}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <strong style={{ color: '#cbd5e1' }}>Act:</strong> {selectedParcel.leaseClassification.statutoryAct}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <strong style={{ color: '#cbd5e1' }}>Security:</strong> {selectedParcel.leaseClassification.bankability}
                 </div>
               </div>
 
@@ -342,7 +397,7 @@ export default function ParcelsExplorerPage() {
                     }}
                     onClick={() => setApplyingParcel(selectedParcel)}
                   >
-                    🌱 Apply for This Land Parcel
+                    🌱 Apply for {selectedParcel.leaseClassification.shortName}
                   </button>
                 )}
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -369,6 +424,7 @@ export default function ParcelsExplorerPage() {
                 <th>Parcel Name</th>
                 <th>Province & District</th>
                 <th>Tenure</th>
+                <th>Lease Classification</th>
                 <th>Area</th>
                 <th>Natural Region</th>
                 <th>Soil</th>
@@ -379,7 +435,7 @@ export default function ParcelsExplorerPage() {
             <tbody>
               {filteredParcels.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)' }}>
                     No parcels match the selected search criteria.
                   </td>
                 </tr>
@@ -398,6 +454,27 @@ export default function ParcelsExplorerPage() {
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{parcel.district} ({parcel.ward})</div>
                     </td>
                     <td>{parcel.landCategory}</td>
+                    <td>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        color: parcel.leaseClassification.color,
+                        background: parcel.leaseClassification.bgColor,
+                        border: `1px solid ${parcel.leaseClassification.borderColor}`,
+                        whiteSpace: 'nowrap'
+                      }}>
+                        <span style={{ fontSize: '0.5rem' }}>●</span>
+                        <span>{parcel.leaseClassification.shortName}</span>
+                      </div>
+                      <div style={{ fontSize: '0.625rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                        {parcel.leaseClassification.termYears}-Yr Leasehold
+                      </div>
+                    </td>
                     <td><strong>{parcel.areaHectares}</strong> ha</td>
                     <td>Region {parcel.naturalRegion}</td>
                     <td>{parcel.soilType}</td>
@@ -442,6 +519,22 @@ export default function ParcelsExplorerPage() {
                 <div className="parcel-card-heading">
                   <span className="parcel-reference">{parcel.referenceNumber}</span>
                   <span className={`badge badge-${parcel.status.toLowerCase().replace('_', '-')}`}>{parcel.status}</span>
+                </div>
+                <div style={{ marginTop: '4px', marginBottom: '6px' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    color: parcel.leaseClassification.color,
+                    background: parcel.leaseClassification.bgColor,
+                    border: `1px solid ${parcel.leaseClassification.borderColor}`
+                  }}>
+                    📜 {parcel.leaseClassification.shortName}
+                  </span>
                 </div>
                 <h3>{parcel.name}</h3>
                 <p>{parcel.province} · {parcel.district}</p>

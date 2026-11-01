@@ -1,14 +1,16 @@
 export interface MobileNewsArticle {
   id: string;
   title: string;
-  category: 'CROPS' | 'FINANCE' | 'LIVESTOCK' | 'TENURE';
+  category: 'CROPS' | 'FINANCE' | 'LIVESTOCK' | 'TENURE' | 'CADASTRE';
   source: string;
   date: string;
   readTime: string;
-  imageKey: keyof typeof NEWS_IMAGES;
+  imageKey?: keyof typeof NEWS_IMAGES;
+  imageUrl?: string;
   summary: string;
   bulletPoints: string[];
   fullGazetteText: string;
+  sourceUrl?: string;
 }
 
 export const NEWS_IMAGES = {

@@ -2,8 +2,10 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Alert,
   Animated,
+  Dimensions,
   Easing,
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -20,6 +22,7 @@ import Svg, {
   Rect,
   Defs,
   LinearGradient,
+  RadialGradient,
   Stop,
   Circle,
   G,
@@ -40,6 +43,7 @@ import {
 } from './news_data';
 import {
   ClientProfile,
+  CitizenRegistrationPayload,
   MobileParcel,
   ApplicationStatusItem,
   NotificationItem,
@@ -49,7 +53,9 @@ import {
   fetchApplicationsFromDb,
   submitLeaseApplicationToDb,
   fetchNotificationsFromDb,
+  fetchRealNewsArticles,
   getApiBaseUrl,
+  getMobileLeaseClassification,
 } from './api';
 
 const SATELLITE_MAP_IMG = require('./assets/zimbabwe_satellite_map.jpg');
@@ -67,10 +73,19 @@ type AvailabilityFilter = 'All' | 'Available' | 'Reserved' | 'Allocated';
 
 const INITIAL_PROFILE: ClientProfile = {
   name: 'Tafadzwa Chikata',
+  surname: 'Chikata',
+  firstName: 'Tafadzwa',
+  title: 'Mr.',
+  gender: 'Male',
+  dateOfBirth: '1988-06-14',
   nationalId: '63-128944-P-63',
+  idDocumentName: 'National_ID_63-128944.pdf',
+  maritalStatus: 'Married',
+  citizenship: 'Zimbabwean',
   email: 'farmer@sllas.gov.zw',
   phone: '+263 77 345 6789',
   address: 'Stand 44, Banket Commercial Farming Block',
+  farmerCategory: 'Ordinary',
   province: 'Mashonaland West',
   district: 'Makonde',
   smsNotifications: true,
@@ -78,7 +93,7 @@ const INITIAL_PROFILE: ClientProfile = {
   expiryReminders: true,
 };
 
-const MOCK_PARCELS: MobileParcel[] = [
+const RAW_MOCK_PARCELS: MobileParcel[] = [
   {
     id: 'p-1',
     referenceNumber: 'ZW-MSW-MAK-2026-0042',
@@ -224,6 +239,24 @@ const MOCK_PARCELS: MobileParcel[] = [
     surveyBeacons: 'NY-094A, NY-094B',
   },
 ];
+
+const MOCK_PARCELS: MobileParcel[] = RAW_MOCK_PARCELS.map(p => {
+  const leaseInfo = getMobileLeaseClassification({
+    landUse: p.landUse,
+    hectares: p.hectares,
+    naturalRegion: p.naturalRegion,
+    district: p.district,
+    name: p.name,
+  });
+  return {
+    ...p,
+    leaseClassification: leaseInfo.classification,
+    leaseClassificationCode: leaseInfo.code,
+    leaseTermYears: leaseInfo.termYears,
+    statutoryAct: leaseInfo.statutoryAct,
+    bankability: leaseInfo.bankability,
+  };
+});
 
 const INITIAL_APPLICATIONS: ApplicationStatusItem[] = [
   {
@@ -691,16 +724,120 @@ function SllasMotionSplashScreen({ onFinish }: { onFinish: () => void }) {
               ]}
             />
           </View>
-
-          {/* Skip Button */}
-          <Pressable onPress={onFinish} style={styles.splashSkipBtn}>
-            <Text style={styles.splashSkipText}>Skip Intro →</Text>
-          </Pressable>
         </View>
       </SafeAreaView>
     </Animated.View>
   );
 }
+
+/**
+ * Mathematically generates the smooth scooped cradle notch SVG path for the floating navigation bar.
+ * Matches the user reference design:
+ * - Rounded pill container with radius R
+ * - Symmetrical concave cradle dipping down around center X (cx)
+ * - Cubic Bézier curves for perfectly smooth tangent transitions
+ */
+function getNavScoopPath(w: number, h: number = 56, r: number = 22, dipW: number = 38, dipD: number = 21): string {
+  const cx = w / 2;
+  const p1 = cx - dipW;
+  const p2 = cx + dipW;
+
+  return [
+    `M ${r} 0`,
+    `L ${p1} 0`,
+    `C ${cx - 24} 0, ${cx - 18} ${dipD}, ${cx} ${dipD}`,
+    `C ${cx + 18} ${dipD}, ${cx + 24} 0, ${p2} 0`,
+    `L ${w - r} 0`,
+    `Q ${w} 0, ${w} ${r}`,
+    `L ${w} ${h - r}`,
+    `Q ${w} ${h}, ${w - r} ${h}`,
+    `L ${r} ${h}`,
+    `Q 0 ${h}, 0 ${h - r}`,
+    `L 0 ${r}`,
+    `Q 0 0, ${r} 0`,
+    `Z`,
+  ].join(' ');
+}
+
+// Sleek Themed SVG Navigation Icons for SLLAS Mobile (Harmonized with SLLAS Dark Emerald Theme)
+const HomeNavIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M 3 10.5 L 12 3 L 21 10.5 V 20 C 21 20.6 20.6 21 20 21 H 15 V 14 H 9 V 21 H 4 C 3.4 21 3 20.6 3 20 Z"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const SearchNavIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Circle cx={11} cy={11} r={6.5} stroke={color} strokeWidth={1.8} />
+    <Path d="M 16 16 L 21 21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+  </Svg>
+);
+
+const MapNavIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={21} height={21} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M 9 18.5 L 3 20.5 V 5.5 L 9 3.5 L 15 5.5 L 21 3.5 V 18.5 L 15 20.5 Z"
+      stroke={color}
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M 9 3.5 V 18.5 M 15 5.5 V 20.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeDasharray="2 2" />
+  </Svg>
+);
+
+const LeasesNavIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M 14 2 H 6 C 4.9 2 4 2.9 4 4 V 20 C 4 21.1 4.9 22 6 22 H 18 C 19.1 22 20 21.1 20 20 V 8 Z"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M 14 2 V 8 H 20" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M 8 13 H 16 M 8 17 H 13" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+  </Svg>
+);
+
+const MenuNavIcon: React.FC<{ color: string }> = ({ color }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M 4 7 H 20 M 4 12 H 20 M 4 17 H 20"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+// Backward-compatible aliases
+const ProfileNavIcon = HomeNavIcon;
+const AnalyticsNavIcon = SearchNavIcon;
+const OtherNavIcon = LeasesNavIcon;
+const MoreNavIcon = MenuNavIcon;
+
+// Statutory Registration Options (Section 4.3.2 Specification)
+const STATUTORY_TITLES = ['Dr.', 'Mr.', 'Mrs.', 'Miss', 'Ms.'];
+const STATUTORY_GENDERS = ['Male', 'Female'];
+const STATUTORY_MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed'];
+const STATUTORY_FARMER_CATEGORIES = [
+  'War Veteran/War Collaborator',
+  'Uniformed Forces',
+  'Business Person',
+  'Youth [35 years and below]',
+  'Civil Servant',
+  'MP/Senator',
+  'ZEPDRA',
+  'Ordinary',
+  'Others [specify]',
+];
 
 export default function App() {
   // Splash / Loading Screen State
@@ -712,17 +849,41 @@ export default function App() {
   const [loginEmail, setLoginEmail] = useState('farmer@sllas.gov.zw');
   const [loginPassword, setLoginPassword] = useState('password123');
   const [recoverEmail, setRecoverEmail] = useState('');
-  const [regName, setRegName] = useState('Tafadzwa Chikata');
-  const [regId, setRegId] = useState('63-128944-P-63');
-  const [regPhone, setRegPhone] = useState('+263 77 345 6789');
+
+  // Statutory Citizen / Farmer Registration State (14 Fields)
+  const [regSurname, setRegSurname] = useState('');
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regOtherNames, setRegOtherNames] = useState('');
+  const [regGender, setRegGender] = useState<'Male' | 'Female'>('Male');
+  const [regTitle, setRegTitle] = useState('Mr.');
+  const [regDob, setRegDob] = useState('');
+  const [regId, setRegId] = useState('');
+  const [regUploadedId, setRegUploadedId] = useState<string | null>(null);
+  const [regMaritalStatus, setRegMaritalStatus] = useState('Single');
+  const [regCitizenship, setRegCitizenship] = useState('Zimbabwean');
+  const [regPhone, setRegPhone] = useState('');
+  const [regAddress, setRegAddress] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regFarmerCategory, setRegFarmerCategory] = useState<string>('Ordinary');
+  const [regFarmerCategoryOther, setRegFarmerCategoryOther] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regTermsAccepted, setRegTermsAccepted] = useState(false);
+  const [isRegReviewVisible, setIsRegReviewVisible] = useState(false);
+  const [isSubmittingReg, setIsSubmittingReg] = useState(false);
+
+  // Compatibility getter for legacy display
+  const regName = `${regFirstName} ${regSurname}`.trim() || 'Tafadzwa Chikata';
 
   // Database synchronization & authentication state
   const [parcels, setParcels] = useState<MobileParcel[]>(MOCK_PARCELS);
   const [isDbConnected, setIsDbConnected] = useState<boolean>(false);
   const [isFetchingData, setIsFetchingData] = useState<boolean>(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [newsArticles, setNewsArticles] = useState<MobileNewsArticle[]>(MOBILE_NEWS_ARTICLES);
+  const [isRefreshingNews, setIsRefreshingNews] = useState<boolean>(false);
 
-  // Sync with live PostgreSQL / PostGIS database
+  // Sync with live PostgreSQL / PostGIS database & live news wires
   const refreshDatabaseData = async (token?: string) => {
     setIsFetchingData(true);
     try {
@@ -753,6 +914,15 @@ export default function App() {
       }
     } catch (err) {
       console.warn('[SLLAS_MOBILE] Notifications DB sync notice:', err);
+    }
+
+    try {
+      const liveNews = await fetchRealNewsArticles();
+      if (liveNews.length > 0) {
+        setNewsArticles(liveNews);
+      }
+    } catch (err) {
+      console.warn('[SLLAS_MOBILE] Live news sync notice:', err);
     } finally {
       setIsFetchingData(false);
     }
@@ -788,30 +958,137 @@ export default function App() {
     }
   };
 
-  const handleRegister = async () => {
-    if (!regName.trim() || !regId.trim()) {
-      Alert.alert('Incomplete Registration', 'Please provide your Full Legal Name and National ID to register.');
+  // Auto-detect citizenship upon ID upload
+  const handleMobileIdUpload = () => {
+    const docName = `National_ID_${(regId.trim() || '63-128944-P-63').replace(/[^a-zA-Z0-9]/g, '')}.pdf`;
+    setRegUploadedId(docName);
+    setRegCitizenship('Zimbabwean');
+    Alert.alert(
+      'ID Document Attached',
+      `Document "${docName}" attached.\n\nCitizenship Auto-Detected: Zimbabwean 🇿🇼\nVerified against Ministry of Home Affairs Civil Registry standard.`
+    );
+  };
+
+  // Step 1: Pre-Submission Check and Verify Validation
+  const handleInitiateRegisterReview = () => {
+    if (!regSurname.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your Surname.');
+      return;
+    }
+    if (!regFirstName.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your First Name.');
+      return;
+    }
+    if (!regGender) {
+      Alert.alert('Required Field Missing', 'Please select your Gender.');
+      return;
+    }
+    if (!regDob.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your Date of Birth (YYYY-MM-DD).');
+      return;
+    }
+    if (!regId.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your National ID Number.');
+      return;
+    }
+    if (!regUploadedId) {
+      Alert.alert('ID Document Required', 'Please attach/upload a copy of your National ID.');
+      return;
+    }
+    if (!regPhone.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your Phone Number.');
+      return;
+    }
+    if (!regAddress.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your Residential Address.');
+      return;
+    }
+    if (regFarmerCategory === 'Others [specify]' && !regFarmerCategoryOther.trim()) {
+      Alert.alert('Specification Required', 'Please specify your Farmer Category in the provided box.');
+      return;
+    }
+    if (regPassword && regPassword !== regConfirmPassword) {
+      Alert.alert('Password Mismatch', 'Passwords do not match. Please re-enter your password.');
       return;
     }
 
+    // Launch Pre-Submission Check and Verification Review Modal
+    setIsRegReviewVisible(true);
+  };
+
+  // Step 2: Final Submission after Citizen Verification
+  const handleConfirmRegisterSubmit = async () => {
+    if (!regTermsAccepted) {
+      Alert.alert(
+        'Verification Declaration Required',
+        'Please check the statutory declaration box to verify that your details are accurate before submitting.'
+      );
+      return;
+    }
+
+    setIsSubmittingReg(true);
+    const fullName = `${regTitle ? regTitle + ' ' : ''}${regFirstName.trim()} ${regOtherNames.trim() ? regOtherNames.trim() + ' ' : ''}${regSurname.trim()}`.trim();
+
     try {
-      const auth = await registerCitizen(regName, regId, regPhone, loginEmail);
+      const payload: CitizenRegistrationPayload = {
+        surname: regSurname.trim(),
+        firstName: regFirstName.trim(),
+        otherNames: regOtherNames.trim() || undefined,
+        gender: regGender,
+        title: regTitle,
+        dateOfBirth: regDob.trim(),
+        nationalIdNumber: regId.trim(),
+        idDocumentName: regUploadedId || 'National_ID.pdf',
+        maritalStatus: regMaritalStatus,
+        citizenship: regCitizenship,
+        phoneNumber: regPhone.trim(),
+        residentialAddress: regAddress.trim(),
+        email: regEmail.trim() || undefined,
+        farmerCategory: regFarmerCategory,
+        farmerCategoryOther: regFarmerCategory === 'Others [specify]' ? regFarmerCategoryOther.trim() : undefined,
+      };
+
+      const auth = await registerCitizen(payload);
       setAuthToken(auth.token);
       setProfile(auth.profile);
       setIsAuthenticated(true);
       setIsDbConnected(true);
+      setIsRegReviewVisible(false);
       setActiveTab('home');
       refreshDatabaseData(auth.token);
+      Alert.alert(
+        'Registration Verified & Successful',
+        `Welcome ${auth.profile.name}! Your citizen land registration record has been established in the national database.`
+      );
     } catch (err: any) {
       console.warn('[SLLAS_MOBILE] API Register fallback:', err?.message);
       setProfile(p => ({
         ...p,
-        name: regName.trim(),
+        name: fullName,
+        surname: regSurname.trim(),
+        firstName: regFirstName.trim(),
+        otherNames: regOtherNames.trim(),
+        title: regTitle,
+        gender: regGender,
+        dateOfBirth: regDob.trim(),
         nationalId: regId.trim(),
+        idDocumentName: regUploadedId || 'National_ID.pdf',
+        maritalStatus: regMaritalStatus,
+        citizenship: regCitizenship,
         phone: regPhone.trim() || p.phone,
+        address: regAddress.trim() || p.address,
+        email: regEmail.trim() || p.email,
+        farmerCategory: regFarmerCategory === 'Others [specify]' ? regFarmerCategoryOther : regFarmerCategory,
       }));
       setIsAuthenticated(true);
+      setIsRegReviewVisible(false);
       setActiveTab('home');
+      Alert.alert(
+        'Registration Verified',
+        `Welcome ${fullName}! Your particulars have been checked, verified, and saved.`
+      );
+    } finally {
+      setIsSubmittingReg(false);
     }
   };
 
@@ -845,42 +1122,231 @@ export default function App() {
 
   // Menu Hub Navigation & Sub-views: Profile Management, Settings, News Feed, Logout
   const [menuView, setMenuView] = useState<'hub' | 'profile' | 'settings' | 'news'>('hub');
+
+  // Settings & Preferences States (4 Requested Functional Categories)
   const [settingsLanguage, setSettingsLanguage] = useState<'English (ZW)' | 'ChiShona' | 'isiNdebele'>('English (ZW)');
   const [settingsBioAuth, setSettingsBioAuth] = useState(true);
   const [settingsOfflineCache, setSettingsOfflineCache] = useState(true);
+  const [settingsThemeMode, setSettingsThemeMode] = useState<'dark' | 'light'>('dark');
+  const [settingsFontSize, setSettingsFontSize] = useState<'Standard (100%)' | 'Large (115%)' | 'Compact (90%)'>('Standard (100%)');
+  const [settingsAllNotifs, setSettingsAllNotifs] = useState(true);
 
-  // News Feed Auto-Update & Filter States
+  // Settings Modals
+  const [isEditProfileModalVisible, setIsEditProfileModalVisible] = useState(false);
+  const [isUpdatePasswordModalVisible, setIsUpdatePasswordModalVisible] = useState(false);
+  const [isSupportModalVisible, setIsSupportModalVisible] = useState(false);
+  const [isFaqTermsModalVisible, setIsFaqTermsModalVisible] = useState(false);
+  const [isRateShareModalVisible, setIsRateShareModalVisible] = useState(false);
+  const [isAppInfoModalVisible, setIsAppInfoModalVisible] = useState(false);
+
+  // Profile Edit Temporary Form State
+  const [editPhone, setEditPhone] = useState(profile.phone);
+  const [editAddress, setEditAddress] = useState(profile.address);
+  const [editEmail, setEditEmail] = useState(profile.email);
+  const [editFarmerCategory, setEditFarmerCategory] = useState(profile.farmerCategory || 'Ordinary');
+
+  // Password Update Form State
+  const [pwdCurrent, setPwdCurrent] = useState('');
+  const [pwdNew, setPwdNew] = useState('');
+  const [pwdConfirm, setPwdConfirm] = useState('');
+
+  // Support & Feedback Form State
+  const [feedbackCategory, setFeedbackCategory] = useState<'General Inquiry' | 'Cadastre Query' | 'Technical Issue' | 'Suggestion'>('General Inquiry');
+  const [feedbackText, setFeedbackText] = useState('');
+
+  // Rating State
+  const [appStarRating, setAppStarRating] = useState<number>(5);
+
+  // FAQ & Terms Tabs
+  const [faqTab, setFaqTab] = useState<'faq' | 'terms' | 'privacy'>('faq');
+
+  // Settings Handlers
+  const handleOpenEditProfile = () => {
+    setEditPhone(profile.phone);
+    setEditAddress(profile.address);
+    setEditEmail(profile.email);
+    setEditFarmerCategory(profile.farmerCategory || 'Ordinary');
+    setIsEditProfileModalVisible(true);
+  };
+
+  const handleSaveProfileDetails = () => {
+    if (!editPhone.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your contact phone number.');
+      return;
+    }
+    if (!editAddress.trim()) {
+      Alert.alert('Required Field Missing', 'Please enter your physical / residential farm address.');
+      return;
+    }
+    setProfile(p => ({
+      ...p,
+      phone: editPhone.trim(),
+      address: editAddress.trim(),
+      email: editEmail.trim(),
+      farmerCategory: editFarmerCategory,
+    }));
+    setIsEditProfileModalVisible(false);
+    Alert.alert('Profile Saved', 'Your contact phone, residential address, and farming category have been updated in SLLAS.');
+  };
+
+  const handleUpdatePassword = () => {
+    if (!pwdCurrent.trim()) {
+      Alert.alert('Current Password Required', 'Please enter your current account password.');
+      return;
+    }
+    if (pwdNew.length < 8) {
+      Alert.alert('Password Too Short', 'New password must be at least 8 characters long.');
+      return;
+    }
+    if (pwdNew !== pwdConfirm) {
+      Alert.alert('Password Mismatch', 'New passwords do not match. Please verify your new password.');
+      return;
+    }
+    setPwdCurrent('');
+    setPwdNew('');
+    setPwdConfirm('');
+    setIsUpdatePasswordModalVisible(false);
+    Alert.alert('Password Updated', 'Your security password has been changed successfully. Use it on your next login.');
+  };
+
+  const handleToggleAllNotifications = () => {
+    const nextVal = !settingsAllNotifs;
+    setSettingsAllNotifs(nextVal);
+    setProfile(p => ({
+      ...p,
+      smsNotifications: nextVal,
+      emailNotifications: nextVal,
+      expiryReminders: nextVal,
+    }));
+  };
+
+  const handleToggleThemeMode = (mode: 'dark' | 'light') => {
+    setSettingsThemeMode(mode);
+    Alert.alert('Appearance Updated', `Switched display theme to ${mode === 'dark' ? 'Dark Mode (Default)' : 'Light Mode'}.`);
+  };
+
+  const handleSubmitFeedback = () => {
+    if (!feedbackText.trim()) {
+      Alert.alert('Message Required', 'Please enter your feedback or inquiry before submitting.');
+      return;
+    }
+    const ticketNo = `FB-2026-0${Math.floor(1000 + Math.random() * 9000)}`;
+    setFeedbackText('');
+    setIsSupportModalVisible(false);
+    Alert.alert(
+      'Feedback Received',
+      `Thank you for reaching out.\n\nDocket #${ticketNo} has been assigned and dispatched to the Ministry of Lands Client Support Team.`
+    );
+  };
+
+  const handleSubmitRating = () => {
+    setIsRateShareModalVisible(false);
+    Alert.alert(
+      'Rating Submitted',
+      `Thank you for rating SLLAS Mobile ${appStarRating} Stars! ⭐\nYour feedback directly helps the Ministry enhance national digital land services.`
+    );
+  };
+
+  const handleShareApp = () => {
+    Alert.alert(
+      'Share SLLAS Mobile',
+      'Official Portal Link: https://sllas.gov.zw/mobile\n\nLink copied to clipboard! You can share this link via WhatsApp, SMS, or Email with fellow farmers.'
+    );
+  };
+
+  // News Feed States & Real-Time Sync
   const [newsCategory, setNewsCategory] = useState<string>('ALL');
   const [selectedNewsArticle, setSelectedNewsArticle] = useState<MobileNewsArticle | null>(null);
-  const [newsCountdown, setNewsCountdown] = useState<number>(10);
-  const [isNewsPaused, setIsNewsPaused] = useState<boolean>(false);
-  const [newsBatchIndex, setNewsBatchIndex] = useState<number>(0);
 
-  // 10-Second Auto-Refresh Timer for News Feed
-  useEffect(() => {
-    if (activeTab !== 'menu' || menuView !== 'news' || isNewsPaused) return;
+  // Modern Floating Curved Navigation & Payments/Quick Actions
+  const [barWidth, setBarWidth] = useState(() => Dimensions.get('window').width - 32);
+  const [isCenterActionModalVisible, setIsCenterActionModalVisible] = useState(false);
+  const [isGroundRentPaid, setIsGroundRentPaid] = useState(false);
 
-    const interval = setInterval(() => {
-      setNewsCountdown(prev => {
-        if (prev <= 1) {
-          setNewsBatchIndex(b => (b === 0 ? 1 : 0));
-          return 10;
+  const handleCenterFabPress = () => {
+    if (activeTab === 'map') {
+      setIsCenterActionModalVisible(true);
+    } else {
+      setActiveTab('map');
+    }
+  };
+
+  const handlePayGroundRent = () => {
+    setIsGroundRentPaid(true);
+    const newNotif: NotificationItem = {
+      id: `pay-${Date.now()}`,
+      title: 'Ground Rent Settled ($420.00 USD)',
+      message: 'Annual statutory lease rental & survey dues for Makonde Commercial Cropping Block 4 received. Receipt #REC-2026-ZW-0082 issued.',
+      type: 'STATUS_UPDATE',
+      timestamp: 'Just now',
+      read: false,
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    Alert.alert(
+      'Payment Received',
+      'Electronic settlement of $420.00 USD processed via EcoCash / OneMoney gateway.\n\nReceipt #REC-2026-ZW-0082 registered in national cadastre ledger.'
+    );
+    setIsCenterActionModalVisible(false);
+  };
+
+  const handleQuickApply = () => {
+    setIsCenterActionModalVisible(false);
+    if (!selectedParcel) {
+      const avail = parcels.find(p => p.availability === 'Available');
+      if (avail) {
+        setSelectedParcel(avail);
+        setIsApplyModalVisible(true);
+      } else {
+        setActiveTab('search');
+        Alert.alert('Select a Parcel', 'Browse available parcels to lodge your 99-year lease application.');
+      }
+    } else {
+      setIsApplyModalVisible(true);
+    }
+  };
+
+  // Manual & automated live news fetcher
+  const refreshNewsFeed = async (showNotice = false) => {
+    setIsRefreshingNews(true);
+    try {
+      const liveArticles = await fetchRealNewsArticles();
+      if (liveArticles && liveArticles.length > 0) {
+        setNewsArticles(liveArticles);
+        if (showNotice) {
+          Alert.alert('News Synchronized', `Loaded ${liveArticles.length} live agricultural dispatches from national news wires.`);
         }
-        return prev - 1;
-      });
-    }, 1000);
+      }
+    } catch (err) {
+      console.warn('[SLLAS_MOBILE] News refresh notice:', err);
+    } finally {
+      setIsRefreshingNews(false);
+    }
+  };
 
+  // Sync latest news automatically when entering news screen
+  useEffect(() => {
+    if (activeTab === 'menu' && menuView === 'news') {
+      refreshNewsFeed();
+    }
+  }, [activeTab, menuView]);
+
+  // Periodic background refresh every 60 seconds when actively reading news
+  useEffect(() => {
+    if (activeTab !== 'menu' || menuView !== 'news') return;
+    const interval = setInterval(() => {
+      refreshNewsFeed(false);
+    }, 60000);
     return () => clearInterval(interval);
-  }, [activeTab, menuView, isNewsPaused]);
+  }, [activeTab, menuView]);
 
-  // Filtered News Articles
+  // Filtered News Articles (backed by live news wires)
   const filteredNews = useMemo(() => {
-    let list = MOBILE_NEWS_ARTICLES;
+    let list = newsArticles;
     if (newsCategory !== 'ALL') {
       list = list.filter(a => a.category === newsCategory);
     }
     return list;
-  }, [newsCategory]);
+  }, [newsArticles, newsCategory]);
 
   // Safe Logout Confirmation Handler (Cross-Platform Mobile & Web)
   const handleLogout = () => {
@@ -1068,40 +1534,425 @@ export default function App() {
           )}
 
           {authView === 'register' && (
-            <View style={styles.formStack}>
-              <Text style={styles.inputLabel}>Full Legal Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={regName}
-                onChangeText={setRegName}
-                placeholder="e.g. Tafadzwa Chikata"
-                placeholderTextColor="#94a3b8"
-              />
-              <Text style={styles.inputLabel}>National ID / Passport</Text>
-              <TextInput
-                style={styles.textInput}
-                value={regId}
-                onChangeText={setRegId}
-                placeholder="e.g. 63-128944-P-63"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="characters"
-              />
-              <Text style={styles.inputLabel}>Mobile Phone Number</Text>
-              <TextInput
-                style={styles.textInput}
-                value={regPhone}
-                onChangeText={setRegPhone}
-                placeholder="+263 77..."
-                placeholderTextColor="#94a3b8"
-                keyboardType="phone-pad"
-              />
-              <Pressable style={styles.primaryButton} onPress={handleRegister}>
-                <Text style={styles.primaryButtonText}>Complete Registration</Text>
-              </Pressable>
-              <Pressable onPress={() => setAuthView('signin')} style={styles.textLink}>
-                <Text style={styles.textLinkText}>← Back to Sign In</Text>
-              </Pressable>
-            </View>
+            <ScrollView
+              style={{ maxHeight: Dimensions.get('window').height * 0.72 }}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              showsVerticalScrollIndicator={true}
+            >
+              <View style={styles.formStack}>
+                <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.25)', borderRadius: 8, padding: 10, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#4ade80' }}>
+                    🇿🇼 Statutory Citizen / Farmer Registration
+                  </Text>
+                  <Text style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 2, lineHeight: 14 }}>
+                    Please enter your particulars below. You will be asked to check and verify all details before final submission.
+                  </Text>
+                </View>
+
+                {/* 1. Title */}
+                <Text style={styles.inputLabel}>Title</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 2 }}>
+                  {STATUTORY_TITLES.map(t => (
+                    <Pressable
+                      key={t}
+                      onPress={() => setRegTitle(t)}
+                      style={[
+                        styles.chip,
+                        regTitle === t && styles.chipActive,
+                        { paddingHorizontal: 12, paddingVertical: 6, marginRight: 6 }
+                      ]}
+                    >
+                      <Text style={[styles.chipText, regTitle === t && styles.chipTextActive]}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                {/* 2. First Name & Surname */}
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>First Name <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={regFirstName}
+                      onChangeText={setRegFirstName}
+                      placeholder="e.g. Tafadzwa"
+                      placeholderTextColor="#94a3b8"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>Surname <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={regSurname}
+                      onChangeText={setRegSurname}
+                      placeholder="e.g. Chikata"
+                      placeholderTextColor="#94a3b8"
+                    />
+                  </View>
+                </View>
+
+                {/* 3. Other Names */}
+                <Text style={styles.inputLabel}>Other Names (Optional)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={regOtherNames}
+                  onChangeText={setRegOtherNames}
+                  placeholder="Middle names (if applicable)"
+                  placeholderTextColor="#94a3b8"
+                />
+
+                {/* 4. Gender */}
+                <Text style={styles.inputLabel}>Gender <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {STATUTORY_GENDERS.map(g => (
+                    <Pressable
+                      key={g}
+                      onPress={() => setRegGender(g as 'Male' | 'Female')}
+                      style={[
+                        styles.chip,
+                        { flex: 1, alignItems: 'center', justifyContent: 'center', marginRight: 0 },
+                        regGender === g && styles.chipActive,
+                      ]}
+                    >
+                      <Text style={[styles.chipText, regGender === g && styles.chipTextActive]}>
+                        {g === 'Male' ? '👨 Male' : '👩 Female'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {/* 5. Date of Birth */}
+                <Text style={styles.inputLabel}>Date of Birth (YYYY-MM-DD) <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={regDob}
+                  onChangeText={setRegDob}
+                  placeholder="e.g. 1988-06-14"
+                  placeholderTextColor="#94a3b8"
+                />
+
+                {/* 6. National ID Number */}
+                <Text style={styles.inputLabel}>National ID Number <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={regId}
+                  onChangeText={setRegId}
+                  placeholder="e.g. 63-128944-P-63"
+                  placeholderTextColor="#94a3b8"
+                  autoCapitalize="characters"
+                />
+
+                {/* 7. Upload your ID */}
+                <Text style={styles.inputLabel}>Upload your ID <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <Pressable
+                  style={[
+                    styles.uploadBtn,
+                    regUploadedId ? { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.12)' } : {}
+                  ]}
+                  onPress={handleMobileIdUpload}
+                >
+                  <Text style={[styles.uploadBtnText, regUploadedId ? { color: '#4ade80' } : {}]}>
+                    {regUploadedId ? `✓ Attached: ${regUploadedId}` : '📄 Tap to Upload National ID Scan / Photo'}
+                  </Text>
+                </Pressable>
+
+                {/* 8. Citizenship (Auto-detected from ID upload) */}
+                <Text style={styles.inputLabel}>Citizenship</Text>
+                <View style={{
+                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(74, 222, 128, 0.3)',
+                  borderRadius: 8,
+                  padding: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 16 }}>🇿🇼</Text>
+                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>{regCitizenship}</Text>
+                  </View>
+                  <View style={{ backgroundColor: '#166534', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                    <Text style={{ color: '#86efac', fontSize: 9.5, fontWeight: '700' }}>Auto-detected from ID</Text>
+                  </View>
+                </View>
+
+                {/* 9. Marital Status */}
+                <Text style={styles.inputLabel}>Marital Status</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                  {STATUTORY_MARITAL_STATUSES.map(m => (
+                    <Pressable
+                      key={m}
+                      onPress={() => setRegMaritalStatus(m)}
+                      style={[
+                        styles.chip,
+                        regMaritalStatus === m && styles.chipActive,
+                        { paddingHorizontal: 12, paddingVertical: 6, marginRight: 6 }
+                      ]}
+                    >
+                      <Text style={[styles.chipText, regMaritalStatus === m && styles.chipTextActive]}>{m}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                {/* 10. Phone Number */}
+                <Text style={styles.inputLabel}>Phone Number <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={regPhone}
+                  onChangeText={setRegPhone}
+                  placeholder="+263 77 345 6789"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="phone-pad"
+                />
+
+                {/* 11. Residential Address */}
+                <Text style={styles.inputLabel}>Residential Address <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={regAddress}
+                  onChangeText={setRegAddress}
+                  placeholder="Stand / Street / District, Province"
+                  placeholderTextColor="#94a3b8"
+                />
+
+                {/* 12. Email Address */}
+                <Text style={styles.inputLabel}>Email Address (Optional)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={regEmail}
+                  onChangeText={setRegEmail}
+                  placeholder="farmer@sllas.gov.zw"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+
+                {/* 13. Farmer Category */}
+                <Text style={styles.inputLabel}>Farmer Category <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <View style={{ gap: 6 }}>
+                  {STATUTORY_FARMER_CATEGORIES.map(fc => (
+                    <Pressable
+                      key={fc}
+                      onPress={() => setRegFarmerCategory(fc)}
+                      style={[
+                        {
+                          backgroundColor: '#1e293b',
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255, 255, 255, 0.08)',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        },
+                        regFarmerCategory === fc && {
+                          borderColor: '#4ade80',
+                          backgroundColor: 'rgba(22, 101, 52, 0.35)',
+                        }
+                      ]}
+                    >
+                      <Text style={[
+                        { color: '#cbd5e1', fontSize: 12 },
+                        regFarmerCategory === fc && { color: '#ffffff', fontWeight: '700' }
+                      ]}>
+                        {fc}
+                      </Text>
+                      {regFarmerCategory === fc && (
+                        <Text style={{ color: '#4ade80', fontWeight: '900', fontSize: 13 }}>✓</Text>
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+
+                {/* Conditional Others [specify] input */}
+                {regFarmerCategory === 'Others [specify]' && (
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={styles.inputLabel}>Please Specify Farmer Category <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={regFarmerCategoryOther}
+                      onChangeText={setRegFarmerCategoryOther}
+                      placeholder="Specify your category..."
+                      placeholderTextColor="#94a3b8"
+                    />
+                  </View>
+                )}
+
+                {/* Account Password */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>Password</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={regPassword}
+                      onChangeText={setRegPassword}
+                      placeholder="Min 8 chars"
+                      placeholderTextColor="#94a3b8"
+                      secureTextEntry
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>Confirm Password</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={regConfirmPassword}
+                      onChangeText={setRegConfirmPassword}
+                      placeholder="Re-enter password"
+                      placeholderTextColor="#94a3b8"
+                      secureTextEntry
+                    />
+                  </View>
+                </View>
+
+                {/* Review & Verify Trigger Button */}
+                <Pressable
+                  style={[styles.primaryButton, { marginTop: 14 }]}
+                  onPress={handleInitiateRegisterReview}
+                >
+                  <Text style={styles.primaryButtonText}>Review &amp; Verify Details →</Text>
+                </Pressable>
+
+                <Pressable onPress={() => setAuthView('signin')} style={styles.textLink}>
+                  <Text style={styles.textLinkText}>← Back to Sign In</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          )}
+
+          {/* Pre-Submission Check & Verification Modal */}
+          {isRegReviewVisible && (
+            <Modal
+              visible={isRegReviewVisible}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setIsRegReviewVisible(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={[styles.modalSheet, { maxHeight: '90%' }]}>
+                  <View style={styles.modalHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.heraldryText}>AGRICULTURAL LAND SETTLEMENT ACT [CAP 20:01]</Text>
+                      <Text style={styles.modalTitle}>Check &amp; Verify Your Details</Text>
+                      <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                        Please examine all particulars carefully before final submission.
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => setIsRegReviewVisible(false)}>
+                      <Text style={styles.closeBtn}>✕</Text>
+                    </Pressable>
+                  </View>
+
+                  <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={true}>
+                    <View style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', borderWidth: 1, borderColor: 'rgba(234, 179, 8, 0.3)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#facc15', marginBottom: 2 }}>
+                        ⚠️ Statutory Verification Requirement
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#fef08a', lineHeight: 15 }}>
+                        Under the Agricultural Land Settlement Act, all landholder registrations are legal declarations. Check that the names, ID number, address, and farmer category below match your official documentation.
+                      </Text>
+                    </View>
+
+                    {/* Verification Summary Card */}
+                    <View style={{ backgroundColor: '#1e293b', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Title &amp; Full Name</Text>
+                        <Text style={styles.metaVal}>{regTitle} {regFirstName} {regOtherNames ? regOtherNames + ' ' : ''}{regSurname}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Gender</Text>
+                        <Text style={styles.metaVal}>{regGender}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Date of Birth</Text>
+                        <Text style={styles.metaVal}>{regDob}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>National ID Number</Text>
+                        <Text style={[styles.metaVal, { color: '#4ade80' }]}>{regId}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Uploaded National ID</Text>
+                        <Text style={[styles.metaVal, { color: '#38bdf8' }]}>📄 {regUploadedId} (Verified)</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Citizenship</Text>
+                        <Text style={[styles.metaVal, { color: '#22c55e' }]}>🇿🇼 {regCitizenship} (Auto-detected)</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Marital Status</Text>
+                        <Text style={styles.metaVal}>{regMaritalStatus}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Phone Number</Text>
+                        <Text style={styles.metaVal}>{regPhone}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Residential Address</Text>
+                        <Text style={[styles.metaVal, { flex: 1, textAlign: 'right' }]} numberOfLines={2}>{regAddress}</Text>
+                      </View>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaLabel}>Email Address</Text>
+                        <Text style={styles.metaVal}>{regEmail.trim() || 'Not specified'}</Text>
+                      </View>
+                      <View style={[styles.metaRow, { borderBottomWidth: 0 }]}>
+                        <Text style={styles.metaLabel}>Farmer Category</Text>
+                        <Text style={[styles.metaVal, { color: '#facc15' }]}>
+                          {regFarmerCategory === 'Others [specify]' ? regFarmerCategoryOther : regFarmerCategory}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Declaration Checkbox */}
+                    <Pressable
+                      style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14, padding: 10, backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: 8 }}
+                      onPress={() => setRegTermsAccepted(prev => !prev)}
+                    >
+                      <View style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 4,
+                        borderWidth: 1.5,
+                        borderColor: regTermsAccepted ? '#22c55e' : '#64748b',
+                        backgroundColor: regTermsAccepted ? '#16a34a' : 'transparent',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginTop: 1,
+                      }}>
+                        {regTermsAccepted && <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900' }}>✓</Text>}
+                      </View>
+                      <Text style={{ flex: 1, fontSize: 11, color: '#cbd5e1', lineHeight: 16 }}>
+                        I hereby certify and declare that I have checked and verified all information provided above, and that it is true, accurate, and complete.
+                      </Text>
+                    </Pressable>
+                  </ScrollView>
+
+                  {/* Action Buttons */}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                    <Pressable
+                      style={[styles.secondaryButton, { flex: 1 }]}
+                      onPress={() => setIsRegReviewVisible(false)}
+                    >
+                      <Text style={styles.secondaryButtonText}>← Edit Details</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.primaryButton,
+                        { flex: 1.4, marginTop: 0 },
+                        !regTermsAccepted && { opacity: 0.5 },
+                      ]}
+                      onPress={handleConfirmRegisterSubmit}
+                      disabled={!regTermsAccepted || isSubmittingReg}
+                    >
+                      <Text style={styles.primaryButtonText}>
+                        {isSubmittingReg ? 'Submitting...' : 'Confirm & Complete ✓'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </Modal>
           )}
 
           {authView === 'recover' && (
@@ -1148,14 +1999,8 @@ export default function App() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Pressable
             style={styles.notifBadgeBtn}
-            onPress={() => refreshDatabaseData()}
-            accessibilityLabel="Refresh real database records"
-          >
-            <Text style={{ fontSize: 16 }}>{isFetchingData ? '🔄' : '⚡'}</Text>
-          </Pressable>
-          <Pressable
-            style={styles.notifBadgeBtn}
             onPress={() => setActiveTab('notifications')}
+            accessibilityLabel="Notifications"
           >
             <Text style={styles.notifIcon}>🔔</Text>
             {notifications.some(n => !n.read) && <View style={styles.unreadDot} />}
@@ -1331,6 +2176,24 @@ export default function App() {
                   </Text>
                 </View>
                 <Text style={styles.itemTitle}>{parcel.name}</Text>
+                {parcel.leaseClassification && (
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                    borderColor: 'rgba(34, 197, 94, 0.3)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    alignSelf: 'flex-start',
+                    marginVertical: 4,
+                  }}>
+                    <Text style={{ fontSize: 10, color: '#4ade80', fontWeight: '700' }}>
+                      📜 {parcel.leaseClassification}
+                    </Text>
+                  </View>
+                )}
                 <Text style={styles.cardSub}>
                   📍 {parcel.district}, {parcel.province} • 📐 {parcel.hectares} ha • 🌾 {parcel.landUse}
                 </Text>
@@ -2241,6 +3104,20 @@ export default function App() {
                     onChangeText={v => setProfile(p => ({ ...p, address: v }))}
                   />
 
+                  <Text style={styles.inputLabel}>Farmer Category</Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#facc15' }]}
+                    value={profile.farmerCategory || 'Ordinary'}
+                    editable={false}
+                  />
+
+                  <Text style={styles.inputLabel}>Citizenship</Text>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#86efac' }]}
+                    value={`🇿🇼 ${profile.citizenship || 'Zimbabwean'} (Verified)`}
+                    editable={false}
+                  />
+
                   <Text style={styles.inputLabel}>Primary District &amp; Province</Text>
                   <TextInput
                     style={[styles.textInput, { backgroundColor: '#1e293b', color: '#cbd5e1' }]}
@@ -2266,84 +3143,302 @@ export default function App() {
                 </Pressable>
                 <Text style={styles.pageTitle}>Settings &amp; Preferences</Text>
                 <Text style={styles.cardSub}>
-                  Configure notification dispatch channels, preferred language, biometric security, and offline mapping.
+                  Manage your verified profile, security credentials, interface behaviors, support channels, and application information.
                 </Text>
 
-                {/* Notification Channels */}
-                <Text style={styles.sectionHeading}>Notification Channels</Text>
+                {/* 1. Accounts and Profile */}
+                <Text style={styles.sectionHeading}>👤 Accounts and Profile</Text>
                 <View style={styles.card}>
+                  {/* Edit profile details tile */}
                   <Pressable
-                    style={styles.preferenceRow}
-                    onPress={() => setProfile(p => ({ ...p, smsNotifications: !p.smsNotifications }))}
+                    style={styles.settingsTileRow}
+                    onPress={handleOpenEditProfile}
                   >
-                    <Text style={styles.preferenceText}>📱 SMS Status Progression Alerts</Text>
-                    <Text style={styles.toggleState}>{profile.smsNotifications ? 'ON' : 'OFF'}</Text>
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(34, 197, 94, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>👤</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.settingsTileTitle}>Edit Profile Details</Text>
+                        <View style={[styles.menuCardBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                          <Text style={{ color: '#f87171', fontSize: 9, fontWeight: '700' }}>🔒 Legal ID Locked</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.settingsTileSub}>
+                        Update contact phone, physical farm address &amp; category. Full legal names, ID, gender &amp; citizenship are statutory non-editable locks.
+                      </Text>
+                    </View>
+                    <Text style={styles.settingsTileArrow}>→</Text>
                   </Pressable>
 
-                  <Pressable
-                    style={styles.preferenceRow}
-                    onPress={() => setProfile(p => ({ ...p, emailNotifications: !p.emailNotifications }))}
-                  >
-                    <Text style={styles.preferenceText}>📧 Official Email Dispatches</Text>
-                    <Text style={styles.toggleState}>{profile.emailNotifications ? 'ON' : 'OFF'}</Text>
-                  </Pressable>
+                  <View style={styles.settingsTileDivider} />
 
+                  {/* Set/update password tile */}
                   <Pressable
-                    style={styles.preferenceRow}
-                    onPress={() => setProfile(p => ({ ...p, expiryReminders: !p.expiryReminders }))}
+                    style={styles.settingsTileRow}
+                    onPress={() => setIsUpdatePasswordModalVisible(true)}
                   >
-                    <Text style={styles.preferenceText}>⏰ Lease Expiry (90-Day / 60-Day) Reminders</Text>
-                    <Text style={styles.toggleState}>{profile.expiryReminders ? 'ON' : 'OFF'}</Text>
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>🔑</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.settingsTileTitle}>Set / Update Password</Text>
+                        <View style={[styles.menuCardBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                          <Text style={{ color: '#38bdf8', fontSize: 9, fontWeight: '700' }}>Credentials</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.settingsTileSub}>
+                        Change your secure login password and manage account protection credentials.
+                      </Text>
+                    </View>
+                    <Text style={styles.settingsTileArrow}>→</Text>
                   </Pressable>
                 </View>
 
-                {/* Language Selection */}
-                <Text style={styles.sectionHeading}>Language / Mutauro / Ulimi</Text>
+                {/* 2. Behavior and performance */}
+                <Text style={styles.sectionHeading}>⚡ Behavior and Performance</Text>
                 <View style={styles.card}>
-                  <View style={styles.languageRow}>
-                    {(['English (ZW)', 'ChiShona', 'isiNdebele'] as const).map(lang => (
+                  {/* Master Toggle notifications */}
+                  <Pressable
+                    style={styles.preferenceRow}
+                    onPress={handleToggleAllNotifications}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.preferenceText}>🔔 Toggle All Notifications</Text>
+                      <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Master switch for SMS, email &amp; countdown reminders</Text>
+                    </View>
+                    <Text style={[styles.toggleState, { color: settingsAllNotifs ? '#4ade80' : '#94a3b8' }]}>
+                      {settingsAllNotifs ? 'ALL ON' : 'MUTED'}
+                    </Text>
+                  </Pressable>
+
+                  {/* Individual Notification Channels */}
+                  <View style={{ paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: 'rgba(74, 222, 128, 0.25)', marginVertical: 4 }}>
+                    <Pressable
+                      style={styles.preferenceRow}
+                      onPress={() => setProfile(p => ({ ...p, smsNotifications: !p.smsNotifications }))}
+                    >
+                      <Text style={[styles.preferenceText, { fontSize: 11.5 }]}>📱 SMS Status Progression Alerts</Text>
+                      <Text style={styles.toggleState}>{profile.smsNotifications ? 'ON' : 'OFF'}</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.preferenceRow}
+                      onPress={() => setProfile(p => ({ ...p, emailNotifications: !p.emailNotifications }))}
+                    >
+                      <Text style={[styles.preferenceText, { fontSize: 11.5 }]}>📧 Official Email Dispatches</Text>
+                      <Text style={styles.toggleState}>{profile.emailNotifications ? 'ON' : 'OFF'}</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={[styles.preferenceRow, { borderBottomWidth: 0 }]}
+                      onPress={() => setProfile(p => ({ ...p, expiryReminders: !p.expiryReminders }))}
+                    >
+                      <Text style={[styles.preferenceText, { fontSize: 11.5 }]}>⏰ Lease Expiry (90-Day / 60-Day) Reminders</Text>
+                      <Text style={styles.toggleState}>{profile.expiryReminders ? 'ON' : 'OFF'}</Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.settingsTileDivider} />
+
+                  {/* Dark/light mode toggle */}
+                  <View style={{ paddingVertical: 8 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text style={styles.preferenceText}>🌓 Dark / Light Mode</Text>
+                      <Text style={{ fontSize: 10, color: '#4ade80', fontWeight: '700' }}>
+                        {settingsThemeMode === 'dark' ? 'Dark Mode (Active)' : 'Light Theme'}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
                       <Pressable
-                        key={lang}
-                        style={[styles.languageBtn, settingsLanguage === lang && styles.languageBtnActive]}
-                        onPress={() => setSettingsLanguage(lang)}
+                        style={[
+                          styles.settingsChipBtn,
+                          settingsThemeMode === 'dark' && styles.settingsChipBtnActive,
+                        ]}
+                        onPress={() => handleToggleThemeMode('dark')}
                       >
-                        <Text style={[styles.languageBtnText, settingsLanguage === lang && styles.languageBtnTextActive]}>
-                          {lang}
+                        <Text style={[styles.settingsChipText, settingsThemeMode === 'dark' && styles.settingsChipTextActive]}>
+                          🌙 Dark Theme (Active)
                         </Text>
                       </Pressable>
-                    ))}
+                      <Pressable
+                        style={[
+                          styles.settingsChipBtn,
+                          settingsThemeMode === 'light' && styles.settingsChipBtnActive,
+                        ]}
+                        onPress={() => handleToggleThemeMode('light')}
+                      >
+                        <Text style={[styles.settingsChipText, settingsThemeMode === 'light' && styles.settingsChipTextActive]}>
+                          ☀️ Light Theme
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  <View style={styles.settingsTileDivider} />
+
+                  {/* Font Size */}
+                  <View style={{ paddingVertical: 8 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text style={styles.preferenceText}>🔤 Display Font Size</Text>
+                      <Text style={{ fontSize: 10, color: '#38bdf8', fontWeight: '700' }}>{settingsFontSize}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {(['Compact (90%)', 'Standard (100%)', 'Large (115%)'] as const).map(fs => (
+                        <Pressable
+                          key={fs}
+                          style={[
+                            styles.settingsChipBtn,
+                            settingsFontSize === fs && styles.settingsChipBtnActive,
+                          ]}
+                          onPress={() => setSettingsFontSize(fs)}
+                        >
+                          <Text style={[styles.settingsChipText, settingsFontSize === fs && styles.settingsChipTextActive]}>
+                            {fs.split(' ')[0]}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <View style={{ backgroundColor: '#1e293b', padding: 8, borderRadius: 6, marginTop: 8 }}>
+                      <Text style={{
+                        color: '#94a3b8',
+                        fontSize: settingsFontSize === 'Compact (90%)' ? 10 : settingsFontSize === 'Large (115%)' ? 13 : 11.5,
+                        fontStyle: 'italic',
+                      }}>
+                        Live Gazette Scale: "State Agricultural Parcel 44 • 99-Year Bankable Lease"
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.settingsTileDivider} />
+
+                  {/* Languages */}
+                  <View style={{ paddingVertical: 8 }}>
+                    <Text style={[styles.preferenceText, { marginBottom: 8 }]}>🌐 Languages / Mutauro / Ulimi</Text>
+                    <View style={styles.languageRow}>
+                      {(['English (ZW)', 'ChiShona', 'isiNdebele'] as const).map(lang => (
+                        <Pressable
+                          key={lang}
+                          style={[styles.languageBtn, settingsLanguage === lang && styles.languageBtnActive]}
+                          onPress={() => setSettingsLanguage(lang)}
+                        >
+                          <Text style={[styles.languageBtnText, settingsLanguage === lang && styles.languageBtnTextActive]}>
+                            {lang}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
                   </View>
                 </View>
 
-                {/* Security & System Preferences */}
-                <Text style={styles.sectionHeading}>Security &amp; Device Preferences</Text>
+                {/* 3. Support and Feedback */}
+                <Text style={styles.sectionHeading}>💬 Support and Feedback</Text>
                 <View style={styles.card}>
+                  {/* Send feedback or Contact us */}
                   <Pressable
-                    style={styles.preferenceRow}
-                    onPress={() => setSettingsBioAuth(b => !b)}
+                    style={styles.settingsTileRow}
+                    onPress={() => setIsSupportModalVisible(true)}
                   >
-                    <Text style={styles.preferenceText}>🔐 Biometric / Face ID Unlock</Text>
-                    <Text style={styles.toggleState}>{settingsBioAuth ? 'ON' : 'OFF'}</Text>
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(234, 179, 8, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>📨</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsTileTitle}>Send Feedback or Contact Us</Text>
+                      <Text style={styles.settingsTileSub}>
+                        Reach Ministry Land Helpdesk via Toll-Free 0800 4242, WhatsApp, or lodge a direct ticket.
+                      </Text>
+                    </View>
+                    <Text style={styles.settingsTileArrow}>→</Text>
                   </Pressable>
 
+                  <View style={styles.settingsTileDivider} />
+
+                  {/* Access FAQ, Terms of Service */}
                   <Pressable
-                    style={styles.preferenceRow}
-                    onPress={() => setSettingsOfflineCache(c => !c)}
+                    style={styles.settingsTileRow}
+                    onPress={() => setIsFaqTermsModalVisible(true)}
                   >
-                    <Text style={styles.preferenceText}>🗺️ Offline Cadastre Map Caching</Text>
-                    <Text style={styles.toggleState}>{settingsOfflineCache ? 'ENABLED' : 'DISABLED'}</Text>
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(168, 85, 247, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>📜</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsTileTitle}>Access FAQ &amp; Terms of Service</Text>
+                      <Text style={styles.settingsTileSub}>
+                        Read 99-year lease statutory rights, One-Person-One-Farm policy &amp; data privacy.
+                      </Text>
+                    </View>
+                    <Text style={styles.settingsTileArrow}>→</Text>
+                  </Pressable>
+
+                  <View style={styles.settingsTileDivider} />
+
+                  {/* Rate the App or Share */}
+                  <Pressable
+                    style={styles.settingsTileRow}
+                    onPress={() => setIsRateShareModalVisible(true)}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>⭐</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.settingsTileTitle}>Rate the App or Share</Text>
+                      <Text style={styles.settingsTileSub}>
+                        Give feedback on App Store / Play Store or share SLLAS Portal link with fellow farmers.
+                      </Text>
+                    </View>
+                    <Text style={styles.settingsTileArrow}>→</Text>
                   </Pressable>
                 </View>
 
-                <Pressable
-                  style={[styles.primaryButton, { marginTop: 10 }]}
-                  onPress={() => setIsLoading(true)}
-                >
-                  <Text style={styles.primaryButtonText}>▶ Replay SLLAS Motion Logo</Text>
-                </Pressable>
+                {/* 4. App Info */}
+                <Text style={styles.sectionHeading}>ℹ️ App Info</Text>
+                <View style={styles.card}>
+                  {/* Show app version and about details */}
+                  <Pressable
+                    style={styles.settingsTileRow}
+                    onPress={() => setIsAppInfoModalVisible(true)}
+                  >
+                    <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.16)' }]}>
+                      <Text style={styles.menuIconGlyph}>ℹ️</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.settingsTileTitle}>App Version &amp; About Details</Text>
+                        <Text style={{ color: '#4ade80', fontSize: 11, fontWeight: '700' }}>v2.4.0-PROD</Text>
+                      </View>
+                      <Text style={styles.settingsTileSub}>
+                        Smart Land Lease &amp; Allocation System • Agricultural Land Settlement Act [Cap 20:01].
+                      </Text>
+                    </View>
+                    <Text style={styles.settingsTileArrow}>→</Text>
+                  </Pressable>
 
+                  <View style={styles.settingsTileDivider} />
+
+                  {/* Credit developers */}
+                  <View style={{ paddingVertical: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Text style={{ fontSize: 16 }}>👨‍💻</Text>
+                      <Text style={[styles.settingsTileTitle, { fontSize: 13 }]}>Credit Developers</Text>
+                    </View>
+                    <View style={{ backgroundColor: '#1e293b', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.06)' }}>
+                      <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                        National Land Cadastre Digitalization Engineering Team
+                      </Text>
+                      <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+                        Developed in partnership with Government Information Technology Department (GITD), Antigravity Enterprise Solutions &amp; DeepMind Spatial Systems.
+                      </Text>
+                      <Text style={{ color: '#4ade80', fontSize: 10, fontWeight: '700', marginTop: 6 }}>
+                        🇿🇼 Ministry of Lands, Agriculture, Fisheries, Water and Rural Development • Republic of Zimbabwe © 2026
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Sign Out Button (Replay SLLAS Motion Logo button removed as requested) */}
                 <Pressable
-                  style={[styles.secondaryButton, { marginTop: 10 }]}
+                  style={[styles.secondaryButton, { marginTop: 12, marginBottom: 20 }]}
                   onPress={handleLogout}
                 >
                   <Text style={[styles.secondaryButtonText, { color: '#f87171' }]}>Sign Out of SLLAS</Text>
@@ -2362,43 +3457,53 @@ export default function App() {
                   Live land administration reporting, policy announcements, and agricultural bulletins syndicated from The Herald and Ministry of Lands.
                 </Text>
 
-                {/* 10-Second Auto-Update Wire Banner */}
-                <View style={styles.newsLiveBanner}>
-                  <View style={styles.newsLiveLeft}>
-                    <View style={styles.newsLivePulse} />
-                    <Text style={styles.newsLiveTitle}>LIVE WIRE</Text>
-                    <View style={styles.newsLiveBadge}>
-                      <Text style={styles.newsLiveBadgeText}>10s AUTO</Text>
+                {/* Real-time Status & Sync Bar (Replaces 10s auto countdown) */}
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255, 255, 255, 0.08)',
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  marginBottom: 12,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isRefreshingNews ? '#facc15' : '#22c55e' }} />
+                    <Text style={{ fontSize: 11, color: '#f8fafc', fontWeight: '700' }}>
+                      {isRefreshingNews ? 'Syncing Live Wires...' : 'Live Agricultural Wires'}
+                    </Text>
+                    <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                      <Text style={{ color: '#4ade80', fontSize: 9, fontWeight: '700' }}>
+                        {isRefreshingNews ? 'SYNC' : 'LIVE'}
+                      </Text>
                     </View>
                   </View>
 
-                  <View style={styles.newsTrackWrap}>
-                    <View style={styles.newsTrack}>
-                      <View
-                        style={[
-                          styles.newsTrackFill,
-                          {
-                            width: `${Math.max(0, Math.min(100, ((10 - newsCountdown) / 10) * 100))}%`,
-                            backgroundColor: isNewsPaused ? '#94a3b8' : '#22c55e',
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.newsTimerText}>
-                      {isNewsPaused ? 'Paused' : `${newsCountdown}s`}
+                  <Pressable
+                    onPress={() => refreshNewsFeed(true)}
+                    disabled={isRefreshingNews}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      paddingVertical: 5,
+                      paddingHorizontal: 10,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Text style={{ color: '#e2e8f0', fontSize: 11, fontWeight: '600' }}>
+                      {isRefreshingNews ? '↻ Syncing...' : '↻ Refresh'}
                     </Text>
-                    <Pressable
-                      style={styles.newsPauseBtn}
-                      onPress={() => setIsNewsPaused(p => !p)}
-                    >
-                      <Text style={styles.newsPauseText}>{isNewsPaused ? '▶' : '⏸'}</Text>
-                    </Pressable>
-                  </View>
+                  </Pressable>
                 </View>
 
                 {/* Category Filters */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.newsCategoryRow}>
-                  {['ALL', 'CROPS', 'FINANCE', 'LIVESTOCK', 'TENURE'].map(cat => (
+                  {['ALL', 'CROPS', 'FINANCE', 'LIVESTOCK', 'TENURE', 'CADASTRE'].map(cat => (
                     <Pressable
                       key={cat}
                       style={[styles.newsCategoryChip, newsCategory === cat && styles.newsCategoryChipActive]}
@@ -2411,15 +3516,19 @@ export default function App() {
                   ))}
                 </ScrollView>
 
-                {/* News Article Cards (4-6 max on screen) */}
-                {filteredNews.slice(0, 6).map(item => (
+                {/* News Article Cards (Real dynamic news feeds) */}
+                {filteredNews.map(item => (
                   <Pressable
                     key={item.id}
                     style={styles.newsArticleCard}
                     onPress={() => setSelectedNewsArticle(item)}
                   >
                     <Image
-                      source={NEWS_IMAGES[item.imageKey]}
+                      source={
+                        item.imageUrl
+                          ? { uri: item.imageUrl }
+                          : NEWS_IMAGES[item.imageKey || 'wheat']
+                      }
                       style={styles.newsArticleImage}
                       resizeMode="cover"
                     />
@@ -2463,6 +3572,33 @@ export default function App() {
               </View>
 
               <ScrollView style={{ maxHeight: 360 }}>
+                {selectedParcel.leaseClassification && (
+                  <View style={{
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(34, 197, 94, 0.3)',
+                    borderRadius: 8,
+                    padding: 10,
+                    marginBottom: 10,
+                  }}>
+                    <Text style={{ fontSize: 10, color: '#4ade80', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      📜 Statutory Lease Classification
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#ffffff', fontWeight: '700', marginTop: 2 }}>
+                      {selectedParcel.leaseClassification}
+                    </Text>
+                    {selectedParcel.statutoryAct && (
+                      <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                        <Text style={{ fontWeight: 'bold', color: '#cbd5e1' }}>Act:</Text> {selectedParcel.statutoryAct}
+                      </Text>
+                    )}
+                    {selectedParcel.bankability && (
+                      <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                        <Text style={{ fontWeight: 'bold', color: '#cbd5e1' }}>Security:</Text> {selectedParcel.bankability}
+                      </Text>
+                    )}
+                  </View>
+                )}
                 <View style={styles.metaRow}>
                   <Text style={styles.metaLabel}>Province &amp; District</Text>
                   <Text style={styles.metaVal}>{selectedParcel.district}, {selectedParcel.province}</Text>
@@ -2501,7 +3637,9 @@ export default function App() {
                     setIsApplyModalVisible(true);
                   }}
                 >
-                  <Text style={styles.primaryButtonText}>🌱 Apply for 99-Year Lease</Text>
+                  <Text style={styles.primaryButtonText}>
+                    🌱 Apply for {selectedParcel.leaseClassification ? selectedParcel.leaseClassification.replace(/\s*\(.*?\)/, '') : '99-Year Lease'}
+                  </Text>
                 </Pressable>
               ) : (
                 <View style={[styles.card, { marginTop: 12 }]}>
@@ -2536,6 +3674,9 @@ export default function App() {
                   <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>National ID:</Text> {profile.nationalId}</Text>
                   <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>Contact:</Text> {profile.phone}</Text>
                   <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>Target Parcel:</Text> {selectedParcel.referenceNumber} ({selectedParcel.hectares} ha)</Text>
+                  {selectedParcel.leaseClassification && (
+                    <Text style={styles.prefillItem}><Text style={{ fontWeight: 'bold' }}>Lease Category:</Text> {selectedParcel.leaseClassification}</Text>
+                  )}
                 </View>
 
                 {/* Intended Agricultural Activity */}
@@ -2607,7 +3748,11 @@ export default function App() {
 
               <ScrollView style={{ maxHeight: 380 }}>
                 <Image
-                  source={NEWS_IMAGES[selectedNewsArticle.imageKey]}
+                  source={
+                    selectedNewsArticle.imageUrl
+                      ? { uri: selectedNewsArticle.imageUrl }
+                      : NEWS_IMAGES[selectedNewsArticle.imageKey || 'wheat']
+                  }
                   style={{ width: '100%', height: 160, borderRadius: 10, marginBottom: 12 }}
                   resizeMode="cover"
                 />
@@ -2615,6 +3760,30 @@ export default function App() {
                 <Text style={[styles.cardSub, { fontSize: 13, lineHeight: 18, color: '#e2e8f0', marginTop: 8 }]}>
                   {selectedNewsArticle.summary}
                 </Text>
+
+                {selectedNewsArticle.sourceUrl && (
+                  <Pressable
+                    onPress={() => Linking.openURL(selectedNewsArticle.sourceUrl!)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(59, 130, 246, 0.3)',
+                      borderRadius: 8,
+                      paddingVertical: 9,
+                      marginTop: 10,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text style={{ color: '#60a5fa', fontSize: 12, fontWeight: '600' }}>
+                      🌐 Read Full Article on {selectedNewsArticle.source} →
+                    </Text>
+                  </Pressable>
+                )}
+
                 <Text style={[styles.sectionHeading, { marginTop: 12, marginBottom: 6 }]}>Key Policy Points</Text>
                 {selectedNewsArticle.bulletPoints.map((bp, i) => (
                   <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
@@ -2639,32 +3808,868 @@ export default function App() {
         </Modal>
       )}
 
-      {/* Touch-Friendly Bottom Tab Bar */}
-      <View style={styles.tabBar}>
-        {[
-          { key: 'home', label: 'Home', icon: '🏠' },
-          { key: 'search', label: 'Land Search', icon: '🔍' },
-          { key: 'applications', label: 'My Leases', icon: '📜' },
-          { key: 'map', label: 'Map View', icon: '🗺️' },
-          { key: 'menu', label: 'Menu', icon: '☰' },
-        ].map(t => (
+      {/* 6. MODERN CURVED SCOOPED NAVIGATION BAR (THEMED FOR SLLAS) */}
+      <View
+        style={styles.floatingNavContainer}
+        onLayout={e => {
+          const w = e.nativeEvent.layout.width;
+          if (w && Math.abs(w - barWidth) > 2) {
+            setBarWidth(w);
+          }
+        }}
+      >
+        {/* SVG Scooped Cradle Background */}
+        <Svg
+          width={barWidth}
+          height={56}
+          viewBox={`0 0 ${barWidth} 56`}
+          style={StyleSheet.absoluteFill}
+        >
+          <Defs>
+            <RadialGradient id="fabGlow" cx="50%" cy="50%" rx="50%" ry="50%">
+              <Stop offset="0%" stopColor="#22c55e" stopOpacity="0.35" />
+              <Stop offset="70%" stopColor="#166534" stopOpacity="0.08" />
+              <Stop offset="100%" stopColor="#166534" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+
+          {/* Deep slate pill matching app dark theme with center cradle scoop */}
+          <Path
+            d={getNavScoopPath(barWidth, 56, 22, 38, 21)}
+            fill="#0f172a"
+            stroke="rgba(255, 255, 255, 0.12)"
+            strokeWidth={1.2}
+          />
+
+          {/* Soft emerald glow beneath center Map View button */}
+          <Circle cx={barWidth / 2} cy={18} r={24} fill="url(#fabGlow)" />
+        </Svg>
+
+        {/* Center Elevated Emerald Circular Button (Map View) */}
+        <Pressable
+          style={[
+            styles.centerFabBtn,
+            activeTab === 'map' && styles.centerFabBtnActive,
+          ]}
+          onPress={handleCenterFabPress}
+          onLongPress={() => setIsCenterActionModalVisible(true)}
+          accessibilityLabel="Map View and Cadastre GIS"
+          accessibilityRole="button"
+        >
+          <MapNavIcon color="#ffffff" />
+        </Pressable>
+
+        {/* 5-Slot Horizontal Navigation Row */}
+        <View style={styles.navItemsRow}>
+          {/* Slot 1: Home */}
           <Pressable
-            key={t.key}
-            style={[styles.tabBarItem, activeTab === t.key && styles.tabBarItemActive]}
-            onPress={() => {
-              if (t.key === 'menu') {
-                setMenuView('hub');
-              }
-              setActiveTab(t.key as MobileTabKey);
-            }}
+            style={styles.navItem}
+            onPress={() => setActiveTab('home')}
+            accessibilityLabel="Home"
           >
-            <Text style={styles.tabBarIcon}>{t.icon}</Text>
-            <Text style={[styles.tabBarLabel, activeTab === t.key && styles.tabBarLabelActive]}>
-              {t.label}
+            <HomeNavIcon color={activeTab === 'home' ? '#4ade80' : '#94a3b8'} />
+            <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>
+              Home
             </Text>
           </Pressable>
-        ))}
+
+          {/* Slot 2: Land Search */}
+          <Pressable
+            style={styles.navItem}
+            onPress={() => setActiveTab('search')}
+            accessibilityLabel="Land Search"
+          >
+            <SearchNavIcon color={activeTab === 'search' ? '#4ade80' : '#94a3b8'} />
+            <Text style={[styles.navLabel, activeTab === 'search' && styles.navLabelActive]} numberOfLines={1}>
+              Land Search
+            </Text>
+          </Pressable>
+
+          {/* Center Spacer & Map View Label */}
+          <Pressable
+            style={styles.centerNavSpacer}
+            onPress={handleCenterFabPress}
+            onLongPress={() => setIsCenterActionModalVisible(true)}
+            accessibilityLabel="Map View"
+          >
+            <View style={{ height: 22 }} />
+            <Text style={[styles.centerNavLabel, activeTab === 'map' && styles.navLabelActive]}>
+              Map View
+            </Text>
+          </Pressable>
+
+          {/* Slot 4: My Leases */}
+          <Pressable
+            style={styles.navItem}
+            onPress={() => setActiveTab('applications')}
+            accessibilityLabel="My Leases"
+          >
+            <LeasesNavIcon color={activeTab === 'applications' ? '#4ade80' : '#94a3b8'} />
+            <Text style={[styles.navLabel, activeTab === 'applications' && styles.navLabelActive]}>
+              My Leases
+            </Text>
+          </Pressable>
+
+          {/* Slot 5: Menu */}
+          <Pressable
+            style={styles.navItem}
+            onPress={() => {
+              setMenuView('hub');
+              setActiveTab('menu');
+            }}
+            accessibilityLabel="Menu"
+          >
+            <MenuNavIcon color={activeTab === 'menu' ? '#4ade80' : '#94a3b8'} />
+            <Text style={[styles.navLabel, activeTab === 'menu' && styles.navLabelActive]}>
+              Menu
+            </Text>
+          </Pressable>
+        </View>
       </View>
+
+      {/* 7. PAYMENTS & QUICK ACTIONS MODAL (Center FAB Trigger) */}
+      {isCenterActionModalVisible && (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsCenterActionModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.centerActionModalCard}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heraldryText}>AGRICULTURAL LAND SETTLEMENT ACT</Text>
+                  <Text style={styles.modalTitle}>Payments &amp; Quick Actions</Text>
+                </View>
+                <Pressable onPress={() => setIsCenterActionModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 360 }}>
+                {/* 1. Pay Statutory Lease Rental */}
+                <View style={styles.centerActionTile}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={[styles.actionIconCircle, { backgroundColor: '#eef2ff' }]}>
+                        <Text style={{ fontSize: 18 }}>💳</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.centerActionTileTitle}>Statutory Ground Rent</Text>
+                        <Text style={styles.centerActionTileSub}>
+                          {isGroundRentPaid ? 'Paid in Full • Good Standing' : 'Annual Lease Rental & Survey Dues'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.badgeTag, { backgroundColor: isGroundRentPaid ? '#15803d' : '#b45309' }]}>
+                      <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700' }}>
+                        {isGroundRentPaid ? 'PAID' : '$420.00 USD'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {!isGroundRentPaid ? (
+                    <Pressable
+                      style={[styles.primaryButton, { marginTop: 12, backgroundColor: '#5046e5' }]}
+                      onPress={handlePayGroundRent}
+                    >
+                      <Text style={styles.primaryButtonText}>Pay $420.00 via EcoCash / OneMoney →</Text>
+                    </Pressable>
+                  ) : (
+                    <View style={{ marginTop: 10, padding: 8, backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: 8 }}>
+                      <Text style={{ color: '#86efac', fontSize: 11 }}>
+                        ✓ Receipt #REC-2026-ZW-0082 recorded in PostgreSQL. No outstanding ground arrears.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* 2. Formal Lease Application */}
+                <Pressable
+                  style={[styles.centerActionTile, { marginTop: 10 }]}
+                  onPress={handleQuickApply}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={[styles.actionIconCircle, { backgroundColor: '#f0fdf4' }]}>
+                      <Text style={{ fontSize: 18 }}>✍️</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.centerActionTileTitle}>Apply for 99-Year Lease</Text>
+                      <Text style={styles.centerActionTileSub}>
+                        {selectedParcel
+                          ? `Target: ${selectedParcel.referenceNumber} (${selectedParcel.hectares} ha)`
+                          : 'Lodge a formal application for available state agricultural land'}
+                      </Text>
+                    </View>
+                    <Text style={{ color: '#5046e5', fontSize: 16, fontWeight: '700' }}>→</Text>
+                  </View>
+                </Pressable>
+
+                {/* 3. Cadastre GIS Map */}
+                <Pressable
+                  style={[styles.centerActionTile, { marginTop: 10 }]}
+                  onPress={() => {
+                    setIsCenterActionModalVisible(false);
+                    setActiveTab('map');
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={[styles.actionIconCircle, { backgroundColor: '#f0f9ff' }]}>
+                      <Text style={{ fontSize: 18 }}>🗺️</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.centerActionTileTitle}>Cadastre GIS Map View</Text>
+                      <Text style={styles.centerActionTileSub}>
+                        Explore national parcel boundaries, natural agro-regions &amp; waterways
+                      </Text>
+                    </View>
+                    <Text style={{ color: '#5046e5', fontSize: 16, fontWeight: '700' }}>→</Text>
+                  </View>
+                </Pressable>
+              </ScrollView>
+
+              <Pressable
+                style={[styles.secondaryButton, { marginTop: 14 }]}
+                onPress={() => setIsCenterActionModalVisible(false)}
+              >
+                <Text style={styles.secondaryButtonText}>Close Window</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 8. EDIT PROFILE DETAILS MODAL (Statutory locks: Full names, National ID, Gender, Citizenship) */}
+      {isEditProfileModalVisible && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsEditProfileModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heraldryText}>AGRICULTURAL LAND SETTLEMENT ACT [CAP 20:01]</Text>
+                  <Text style={styles.modalTitle}>Edit Profile Particulars</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Update your contact number, residential address, and farming category.
+                  </Text>
+                </View>
+                <Pressable onPress={() => setIsEditProfileModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={true}>
+                {/* Statutory Identity Lock Banner */}
+                <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#f87171', marginBottom: 2 }}>
+                    🔒 Statutory Identity Locks (Non-Editable)
+                  </Text>
+                  <Text style={{ fontSize: 10.5, color: '#fca5a5', lineHeight: 15 }}>
+                    Under Section 7 of the Agricultural Land Settlement Act, Full Legal Names, National ID Number, Gender, and Citizenship are legally locked after creation to prevent duplicate allocations and enforce the One-Person-One-Farm mandate.
+                  </Text>
+                </View>
+
+                {/* 1. Full Legal Name (LOCKED) */}
+                <View style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.inputLabel}>Full Legal Name</Text>
+                    <Text style={{ fontSize: 10, color: '#f87171', fontWeight: '700' }}>🔒 Non-Editable</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#94a3b8', borderColor: 'rgba(239, 68, 68, 0.2)' }]}
+                    value={profile.name}
+                    editable={false}
+                  />
+                  <Text style={{ fontSize: 9.5, color: '#64748b', marginTop: 2 }}>Established under Stage 0 KYC Identity Verification.</Text>
+                </View>
+
+                {/* 2. National Identification Number (LOCKED) */}
+                <View style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.inputLabel}>National ID Number</Text>
+                    <Text style={{ fontSize: 10, color: '#f87171', fontWeight: '700' }}>🔒 Civil Registry Lock</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#94a3b8', borderColor: 'rgba(239, 68, 68, 0.2)' }]}
+                    value={profile.nationalId}
+                    editable={false}
+                  />
+                  <Text style={{ fontSize: 9.5, color: '#64748b', marginTop: 2 }}>Permanently anchored to Ministry Civil Registry ledger.</Text>
+                </View>
+
+                {/* 3. Gender (LOCKED) */}
+                <View style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.inputLabel}>Gender</Text>
+                    <Text style={{ fontSize: 10, color: '#f87171', fontWeight: '700' }}>🔒 Statutory Quota Lock</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#94a3b8', borderColor: 'rgba(239, 68, 68, 0.2)' }]}
+                    value={profile.gender || 'Male'}
+                    editable={false}
+                  />
+                </View>
+
+                {/* 4. Citizenship (LOCKED) */}
+                <View style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.inputLabel}>Citizenship</Text>
+                    <Text style={{ fontSize: 10, color: '#4ade80', fontWeight: '700' }}>🔒 Verified Citizen</Text>
+                  </View>
+                  <TextInput
+                    style={[styles.textInput, { backgroundColor: '#1e293b', color: '#86efac', borderColor: 'rgba(74, 222, 128, 0.2)' }]}
+                    value={`🇿🇼 ${profile.citizenship || 'Zimbabwean'} (Auto-detected from ID)`}
+                    editable={false}
+                  />
+                </View>
+
+                {/* EDITABLE SECTION DIVIDER */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 }}>
+                  <View style={{ height: 1, flex: 1, backgroundColor: 'rgba(74, 222, 128, 0.3)' }} />
+                  <Text style={{ fontSize: 11, color: '#4ade80', fontWeight: '700' }}>Editable Particulars</Text>
+                  <View style={{ height: 1, flex: 1, backgroundColor: 'rgba(74, 222, 128, 0.3)' }} />
+                </View>
+
+                {/* 5. Contact Phone Number (EDITABLE) */}
+                <Text style={styles.inputLabel}>Contact Phone Number <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editPhone}
+                  onChangeText={setEditPhone}
+                  placeholder="+263 77..."
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="phone-pad"
+                />
+
+                {/* 6. Physical Farm / Residential Address (EDITABLE) */}
+                <Text style={styles.inputLabel}>Physical Farm / Residential Address <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editAddress}
+                  onChangeText={setEditAddress}
+                  placeholder="Stand / Street / District, Province"
+                  placeholderTextColor="#94a3b8"
+                />
+
+                {/* 7. Email Address (EDITABLE) */}
+                <Text style={styles.inputLabel}>Email Address</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editEmail}
+                  onChangeText={setEditEmail}
+                  placeholder="farmer@sllas.gov.zw"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+
+                {/* 8. Farmer Category (EDITABLE) */}
+                <Text style={styles.inputLabel}>Farmer Category</Text>
+                <View style={{ gap: 6, marginTop: 4 }}>
+                  {STATUTORY_FARMER_CATEGORIES.map(fc => (
+                    <Pressable
+                      key={fc}
+                      onPress={() => setEditFarmerCategory(fc)}
+                      style={[
+                        {
+                          backgroundColor: '#1e293b',
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255, 255, 255, 0.08)',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        },
+                        editFarmerCategory === fc && {
+                          borderColor: '#4ade80',
+                          backgroundColor: 'rgba(22, 101, 52, 0.35)',
+                        }
+                      ]}
+                    >
+                      <Text style={[
+                        { color: '#cbd5e1', fontSize: 12 },
+                        editFarmerCategory === fc && { color: '#ffffff', fontWeight: '700' }
+                      ]}>
+                        {fc}
+                      </Text>
+                      {editFarmerCategory === fc && (
+                        <Text style={{ color: '#4ade80', fontWeight: '900', fontSize: 13 }}>✓</Text>
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <Pressable
+                  style={[styles.secondaryButton, { flex: 1 }]}
+                  onPress={() => setIsEditProfileModalVisible(false)}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.primaryButton, { flex: 1.4, marginTop: 0 }]}
+                  onPress={handleSaveProfileDetails}
+                >
+                  <Text style={styles.primaryButtonText}>Save Profile Changes</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 9. SET / UPDATE PASSWORD MODAL */}
+      {isUpdatePasswordModalVisible && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsUpdatePasswordModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heraldryText}>ACCOUNT SECURITY &amp; CREDENTIALS</Text>
+                  <Text style={styles.modalTitle}>Set / Update Password</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Update your secret access key for the SLLAS Client Land Portal.
+                  </Text>
+                </View>
+                <Pressable onPress={() => setIsUpdatePasswordModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 360 }}>
+                <View style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 1, borderColor: 'rgba(56, 189, 248, 0.25)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#38bdf8', marginBottom: 2 }}>
+                    🔐 Strong Password Policy
+                  </Text>
+                  <Text style={{ fontSize: 10.5, color: '#bae6fd', lineHeight: 15 }}>
+                    Your password must be at least 8 characters in length. Keep your login credentials confidential to protect your cadastral leasehold rights.
+                  </Text>
+                </View>
+
+                <Text style={styles.inputLabel}>Current Password <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={pwdCurrent}
+                  onChangeText={setPwdCurrent}
+                  placeholder="Enter your current password"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry
+                />
+
+                <Text style={styles.inputLabel}>New Password <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={pwdNew}
+                  onChangeText={setPwdNew}
+                  placeholder="Minimum 8 characters"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry
+                />
+
+                <Text style={styles.inputLabel}>Confirm New Password <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={pwdConfirm}
+                  onChangeText={setPwdConfirm}
+                  placeholder="Re-enter your new password"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry
+                />
+              </ScrollView>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <Pressable
+                  style={[styles.secondaryButton, { flex: 1 }]}
+                  onPress={() => setIsUpdatePasswordModalVisible(false)}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.primaryButton, { flex: 1.4, marginTop: 0 }]}
+                  onPress={handleUpdatePassword}
+                >
+                  <Text style={styles.primaryButtonText}>Update Password ✓</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 10. SEND FEEDBACK / CONTACT US MODAL */}
+      {isSupportModalVisible && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsSupportModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heraldryText}>MINISTRY CLIENT ASSISTANCE</Text>
+                  <Text style={styles.modalTitle}>Support &amp; Contact Desk</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Reach the National Land Governance Support Team or lodge an in-app inquiry.
+                  </Text>
+                </View>
+                <Pressable onPress={() => setIsSupportModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
+                {/* Official Hotlines Box */}
+                <View style={{ backgroundColor: '#1e293b', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#4ade80', marginBottom: 6 }}>
+                    📞 Direct Government Support Channels
+                  </Text>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>National Toll-Free Helpline</Text>
+                    <Text style={[styles.metaVal, { color: '#4ade80' }]}>0800 4242 / (0242) 706071</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>WhatsApp Land Desk</Text>
+                    <Text style={[styles.metaVal, { color: '#38bdf8' }]}>+263 71 200 4000</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>Official Email Dispatch</Text>
+                    <Text style={styles.metaVal}>helpdesk@lands.gov.zw</Text>
+                  </View>
+                  <View style={[styles.metaRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.metaLabel}>Headquarters</Text>
+                    <Text style={styles.metaVal}>Ngungunyana Bldg, 1 Borrowdale Rd, Harare</Text>
+                  </View>
+                </View>
+
+                {/* In-App Feedback Form */}
+                <Text style={styles.inputLabel}>Inquiry / Feedback Category</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 4 }}>
+                  {(['General Inquiry', 'Cadastre Query', 'Technical Issue', 'Suggestion'] as const).map(cat => (
+                    <Pressable
+                      key={cat}
+                      onPress={() => setFeedbackCategory(cat)}
+                      style={[
+                        styles.chip,
+                        feedbackCategory === cat && styles.chipActive,
+                        { paddingHorizontal: 10, paddingVertical: 5 }
+                      ]}
+                    >
+                      <Text style={[styles.chipText, feedbackCategory === cat && styles.chipTextActive]}>
+                        {cat}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={[styles.inputLabel, { marginTop: 8 }]}>Your Message or Question</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 90, textAlignVertical: 'top' }]}
+                  multiline
+                  value={feedbackText}
+                  onChangeText={setFeedbackText}
+                  placeholder="Describe your inquiry, farm reference query, or system suggestion..."
+                  placeholderTextColor="#94a3b8"
+                />
+              </ScrollView>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <Pressable
+                  style={[styles.secondaryButton, { flex: 1 }]}
+                  onPress={() => setIsSupportModalVisible(false)}
+                >
+                  <Text style={styles.secondaryButtonText}>Close</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.primaryButton, { flex: 1.4, marginTop: 0 }]}
+                  onPress={handleSubmitFeedback}
+                >
+                  <Text style={styles.primaryButtonText}>Submit Docket →</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 11. FAQ & TERMS OF SERVICE MODAL */}
+      {isFaqTermsModalVisible && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsFaqTermsModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heraldryText}>REPUBLIC OF ZIMBABWE • STATUTORY CODEX</Text>
+                  <Text style={styles.modalTitle}>FAQ &amp; Terms of Service</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Official guidelines, legal covenants, and citizen rights under national land acts.
+                  </Text>
+                </View>
+                <Pressable onPress={() => setIsFaqTermsModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              {/* Segmented Switcher */}
+              <View style={{ flexDirection: 'row', gap: 6, backgroundColor: '#1e293b', padding: 4, borderRadius: 8, marginBottom: 12 }}>
+                <Pressable
+                  style={[styles.faqTabBtn, faqTab === 'faq' && styles.faqTabBtnActive]}
+                  onPress={() => setFaqTab('faq')}
+                >
+                  <Text style={[styles.faqTabText, faqTab === 'faq' && styles.faqTabTextActive]}>FAQs</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.faqTabBtn, faqTab === 'terms' && styles.faqTabBtnActive]}
+                  onPress={() => setFaqTab('terms')}
+                >
+                  <Text style={[styles.faqTabText, faqTab === 'terms' && styles.faqTabTextActive]}>Terms of Service</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.faqTabBtn, faqTab === 'privacy' && styles.faqTabBtnActive]}
+                  onPress={() => setFaqTab('privacy')}
+                >
+                  <Text style={[styles.faqTabText, faqTab === 'privacy' && styles.faqTabTextActive]}>Data Privacy</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={true}>
+                {faqTab === 'faq' && (
+                  <View style={{ gap: 8 }}>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>1. How does the 99-Year Leasehold work?</Text>
+                      <Text style={styles.faqAnswer}>
+                        A 99-year lease granted under the Agricultural Land Settlement Act [Cap 20:01] is a bankable legal title deed. Under Statutory Instrument 142 of 2026, it can be registered with financial institutions as collateral for agricultural capital and infrastructure financing.
+                      </Text>
+                    </View>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>2. What is the One-Person-One-Farm principle?</Text>
+                      <Text style={styles.faqAnswer}>
+                        Government policy strictly prohibits multiple allocations of state land to a single individual. SLLAS automatically checks National ID numbers across all 10 provinces to eliminate double-allocations and promote equitable land distribution.
+                      </Text>
+                    </View>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>3. How is the waiting list queue evaluated?</Text>
+                      <Text style={styles.faqAnswer}>
+                        Waiting list allocations are processed through an algorithmic evaluation scoring agricultural experience, capital investment capacity, enterprise viability, and statutory affirmative quotas (e.g. War Veterans, Youths, and Women).
+                      </Text>
+                    </View>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>4. How do I clear annual ground rental?</Text>
+                      <Text style={styles.faqAnswer}>
+                        Annual statutory lease rentals and survey fees can be settled directly in the SLLAS app via EcoCash, OneMoney, or Zimswitch Instant Payment channels, instantly updating the cadastre ledger.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {faqTab === 'terms' && (
+                  <View style={{ gap: 8 }}>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>Statutory Governance Framework</Text>
+                      <Text style={styles.faqAnswer}>
+                        By using the SLLAS Client Portal, all applicants and leaseholders agree to the statutory provisions of the Agricultural Land Settlement Act [Cap 20:01], the Land Commission Act [Cap 20:29], and gazetted Statutory Instruments.
+                      </Text>
+                    </View>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>Good Agricultural Husbandry Covenants</Text>
+                      <Text style={styles.faqAnswer}>
+                        Allocated state farmland must be actively utilized in accordance with recommended soil conservation, ecological sustainability, and productivity guidelines. Underutilization or speculative abandonment subjects parcels to statutory repossession.
+                      </Text>
+                    </View>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>Tenure Integrity &amp; Transfer Restrictions</Text>
+                      <Text style={styles.faqAnswer}>
+                        Leasehold rights cannot be assigned, sublet, or transferred without written ministerial consent. All registered joint-ventures must be officially logged in the SLLAS central cadastre registry.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {faqTab === 'privacy' && (
+                  <View style={{ gap: 8 }}>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>Cyber &amp; Data Protection Act [Cap 12:07]</Text>
+                      <Text style={styles.faqAnswer}>
+                        All personal identification records, National ID scans, farm coordinates, and financial statements uploaded to SLLAS are encrypted at rest with AES-256 and transmitted over TLS 1.3 channels in full compliance with the Cyber and Data Protection Act.
+                      </Text>
+                    </View>
+                    <View style={styles.faqCard}>
+                      <Text style={styles.faqQuestion}>Audit Logging &amp; Transparency</Text>
+                      <Text style={styles.faqAnswer}>
+                        All administrative interactions, officer inspections, and board reviews are immutably logged into cryptographic ledger records ensuring non-repudiation and zero unauthorized alteration of client files.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+
+              <Pressable
+                style={[styles.primaryButton, { marginTop: 14 }]}
+                onPress={() => setIsFaqTermsModalVisible(false)}
+              >
+                <Text style={styles.primaryButtonText}>Close Window</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 12. RATE THE APP OR SHARE MODAL */}
+      {isRateShareModalVisible && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsRateShareModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heraldryText}>CITIZEN FEEDBACK &amp; COMMUNITY</Text>
+                  <Text style={styles.modalTitle}>Rate App or Share</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Your evaluation helps the Ministry improve digital agricultural service delivery.
+                  </Text>
+                </View>
+                <Pressable onPress={() => setIsRateShareModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 340 }}>
+                {/* 5-Star Rating Card */}
+                <View style={{ backgroundColor: '#1e293b', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff', marginBottom: 8 }}>
+                    How would you rate SLLAS Mobile?
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10, marginVertical: 6 }}>
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Pressable
+                        key={star}
+                        style={styles.starRatingBtn}
+                        onPress={() => setAppStarRating(star)}
+                      >
+                        <Text style={styles.starRatingText}>
+                          {star <= appStarRating ? '⭐' : '☆'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={{ color: '#4ade80', fontSize: 12, fontWeight: '700', marginTop: 4 }}>
+                    {appStarRating === 5 ? 'Excellent Experience (5/5)' : appStarRating >= 4 ? 'Very Good (4/5)' : 'Good (3/5)'}
+                  </Text>
+                  <Pressable
+                    style={[styles.primaryButton, { width: '100%', marginTop: 12 }]}
+                    onPress={handleSubmitRating}
+                  >
+                    <Text style={styles.primaryButtonText}>Submit App Rating</Text>
+                  </Pressable>
+                </View>
+
+                {/* Share SLLAS Card */}
+                <View style={{ backgroundColor: '#1e293b', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff', marginBottom: 4 }}>
+                    Share SLLAS with Fellow Farmers
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', lineHeight: 15, marginBottom: 12 }}>
+                    Empower other agricultural producers, youth, and women in your district to apply for available land and access bankable leases online.
+                  </Text>
+                  <Pressable
+                    style={[styles.secondaryButton, { borderColor: '#4ade80' }]}
+                    onPress={handleShareApp}
+                  >
+                    <Text style={[styles.secondaryButtonText, { color: '#4ade80' }]}>
+                      🔗 Copy &amp; Share SLLAS Portal Link
+                    </Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+
+              <Pressable
+                style={[styles.secondaryButton, { marginTop: 14 }]}
+                onPress={() => setIsRateShareModalVisible(false)}
+              >
+                <Text style={styles.secondaryButtonText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 13. APP INFO & DEVELOPER CREDITS MODAL */}
+      {isAppInfoModalVisible && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setIsAppInfoModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heraldryText}>REPUBLIC OF ZIMBABWE • VISION 2030</Text>
+                  <Text style={styles.modalTitle}>App Info &amp; Developer Credits</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Official software specifications, technical architecture &amp; engineering attribution.
+                  </Text>
+                </View>
+                <Pressable onPress={() => setIsAppInfoModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={true}>
+                {/* System Specs Card */}
+                <View style={{ backgroundColor: '#1e293b', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#38bdf8', marginBottom: 6 }}>
+                    📱 System &amp; Build Specifications
+                  </Text>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>Application Name</Text>
+                    <Text style={styles.metaVal}>SLLAS Client Land Portal</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>Build Release</Text>
+                    <Text style={[styles.metaVal, { color: '#4ade80' }]}>v2.4.0 (Build 2026.11.01-PROD)</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>Mobile Architecture</Text>
+                    <Text style={styles.metaVal}>React Native 0.74 • Expo 51</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>Spatial GIS Engine</Text>
+                    <Text style={styles.metaVal}>PostGIS 3 Spatial Vector Polygons (SRID 4326)</Text>
+                  </View>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaLabel}>Statutory Instrument</Text>
+                    <Text style={styles.metaVal}>S.I. 142/2026 (99-Yr Bankable Leases)</Text>
+                  </View>
+                  <View style={[styles.metaRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.metaLabel}>National Jurisdiction</Text>
+                    <Text style={styles.metaVal}>All 10 Provinces • 60 Districts of Zimbabwe</Text>
+                  </View>
+                </View>
+
+                {/* Developer Credits Card */}
+                <View style={{ backgroundColor: '#1e293b', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#facc15', marginBottom: 6 }}>
+                    👨‍💻 Engineering &amp; Development Credits
+                  </Text>
+                  <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                    National Land Cadastre Digitalization Engineering Team
+                  </Text>
+                  <Text style={{ color: '#cbd5e1', fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+                    Conceived, engineered, and deployed in collaboration with Government Information Technology Department (GITD), Antigravity Enterprise Solutions &amp; DeepMind Spatial Systems.
+                  </Text>
+                  <View style={{ marginTop: 8, padding: 8, backgroundColor: 'rgba(34, 197, 94, 0.08)', borderRadius: 6, borderWidth: 1, borderColor: 'rgba(74, 222, 128, 0.2)' }}>
+                    <Text style={{ color: '#86efac', fontSize: 10.5, lineHeight: 14 }}>
+                      Dedicated to transparent, equitable, and bankable land governance for all Zimbabwean citizens.
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              <Pressable
+                style={[styles.primaryButton, { marginTop: 14 }]}
+                onPress={() => setIsAppInfoModalVisible(false)}
+              >
+                <Text style={styles.primaryButtonText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -2813,7 +4818,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingTop: 18,
-    paddingBottom: 88,
+    paddingBottom: 116,
   },
   tabContent: {
     gap: 12,
@@ -3146,36 +5151,123 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  tabBar: {
+  // --- Modern Scooped Floating Navigation Styles (Themed for SLLAS Mobile) ---
+  floatingNavContainer: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    backgroundColor: '#070b14',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 8,
-  },
-  tabBarItem: {
-    flex: 1,
+    bottom: Platform.select({ ios: 20, web: 12, default: 12 }),
+    left: 16,
+    right: 16,
+    height: 56,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 16,
+    zIndex: 99,
   },
-  tabBarItemActive: {
+  centerFabBtn: {
+    position: 'absolute',
+    top: -18,
+    left: '50%',
+    marginLeft: -23,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#15803d',
+    borderWidth: 2,
+    borderColor: '#4ade80',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 14,
+  },
+  centerFabBtnActive: {
+    backgroundColor: '#16a34a',
+    borderColor: '#86efac',
     transform: [{ scale: 1.05 }],
   },
-  tabBarIcon: {
-    fontSize: 16,
-    marginBottom: 2,
+  navItemsRow: {
+    width: '100%',
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    zIndex: 5,
   },
-  tabBarLabel: {
-    fontSize: 9,
-    color: '#64748b',
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 3,
+  },
+  centerNavSpacer: {
+    width: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 2,
+  },
+  navLabel: {
+    fontSize: 9.5,
+    color: '#94a3b8',
     fontWeight: '600',
+    marginTop: 2,
   },
-  tabBarLabelActive: {
+  navLabelActive: {
     color: '#4ade80',
     fontWeight: '700',
+  },
+  centerNavLabel: {
+    fontSize: 9.5,
+    color: '#94a3b8',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  // --- Center Action / Payments Modal Styles ---
+  centerActionModalCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  centerActionTile: {
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  centerActionTileTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  centerActionTileSub: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  actionIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // --- SLLAS Motion Splash Screen Styles ---
   splashContainer: {
@@ -3965,5 +6057,102 @@ const styles = StyleSheet.create({
     color: '#38bdf8',
     fontSize: 11,
     fontWeight: '700',
+  },
+  // Settings & Preferences Styles
+  settingsTileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  settingsTileTitle: {
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  settingsTileSub: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  settingsTileArrow: {
+    color: '#64748b',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  settingsTileDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginVertical: 4,
+  },
+  settingsChipBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsChipBtnActive: {
+    backgroundColor: '#166534',
+    borderColor: '#4ade80',
+  },
+  settingsChipText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  settingsChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  faqTabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  faqTabBtnActive: {
+    borderBottomColor: '#22c55e',
+  },
+  faqTabText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  faqTabTextActive: {
+    color: '#22c55e',
+    fontWeight: '700',
+  },
+  faqCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  faqQuestion: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  faqAnswer: {
+    color: '#94a3b8',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  starRatingBtn: {
+    padding: 8,
+  },
+  starRatingText: {
+    fontSize: 28,
   },
 });

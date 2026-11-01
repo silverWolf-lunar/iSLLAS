@@ -1,8 +1,171 @@
-import { ParcelStatus, NaturalRegion, SoilType, Role } from '@sllas/contracts';
+import { ParcelStatus, NaturalRegion, SoilType, Role, LeaseClassification } from '@sllas/contracts';
 
 export interface GeoPolygon {
   type: 'Polygon';
   coordinates: number[][][];
+}
+
+export interface LeaseClassificationInfo {
+  code: LeaseClassification;
+  shortName: string;
+  fullName: string;
+  termYears: number;
+  termLabel: string;
+  statutoryAct: string;
+  bankability: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  description: string;
+  permittedEnterprises: string[];
+}
+
+export const LEASE_CLASSIFICATIONS_METADATA: Record<LeaseClassification, Omit<LeaseClassificationInfo, 'code'>> = {
+  [LeaseClassification.A2_COMMERCIAL]: {
+    shortName: 'A2 Commercial (99-Year)',
+    fullName: 'A2 Commercial Agricultural Lease (99-Year Bankable Leasehold)',
+    termYears: 99,
+    termLabel: '99-Year Bankable Leasehold',
+    statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] & S.I. 142 of 2026',
+    bankability: 'Fully Bankable Collateral Security (Registrable Mortgage Bond under S.I. 142/2026)',
+    color: '#4ade80',
+    bgColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: 'rgba(34, 197, 94, 0.35)',
+    description: 'Medium-to-large scale commercial agricultural production with registrable bankable title security, transferability, and full financial mortgage eligibility.',
+    permittedEnterprises: ['Commercial Maize & Wheat', 'Flue-Cured Tobacco', 'Soybeans & Oilseeds', 'Horticultural Crops', 'Commercial Livestock Breeding'],
+  },
+  [LeaseClassification.A1_SETTLEMENT]: {
+    shortName: 'A1 Smallholder Permit',
+    fullName: 'A1 Smallholder Settlement Permit / Leasehold',
+    termYears: 99,
+    termLabel: 'Renewable Permit / 99-Year Smallholder Lease',
+    statutoryAct: 'Land Commission Act [Cap 20:29] & Model A1 Settlement Regulations',
+    bankability: 'Limited Transferability (Micro-Agri Finance & Joint Contract Farming Eligible)',
+    color: '#38bdf8',
+    bgColor: 'rgba(14, 165, 233, 0.15)',
+    borderColor: 'rgba(14, 165, 233, 0.35)',
+    description: 'Smallholder arable settlement plots allocated for household food sovereignty, grain surplus, and sustainable communal agrarian stewardship.',
+    permittedEnterprises: ['Household Food Grains', 'Traditional Small Grains', 'Legumes & Groundnuts', 'Free-Range Poultry', 'Small Ruminants'],
+  },
+  [LeaseClassification.PERI_URBAN_COMMERCIAL]: {
+    shortName: 'Peri-Urban Agro-Plot',
+    fullName: 'Peri-Urban Commercial Agro-Plot (Intensive Commercial)',
+    termYears: 99,
+    termLabel: '25 to 99-Year Commercial Agro Lease',
+    statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] - Intensive Peri-Urban Scheme',
+    bankability: 'Bankable Commercial Asset (Infrastructure & Intensive Asset Mortgage)',
+    color: '#c084fc',
+    bgColor: 'rgba(168, 85, 247, 0.15)',
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+    description: 'High-value intensive agro-plots situated in peri-urban belts for greenhouse horticulture, poultry, floriculture, piggery, and direct city supply.',
+    permittedEnterprises: ['Greenhouse Horticulture', 'Floriculture & Export Flowers', 'Commercial Broilers & Layers', 'Intensive Piggery', 'High-Density Citrus & Berry Orchards'],
+  },
+  [LeaseClassification.RANGELAND_PASTORAL]: {
+    shortName: 'Rangeland Pastoral Lease',
+    fullName: 'Extensive Rangeland / Livestock Pastoral Lease (99-Year)',
+    termYears: 99,
+    termLabel: '99-Year Pastoral Leasehold',
+    statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] - Pastoral & Ranching Concessions',
+    bankability: 'Bankable Asset (Carrying Capacity & Commercial Herd Asset Value)',
+    color: '#fbbf24',
+    bgColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    description: 'Extensive rangeland grazing and livestock ranching concession suited for drought-resilient cattle paddocks, pastoral management, and game ranching.',
+    permittedEnterprises: ['Commercial Beef Breeding & Fattening', 'Dairy Production', 'Goat & Sheep Pastoralism', 'Rangeland Fodder Cultivation', 'Wildlife Game Conservancy'],
+  },
+  [LeaseClassification.AGRO_INDUSTRIAL]: {
+    shortName: 'Agro-Industrial Concession',
+    fullName: 'Specialized Agro-Industrial Concession (Joint-Venture)',
+    termYears: 99,
+    termLabel: '99-Year Long-Term Concession',
+    statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] & Joint-Venture Regulations',
+    bankability: 'Tier-1 Bankable Joint-Venture Instrument (Off-Take Financing Covenants)',
+    color: '#22d3ee',
+    bgColor: 'rgba(6, 182, 212, 0.15)',
+    borderColor: 'rgba(6, 182, 212, 0.35)',
+    description: 'Specialized export plantation and agro-processing block with long-term capital guarantees and contract processing covenants.',
+    permittedEnterprises: ['Sugarcane Estates & Milling', 'Macadamia & Tea Plantations', 'Coffee Estates', 'Commercial Timber & Forestry', 'Agro-Processing & Milling Hubs'],
+  },
+};
+
+export function determineLeaseClassification(parcel: {
+  landCategory?: string;
+  areaHectares: number;
+  currentUse?: string;
+  notes?: string;
+  name?: string;
+  district?: string;
+  naturalRegion?: NaturalRegion | string | null;
+  permittedUses?: string[];
+}): LeaseClassificationInfo {
+  const text = `${parcel.landCategory || ''} ${parcel.currentUse || ''} ${parcel.name || ''} ${parcel.notes || ''} ${(parcel.permittedUses || []).join(' ')}`.toLowerCase();
+  const district = (parcel.district || '').toLowerCase();
+  const hectares = Number(parcel.areaHectares) || 0;
+  const region = (parcel.naturalRegion || '').toString().toUpperCase();
+
+  // 1. Specialized Agro-Industrial Concession
+  if (
+    text.includes('agro-industrial') ||
+    text.includes('sugarcane') ||
+    text.includes('cane') ||
+    text.includes('macadamia') ||
+    text.includes('tea plot') ||
+    text.includes('timber') ||
+    (text.includes('estate') && (text.includes('processing') || text.includes('milling') || text.includes('cane') || text.includes('industrial')))
+  ) {
+    return {
+      code: LeaseClassification.AGRO_INDUSTRIAL,
+      ...LEASE_CLASSIFICATIONS_METADATA[LeaseClassification.AGRO_INDUSTRIAL],
+    };
+  }
+
+  // 2. Extensive Rangeland / Livestock Pastoral Lease
+  if (
+    text.includes('livestock') ||
+    text.includes('cattle') ||
+    text.includes('rangeland') ||
+    text.includes('grazing') ||
+    text.includes('pastoral') ||
+    text.includes('conservancy') ||
+    (hectares >= 250 && (region === 'IV' || region === 'V' || region.includes('IV') || region.includes('V')))
+  ) {
+    return {
+      code: LeaseClassification.RANGELAND_PASTORAL,
+      ...LEASE_CLASSIFICATIONS_METADATA[LeaseClassification.RANGELAND_PASTORAL],
+    };
+  }
+
+  // 3. Peri-Urban Commercial Agro-Plot (Intensive)
+  const isPeriUrbanDistrict = ['goromonzi', 'mazowe', 'ruwa', 'umguza', 'marondera', 'norton', 'harare', 'bulawayo'].some(d => district.includes(d));
+  if (
+    (text.includes('horticulture') || text.includes('horticultural') || text.includes('citrus') || text.includes('poultry') || text.includes('peri-urban')) &&
+    (isPeriUrbanDistrict || hectares <= 85)
+  ) {
+    return {
+      code: LeaseClassification.PERI_URBAN_COMMERCIAL,
+      ...LEASE_CLASSIFICATIONS_METADATA[LeaseClassification.PERI_URBAN_COMMERCIAL],
+    };
+  }
+
+  // 4. A1 Smallholder Settlement Permit / Lease
+  if (
+    text.includes('a1') ||
+    text.includes('smallholder') ||
+    text.includes('villagised') ||
+    text.includes('self-contained') ||
+    (hectares < 50 && (text.includes('mixed') || text.includes('subsistence') || text.includes('communal') || text.includes('family')))
+  ) {
+    return {
+      code: LeaseClassification.A1_SETTLEMENT,
+      ...LEASE_CLASSIFICATIONS_METADATA[LeaseClassification.A1_SETTLEMENT],
+    };
+  }
+
+  // 5. Default: A2 Commercial Agricultural Lease (99-Year Bankable)
+  return {
+    code: LeaseClassification.A2_COMMERCIAL,
+    ...LEASE_CLASSIFICATIONS_METADATA[LeaseClassification.A2_COMMERCIAL],
+  };
 }
 
 export interface ParcelRecord {
@@ -15,6 +178,7 @@ export interface ParcelRecord {
   landCategory: string;
   areaHectares: number;
   status: ParcelStatus;
+  leaseClassification: LeaseClassificationInfo;
   boundary: GeoPolygon;
   centroid: { lat: number; lng: number };
   naturalRegion: NaturalRegion | null;
@@ -70,6 +234,21 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
   const registeredBy = parcel.registeredByUser;
   const verifiedBy = parcel.verifiedByUser;
 
+  const permittedUses = parcel.zoningPermittedUses
+    ? parcel.zoningPermittedUses.split(',').map((item: string) => item.trim())
+    : [];
+
+  const leaseClassification = determineLeaseClassification({
+    landCategory: category,
+    areaHectares: Number(parcel.areaHectares),
+    currentUse: parcel.currentUse,
+    notes: parcel.notes,
+    name: parcel.notes,
+    district,
+    naturalRegion: parcel.naturalRegion,
+    permittedUses,
+  });
+
   return {
     id: parcel.id,
     referenceNumber: parcel.referenceNumber,
@@ -80,6 +259,7 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
     landCategory: category,
     areaHectares: Number(parcel.areaHectares),
     status: parcel.status,
+    leaseClassification,
     boundary: parcel.boundaryGeojson,
     centroid: { lat: Number(parcel.centroidLat), lng: Number(parcel.centroidLng) },
     naturalRegion: parcel.naturalRegion,
@@ -90,9 +270,7 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
     gridProximityKm: parcel.gridProximityKm == null ? null : Number(parcel.gridProximityKm),
     terrain: parcel.terrain ?? '',
     currentUse: parcel.currentUse ?? '',
-    permittedUses: parcel.zoningPermittedUses
-      ? parcel.zoningPermittedUses.split(',').map((item: string) => item.trim())
-      : [],
+    permittedUses,
     knownRestrictions: parcel.restrictions,
     registeredByUserId: parcel.registeredBy,
     registeredByUserName: registeredBy

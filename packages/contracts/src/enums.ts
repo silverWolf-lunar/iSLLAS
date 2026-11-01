@@ -155,6 +155,14 @@ export enum ApplicationDocumentType {
 
 // ─── Leases ───
 
+export enum LeaseClassification {
+  A2_COMMERCIAL = 'A2_COMMERCIAL',
+  A1_SETTLEMENT = 'A1_SETTLEMENT',
+  PERI_URBAN_COMMERCIAL = 'PERI_URBAN_COMMERCIAL',
+  RANGELAND_PASTORAL = 'RANGELAND_PASTORAL',
+  AGRO_INDUSTRIAL = 'AGRO_INDUSTRIAL',
+}
+
 export enum LeaseStatus {
   ACTIVE = 'ACTIVE',
   EXPIRING_SOON = 'EXPIRING_SOON',

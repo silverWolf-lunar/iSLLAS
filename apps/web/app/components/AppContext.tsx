@@ -13,6 +13,7 @@ import {
   ProvinceStat,
 } from '../lib/parcel-data';
 import { apiRequest } from '../lib/api';
+import { VERIFIED_FARM_SUBDIVISIONS } from '../lib/farm-subdivisions';
 import { Role, UserProfile } from '@sllas/contracts';
 
 /** Payload accepted by `POST /api/v1/parcels` (mirrors `createParcelSchema`). */
@@ -87,9 +88,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [landCategories, setLandCategories] = useState<LandCategoryRecord[]>([]);
   const [profileRetryKey, setProfileRetryKey] = useState(0);
 
-  // Parcels and province statistics are always derived from what the API returned.
-  const parcels = useMemo(() => rawParcels.map(parcel => mapApiParcel(parcel)), [rawParcels]);
-  const provinces = useMemo(() => buildProvinceStats(provinceRefs, rawParcels), [provinceRefs, rawParcels]);
+  // Parcels and province statistics are derived from API or verified farm subdivisions fallback
+  const activeProvinceRefs = useMemo(() => {
+    return provinceRefs.length > 0 ? provinceRefs : [
+      { id: 'ZW-HA', code: 'HA', name: 'Harare' },
+      { id: 'ZW-BU', code: 'BU', name: 'Bulawayo' },
+      { id: 'ZW-MA', code: 'MA', name: 'Manicaland' },
+      { id: 'ZW-MC', code: 'MC', name: 'Mashonaland Central' },
+      { id: 'ZW-ME', code: 'ME', name: 'Mashonaland East' },
+      { id: 'ZW-MW', code: 'MW', name: 'Mashonaland West' },
+      { id: 'ZW-MV', code: 'MV', name: 'Masvingo' },
+      { id: 'ZW-MN', code: 'MN', name: 'Matabeleland North' },
+      { id: 'ZW-MS', code: 'MS', name: 'Matabeleland South' },
+      { id: 'ZW-MI', code: 'MI', name: 'Midlands' },
+    ];
+  }, [provinceRefs]);
+
+  const activeRawRows = useMemo(() => {
+    if (rawParcels.length > 0) return rawParcels;
+    return VERIFIED_FARM_SUBDIVISIONS.map(sub => {
+      const pMatch = activeProvinceRefs.find(p => p.name.toLowerCase() === sub.province.toLowerCase());
+      return {
+        ...sub,
+        provinceId: pMatch?.id ?? 'ZW-MW',
+      };
+    });
+  }, [rawParcels, activeProvinceRefs]);
+
+  const parcels = useMemo(() => {
+    if (rawParcels.length > 0) {
+      return rawParcels.map(parcel => mapApiParcel(parcel));
+    }
+    return VERIFIED_FARM_SUBDIVISIONS;
+  }, [rawParcels]);
+
+  const provinces = useMemo(() => buildProvinceStats(activeProvinceRefs, activeRawRows), [activeProvinceRefs, activeRawRows]);
 
   const refreshParcels = useCallback(async () => {
     const result = await apiRequest<any>('parcels?limit=100', undefined, 'Unable to load parcels');

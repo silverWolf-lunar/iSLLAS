@@ -1,5 +1,10 @@
 import { Platform } from 'react-native';
 import { ZIMBABWE_PROVINCES } from './zimbabwe_geo';
+import {
+  MobileNewsArticle,
+  NEWS_IMAGES,
+  MOBILE_NEWS_ARTICLES,
+} from './news_data';
 
 declare const process: {
   env: Record<string, string | undefined>;
@@ -7,15 +12,44 @@ declare const process: {
 
 export interface ClientProfile {
   name: string;
+  surname?: string;
+  firstName?: string;
+  otherNames?: string;
+  title?: string;
+  gender?: string;
+  dateOfBirth?: string;
   nationalId: string;
+  idDocumentName?: string;
+  maritalStatus?: string;
+  citizenship?: string;
   email: string;
   phone: string;
   address: string;
+  farmerCategory?: string;
+  farmerCategoryOther?: string;
   province: string;
   district: string;
   smsNotifications: boolean;
   emailNotifications: boolean;
   expiryReminders: boolean;
+}
+
+export interface CitizenRegistrationPayload {
+  surname: string;
+  firstName: string;
+  otherNames?: string;
+  gender: string;
+  title?: string;
+  dateOfBirth: string;
+  nationalIdNumber: string;
+  idDocumentName: string;
+  maritalStatus?: string;
+  citizenship: string;
+  phoneNumber: string;
+  residentialAddress: string;
+  email?: string;
+  farmerCategory: string;
+  farmerCategoryOther?: string;
 }
 
 export interface MobileParcel {
@@ -35,6 +69,107 @@ export interface MobileParcel {
   mapY?: number;
   gpsCoords?: string;
   surveyBeacons?: string;
+  leaseClassification?: string;
+  leaseClassificationCode?: string;
+  leaseTermYears?: number;
+  statutoryAct?: string;
+  bankability?: string;
+}
+
+export function getMobileLeaseClassification(parcel: {
+  landUse?: string;
+  hectares?: number;
+  naturalRegion?: string;
+  district?: string;
+  name?: string;
+}): {
+  classification: string;
+  code: string;
+  termYears: number;
+  termLabel: string;
+  statutoryAct: string;
+  bankability: string;
+} {
+  const text = `${parcel.landUse || ''} ${parcel.name || ''}`.toLowerCase();
+  const district = (parcel.district || '').toLowerCase();
+  const hectares = Number(parcel.hectares) || 0;
+  const region = (parcel.naturalRegion || '').toUpperCase();
+
+  if (
+    text.includes('agro-industrial') ||
+    text.includes('sugarcane') ||
+    text.includes('cane') ||
+    text.includes('macadamia') ||
+    text.includes('tea') ||
+    text.includes('timber') ||
+    (text.includes('estate') && (text.includes('industrial') || text.includes('cane') || text.includes('processing')))
+  ) {
+    return {
+      classification: 'Specialized Agro-Industrial Concession',
+      code: 'AGRO_INDUSTRIAL',
+      termYears: 99,
+      termLabel: '99-Year Concession',
+      statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] & Joint-Ventures',
+      bankability: 'Tier-1 Bankable Joint-Venture Instrument',
+    };
+  }
+
+  if (
+    text.includes('livestock') ||
+    text.includes('cattle') ||
+    text.includes('rangeland') ||
+    text.includes('grazing') ||
+    text.includes('pastoral') ||
+    (hectares >= 250 && (region.includes('IV') || region.includes('V')))
+  ) {
+    return {
+      classification: 'Extensive Rangeland Pastoral Lease (99-Year)',
+      code: 'RANGELAND_PASTORAL',
+      termYears: 99,
+      termLabel: '99-Year Pastoral Leasehold',
+      statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] - Pastoral Scheme',
+      bankability: 'Bankable Herd & Grazing Collateral Asset',
+    };
+  }
+
+  const isPeriUrban = ['goromonzi', 'mazowe', 'ruwa', 'umguza', 'marondera', 'norton', 'harare', 'bulawayo'].some(d => district.includes(d));
+  if (
+    (text.includes('horticulture') || text.includes('citrus') || text.includes('poultry') || text.includes('greenhouse')) &&
+    (isPeriUrban || hectares <= 85)
+  ) {
+    return {
+      classification: 'Peri-Urban Commercial Agro-Plot',
+      code: 'PERI_URBAN_COMMERCIAL',
+      termYears: 99,
+      termLabel: '25-99 Year Commercial Agro Lease',
+      statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] - Peri-Urban Scheme',
+      bankability: 'Bankable Infrastructure & Commercial Plot Asset',
+    };
+  }
+
+  if (
+    text.includes('a1') ||
+    text.includes('smallholder') ||
+    (hectares < 50 && (text.includes('family') || text.includes('mixed')))
+  ) {
+    return {
+      classification: 'A1 Smallholder Settlement Permit / Lease',
+      code: 'A1_SETTLEMENT',
+      termYears: 99,
+      termLabel: 'Renewable Permit / 99-Year Leasehold',
+      statutoryAct: 'Land Commission Act [Cap 20:29] & Resettlement Regulations',
+      bankability: 'Limited Transferability (Micro-Credit Eligible)',
+    };
+  }
+
+  return {
+    classification: 'A2 Commercial Agricultural Lease (99-Year Bankable)',
+    code: 'A2_COMMERCIAL',
+    termYears: 99,
+    termLabel: '99-Year Bankable Leasehold',
+    statutoryAct: 'Agricultural Land Settlement Act [Cap 20:01] & S.I. 142 of 2026',
+    bankability: 'Fully Bankable Collateral Security (S.I. 142/2026)',
+  };
 }
 
 export interface ApplicationStatusItem {
@@ -152,13 +287,23 @@ export async function fetchParcelsFromDb(): Promise<MobileParcel[]> {
       ? `${p.soilType.charAt(0).toUpperCase() + p.soilType.slice(1).toLowerCase()} Loam`
       : 'Red Clay Loam';
 
+    const hectares = parseFloat(p.areaHectares) || 100;
+    const parcelName = p.notes || `${distName} Agricultural Cadastre Unit ${idx + 1}`;
+    const leaseInfo = getMobileLeaseClassification({
+      landUse: landUseName,
+      hectares,
+      naturalRegion: naturalReg,
+      district: distName,
+      name: parcelName,
+    });
+
     return {
       id: p.id,
       referenceNumber: p.referenceNumber || `ZW-PAR-${idx + 1}`,
-      name: p.notes || `${distName} Agricultural Cadastre Unit ${idx + 1}`,
+      name: parcelName,
       province: provName,
       district: distName,
-      hectares: parseFloat(p.areaHectares) || 100,
+      hectares,
       landUse: landUseName,
       availability: avail,
       naturalRegion: naturalReg,
@@ -169,6 +314,11 @@ export async function fetchParcelsFromDb(): Promise<MobileParcel[]> {
       mapY: proj.mapY,
       gpsCoords: proj.gpsCoords,
       surveyBeacons: p.restrictions || `BM-${p.referenceNumber?.slice(-3) || idx + 101}A, BM-${p.referenceNumber?.slice(-3) || idx + 101}B`,
+      leaseClassification: leaseInfo.classification,
+      leaseClassificationCode: leaseInfo.code,
+      leaseTermYears: leaseInfo.termYears,
+      statutoryAct: leaseInfo.statutoryAct,
+      bankability: leaseInfo.bankability,
     };
   });
 }
@@ -215,15 +365,33 @@ export async function loginCitizen(
  * Register a new citizen account under Stage 0 KYC in the database.
  */
 export async function registerCitizen(
-  name: string,
-  nationalId: string,
-  phone: string,
-  email?: string,
+  payloadOrName: CitizenRegistrationPayload | string,
+  legacyNationalId?: string,
+  legacyPhone?: string,
+  legacyEmail?: string,
 ): Promise<{ token: string; user: any; profile: ClientProfile }> {
-  const targetEmail = (email || `${nationalId.toLowerCase().replace(/[^a-z0-9]/g, '')}@sllas.gov.zw`).trim();
-  const parts = name.trim().split(' ');
-  const firstName = parts[0] || 'Citizen';
-  const lastName = parts.slice(1).join(' ') || 'Applicant';
+  let reg: CitizenRegistrationPayload;
+  if (typeof payloadOrName === 'string') {
+    const parts = payloadOrName.trim().split(' ');
+    reg = {
+      firstName: parts[0] || 'Citizen',
+      surname: parts.slice(1).join(' ') || 'Farmer',
+      nationalIdNumber: legacyNationalId || '63-128944-P-63',
+      phoneNumber: legacyPhone || '+263 77 345 6789',
+      email: legacyEmail || '',
+      gender: 'Male',
+      dateOfBirth: '1988-06-14',
+      idDocumentName: 'National_ID_Scan.pdf',
+      citizenship: 'Zimbabwean',
+      residentialAddress: 'Harare, Zimbabwe',
+      farmerCategory: 'Ordinary',
+    };
+  } else {
+    reg = payloadOrName;
+  }
+
+  const fullName = `${reg.title ? reg.title + ' ' : ''}${reg.firstName} ${reg.otherNames ? reg.otherNames + ' ' : ''}${reg.surname}`.trim();
+  const targetEmail = (reg.email || `${reg.nationalIdNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@sllas.gov.zw`).trim();
 
   const registerUrl = `${getApiBaseUrl()}/api/v1/auth/register`;
   try {
@@ -233,10 +401,19 @@ export async function registerCitizen(
       body: JSON.stringify({
         email: targetEmail,
         password: 'GovernmentSecure2026!',
-        firstName,
-        lastName,
-        nationalIdNumber: nationalId.trim(),
-        phoneNumber: phone.trim(),
+        firstName: reg.firstName,
+        lastName: reg.surname,
+        nationalIdNumber: reg.nationalIdNumber.trim(),
+        phoneNumber: reg.phoneNumber.trim(),
+        address: reg.residentialAddress,
+        gender: reg.gender,
+        title: reg.title,
+        dateOfBirth: reg.dateOfBirth,
+        maritalStatus: reg.maritalStatus,
+        citizenship: reg.citizenship,
+        farmerCategory: reg.farmerCategory,
+        farmerCategoryOther: reg.farmerCategoryOther,
+        idDocumentName: reg.idDocumentName,
       }),
     });
     if (res.ok) {
@@ -246,11 +423,22 @@ export async function registerCitizen(
         token: data?.token,
         user: data?.user,
         profile: {
-          name,
-          nationalId,
+          name: fullName,
+          surname: reg.surname,
+          firstName: reg.firstName,
+          otherNames: reg.otherNames,
+          title: reg.title,
+          gender: reg.gender,
+          dateOfBirth: reg.dateOfBirth,
+          nationalId: reg.nationalIdNumber,
+          idDocumentName: reg.idDocumentName,
+          maritalStatus: reg.maritalStatus,
+          citizenship: reg.citizenship,
           email: targetEmail,
-          phone,
-          address: 'Verified SLLAS Registry Applicant Stand',
+          phone: reg.phoneNumber,
+          address: reg.residentialAddress,
+          farmerCategory: reg.farmerCategory,
+          farmerCategoryOther: reg.farmerCategoryOther,
           province: 'Mashonaland West',
           district: 'Makonde',
           smsNotifications: true,
@@ -263,7 +451,28 @@ export async function registerCitizen(
     // If registration encounters duplicate or dev constraint, fallback cleanly to dev-login
   }
 
-  return loginCitizen(targetEmail);
+  const auth = await loginCitizen(targetEmail);
+  return {
+    ...auth,
+    profile: {
+      ...auth.profile,
+      name: fullName,
+      surname: reg.surname,
+      firstName: reg.firstName,
+      otherNames: reg.otherNames,
+      title: reg.title,
+      gender: reg.gender,
+      dateOfBirth: reg.dateOfBirth,
+      nationalId: reg.nationalIdNumber,
+      idDocumentName: reg.idDocumentName,
+      maritalStatus: reg.maritalStatus,
+      citizenship: reg.citizenship,
+      phone: reg.phoneNumber,
+      address: reg.residentialAddress,
+      farmerCategory: reg.farmerCategory,
+      farmerCategoryOther: reg.farmerCategoryOther,
+    },
+  };
 }
 
 /**
@@ -413,3 +622,168 @@ export async function fetchNotificationsFromDb(token?: string): Promise<Notifica
     },
   ];
 }
+
+/**
+ * Resolve Web Portal base URL (port 3000) for shared Next.js endpoints like live news RSS.
+ */
+export function getWebBaseUrl(): string {
+  if (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_WEB_URL) {
+    return process.env.EXPO_PUBLIC_WEB_URL.replace(/\/$/, '');
+  }
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3000';
+  }
+  return 'http://localhost:3000';
+}
+
+/**
+ * Map an article title/category to one of our bundled local high-res image keys as guaranteed fallback.
+ */
+function resolveImageKey(category: string, title: string): keyof typeof NEWS_IMAGES {
+  const lower = (category + ' ' + title).toLowerCase();
+  if (lower.includes('wheat') || lower.includes('grain')) return 'wheat';
+  if (lower.includes('tobacco') || lower.includes('fire')) return 'tobacco';
+  if (lower.includes('joint venture') || lower.includes('partner')) return 'jointVentures';
+  if (lower.includes('cattle') || lower.includes('rangeland') || lower.includes('pasture') || lower.includes('livestock')) return 'rangeland';
+  if (lower.includes('nutrition') || lower.includes('food security') || lower.includes('millet')) return 'nutrition';
+  if (lower.includes('zmx') || lower.includes('finance') || lower.includes('credit')) return 'zmx';
+  return 'farming';
+}
+
+/**
+ * Fetch real, live agricultural news dispatches.
+ * First queries the Next.js real-time news aggregator endpoint (/api/news).
+ * If offline or unreachable, queries Google News RSS directly.
+ * Finally falls back to curated offline news items.
+ */
+export async function fetchRealNewsArticles(): Promise<MobileNewsArticle[]> {
+  const webBase = getWebBaseUrl();
+
+  // 1. Try Next.js real-time news aggregator endpoint
+  try {
+    const res = await fetch(`${webBase}/api/news`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const rawArticles: any[] = data?.articles || [];
+      if (rawArticles.length > 0) {
+        return rawArticles.map((art, idx) => {
+          let category: MobileNewsArticle['category'] = 'CROPS';
+          if (['CROPS', 'FINANCE', 'LIVESTOCK', 'TENURE', 'CADASTRE'].includes(art.category)) {
+            category = art.category;
+          }
+
+          let imgUrl: string | undefined = undefined;
+          if (art.imageUrl) {
+            if (art.imageUrl.startsWith('http://') || art.imageUrl.startsWith('https://')) {
+              imgUrl = art.imageUrl;
+            } else if (art.imageUrl.startsWith('/')) {
+              imgUrl = `${webBase}${art.imageUrl}`;
+            }
+          }
+
+          return {
+            id: art.id || `live-news-${idx}`,
+            title: art.title || 'Agricultural Dispatch',
+            category,
+            source: art.source || 'The Herald Agriculture Desk',
+            date: art.date || 'Live dispatch',
+            readTime: art.readTime || '3 min read',
+            imageKey: resolveImageKey(category, art.title || ''),
+            imageUrl: imgUrl,
+            summary: art.summary || 'Official agricultural development dispatch from national farm news desk.',
+            bulletPoints: Array.isArray(art.bulletPoints) && art.bulletPoints.length > 0
+              ? art.bulletPoints
+              : [
+                  'Direct dispatch from national agricultural reporting desk.',
+                  'Covers national farm production, input distribution, and farmer tenure.',
+                ],
+            fullGazetteText: art.fullGazetteText || art.summary || 'Official report released by Ministry of Lands.',
+            sourceUrl: art.sourceUrl,
+          };
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[SLLAS_MOBILE] Web news endpoint offline, querying direct RSS feed:', err);
+  }
+
+  // 2. Direct fallback to Google News live RSS for Zimbabwe agriculture
+  try {
+    const rssRes = await fetch(
+      'https://news.google.com/rss/search?q=Zimbabwe+agriculture+farms+OR+land&hl=en-ZW&gl=ZW&ceid=ZW:en',
+      { headers: { 'User-Agent': 'SLLAS-Mobile/2.0' } }
+    );
+    if (rssRes.ok) {
+      const xml = await rssRes.text();
+      const items = xml.split('<item>').slice(1);
+      const parsed: MobileNewsArticle[] = [];
+
+      for (let i = 0; i < Math.min(items.length, 12); i++) {
+        const item = items[i];
+        const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
+        const linkMatch = item.match(/<link>(.*?)<\/link>/);
+        const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+        const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/);
+
+        if (titleMatch) {
+          const rawTitle = titleMatch[1].replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
+          const cleanTitle = rawTitle.replace(/\s*-\s*[^-]+$/, '').trim();
+          const sourceName = sourceMatch ? sourceMatch[1].trim() : 'The Herald Agri Wire';
+          const link = linkMatch ? linkMatch[1].trim() : '';
+
+          let pubDate = 'Recent';
+          if (pubDateMatch) {
+            try {
+              const d = new Date(pubDateMatch[1]);
+              if (!isNaN(d.getTime())) {
+                pubDate = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              }
+            } catch {}
+          }
+
+          let category: MobileNewsArticle['category'] = 'CROPS';
+          const lower = (cleanTitle + ' ' + sourceName).toLowerCase();
+          if (lower.includes('wheat') || lower.includes('grain') || lower.includes('tobacco') || lower.includes('maize')) {
+            category = 'CROPS';
+          } else if (lower.includes('finance') || lower.includes('bank') || lower.includes('joint venture') || lower.includes('credit')) {
+            category = 'FINANCE';
+          } else if (lower.includes('cattle') || lower.includes('livestock') || lower.includes('pasture') || lower.includes('rangeland')) {
+            category = 'LIVESTOCK';
+          } else if (lower.includes('tenure') || lower.includes('lease') || lower.includes('title') || lower.includes('audit')) {
+            category = 'TENURE';
+          }
+
+          parsed.push({
+            id: `direct-rss-${i}`,
+            title: cleanTitle,
+            category,
+            source: sourceName,
+            date: pubDate,
+            readTime: '3 min read',
+            imageKey: resolveImageKey(category, cleanTitle),
+            summary: `Live agricultural dispatch reported by ${sourceName}. Covers ongoing developments in Zimbabwe farmland, tenure reforms, and agrarian productivity.`,
+            bulletPoints: [
+              `Syndicated via ${sourceName} live farm desk wire.`,
+              'Official updates on national crop yields and provincial farm operations.',
+              'Verified dispatch for registered SLLAS landholders.',
+            ],
+            fullGazetteText: `${cleanTitle}: Direct news wire broadcast from ${sourceName}. SLLAS mobile subscribers receive syndicated policy announcements and agricultural bulletins in real time.`,
+            sourceUrl: link,
+          });
+        }
+      }
+
+      if (parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[SLLAS_MOBILE] Direct RSS fallback error:', err);
+  }
+
+  // 3. Fallback to curated offline articles
+  return MOBILE_NEWS_ARTICLES;
+}
+

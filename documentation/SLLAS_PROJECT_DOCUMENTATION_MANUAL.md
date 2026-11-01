@@ -639,7 +639,21 @@ The relational persistence schema is structured to ensure referential integrity,
 | `soilClassification` | `VARCHAR(100)`| Yes | `NULL` | Dominant soil pedology classification (e.g., Clay Loam). |
 | `waterSource` | `VARCHAR(100)`| Yes | `NULL` | Certified water asset (e.g., Dam Abstraction, Borehole). |
 | `status` | `VARCHAR(50)` | No | `'AVAILABLE'`| Cadastral availability state (`AVAILABLE`, `RESERVED`, `LEASED`). |
+| `leaseClassification` | `VARCHAR(50)` | No | `'A2_COMMERCIAL'`| Statutory tenure leasehold classification (`A2_COMMERCIAL`, `A1_SETTLEMENT`, `PERI_URBAN_COMMERCIAL`, `RANGELAND_PASTORAL`, `AGRO_INDUSTRIAL`). |
 | `boundaryGeojson` | `JSONB` | No | None | High-precision GeoJSON vector polygon (EPSG:4326). |
+
+#### 4.2.2.1 Statutory Leasehold Classification Matrix for Available Parcels
+Under the **Agricultural Land Settlement Act (Chapter 20:01)**, the **Land Commission Act (Chapter 20:29)**, and **Statutory Instrument 142 of 2026 (Gazetted 99-Year Bankable Lease Regulations)**, all available agricultural state land parcels catalogued in the SLLAS national cadastre are systematically categorized into five distinct statutory leasehold classifications:
+
+| Statutory Classification Code | Classification Name & Leasehold Type | Governing Legislative Instrument | Standard Tenure Term | Bankability & Collateral Standing | Spatial & Agro-Ecological Qualification Criteria | Permitted Agrarian Enterprises |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`A2_COMMERCIAL`** | **A2 Commercial Agricultural Lease** | Agricultural Land Settlement Act [Cap 20:01] & S.I. 142 of 2026 | 99-Year Bankable Leasehold | **Tier-1 Bankable Collateral** (Registrable mortgage bonds under financial institution covenants) | Typically $\ge 50$ ha in Natural Regions I, II, or III; commercial arable state land blocks. | Commercial maize, winter wheat, flue-cured tobacco, soybeans, sunflowers, intensive livestock breeding. |
+| **`A1_SETTLEMENT`** | **A1 Smallholder Settlement Permit / Lease** | Land Commission Act [Cap 20:29] & Resettlement Model Regulations | Renewable Permit / 99-Year Smallholder Lease | **Limited Transferability** (Eligible for AFC Land Bank micro-agri facilities and contract farming) | Subdivided family plots $< 50$ ha; self-contained or villagised agricultural units. | Household food grains (maize, sorghum, pearl millet), legumes, groundnuts, free-range poultry, small ruminants. |
+| **`PERI_URBAN_COMMERCIAL`** | **Peri-Urban Commercial Agro-Plot** | Agricultural Land Settlement Act [Cap 20:01] – Intensive Peri-Urban Scheme | 25 to 99-Year Commercial Agro Lease | **Bankable High-Value Plot Asset** (Mortgageable infrastructure & capital improvements) | Intensive plots $\le 85$ ha within metropolitan/peri-urban economic catchments (Goromonzi, Mazowe, Ruwa, Umguza, Marondera). | High-density greenhouse horticulture, export floriculture, intensive poultry broilers/layers, commercial piggery, berry orchards. |
+| **`RANGELAND_PASTORAL`** | **Extensive Rangeland / Livestock Pastoral Lease** | Agricultural Land Settlement Act [Cap 20:01] – Pastoral & Ranching Concessions | 99-Year Pastoral Leasehold | **Bankable Asset** (Collateralized based on evaluated carrying capacity and commercial herd asset value) | Rangelands typically $\ge 250$ ha in semi-arid zones (Natural Regions IV & V) or dedicated livestock ranching paddocks. | Commercial beef breeding & pen-fattening, dairy husbandry, goat and sheep pastoralism, drought-tolerant fodder, game conservancies. |
+| **`AGRO_INDUSTRIAL`** | **Specialized Agro-Industrial Concession** | Agricultural Land Settlement Act [Cap 20:01] & Joint-Venture Regulations | 99-Year Long-Term Concession | **Tier-1 Bankable Joint-Venture Instrument** (Secured off-take agreements and agro-processing covenants) | Plantation belts, irrigation schemes, and processing catchments (Chiredzi sugarcane, Honde Valley macadamia/tea, timber estates). | Sugarcane estates and milling, tea and macadamia plantations, coffee estates, commercial forestry, central agro-processing hubs. |
+
+Every available parcel card across the SLLAS Web Spatial Cadastre and Mobile Citizen App surfaces its statutory lease classification badge, standard term, legal authority, and financial bankability rating, enabling prospective applicants and lending institutions to immediately evaluate leasehold rights and collateral eligibility.
 
 ### 4.2.3 Applications Schema
 
@@ -729,11 +743,27 @@ The SLLAS user experience is partitioned into two specialized environments: the 
 
 The web dashboard is designed for administrators and Resettlement Officers and is accessed through a secure sign-in page (`apps/web/app/signin/page.tsx`).
 
-#### 1. Sign-in Page
+#### 1. Sign-in & Citizen Registration Portal
 - **Institutional Introduction:** Introduces the system under the legal auspices of the Agricultural Land Settlement Act [Chapter 20:01] with official Zimbabwean heraldry, Vision 2030 cadastre policy goals, and public announcements.
 - **Credential Access:** Authenticates staff and citizen users via email/username, password, and role selector (`Role.CLIENT`, `Role.REGISTRY_OFFICER`, `Role.APPROVER`, `Role.ESTATES_OFFICER`, `Role.SYSTEM_ADMIN`, `Role.AUDITOR`).
 - **Audit Logging of Attempts:** Every sign-in attempt, whether successful or failed, is written to the immutable audit log (`/api/backend/api/v1/audit/log`) recording actor email, role, IP address, and client timestamp.
 - **Temporary Lock-out Protection:** In accordance with national cyber-security regulations, repeated failures trigger a temporary lock-out after 5 consecutive failed attempts. The interface renders a prominent countdown warning banner and disables credential submission for a 5-minute cooldown period.
+- **Statutory Citizen / Farmer Registration (14 Specified Fields):** Enables citizen landholders to register an account across both the Web Portal and Mobile App utilizing the statutory KYC schema:
+  1. `Surname` (--required)
+  2. `First Name` (--required)
+  3. `Other Names` (optional)
+  4. `Gender` (--required: Male / Female)
+  5. `Title` (`Dr.`, `Mr.`, `Mrs.`, `Miss`, `Ms.`)
+  6. `Date of Birth` (--required, YYYY-MM-DD format)
+  7. `National ID Number` (--required, standard Zimbabwean National ID format)
+  8. `Upload your ID` (--required, PDF/JPG attachment)
+  9. `Marital Status` (`Single`, `Married`, `Divorced`, `Widowed`)
+  10. `Citizenship` (--auto-detect-from-ID-upload: Verified Zimbabwean 🇿🇼)
+  11. `Phone Number` (--required, E.164 cellular phone number)
+  12. `Residential Address` (--required, physical farm stand / residential domicile)
+  13. `Email Address` (optional)
+  14. `Farmer Category` (--dropdown menu: *War Veteran/War Collaborator*, *Uniformed Forces*, *Business Person*, *Youth [35 years and below]*, *Civil Servant*, *MP/Senator*, *ZEPDRA*, *Ordinary*, *Others [specify]* with dedicated specification field)
+- **Mandatory Pre-Submission Check & Verification Step:** Before final database commitment, the user is presented with a dedicated modal review grid requiring them to check, examine, and verify all 14 particulars against their legal documentation, with a statutory declaration affirmation checkbox prior to final submission.
 
 #### 2. Administrator & Officer Dashboard
 A single-page consolidated dashboard (`apps/web/app/officer/page.tsx` and `apps/web/app/admin/page.tsx`) providing unified operational command across 7 interconnected panels:
@@ -771,6 +801,25 @@ A single-page consolidated dashboard (`apps/web/app/officer/page.tsx` and `apps/
 - **Contact Details Management:** Allows users to view and update official first name, surname, email, E.164 phone number, physical address, and jurisdictional district.
 - **Notification Preferences:** Toggles for cellular SMS status alerts, email document dispatches, 90-day/60-day/30-day lease expiry countdowns, Government Gazette statutory bulletins, and security sign-in notifications.
 
+#### 6. National Cadastral Spatial GIS Explorer
+- **Interactive Multi-Basemap Engine:** Implemented in `apps/web/app/components/SpatialMap.tsx` and utilized on the Land Parcels Cadastre (`/parcels`), Parcel Inspection (`/parcels/[id]`), and Registration (`/parcels/new`) interfaces:
+  1. *Satellite View (Default):* High-resolution true-color aerial imagery of Zimbabwe's farmland, centre-pivot irrigation circles, rivers, and landscape, combined with the Esri World Boundaries and Places hybrid overlay for road and town labels.
+  2. *Terrain View:* Topographic shaded relief map displaying elevation contours, natural watersheds, and major mountain formations (Eastern Highlands, Chimanimani, Great Dyke, Matobo Hills).
+  3. *Roads & Highways:* Full street and transport network rendering national arteries (Highways A1 to A9 from Chirundu to Beitbridge, Harare to Bulawayo/Mutare) and rural farm feeder routes via OpenStreetMap.
+  4. *Cadastre Dark:* High-contrast dark canvas engineered for precision surveying, boundary contrast, and low-light operations.
+- **Zero-Key & Watermark-Free Tile Architecture:** Fully replaces deprecated CARTO endpoints with reliable, high-uptime public GIS servers (Esri World Imagery, Esri World Topo, and OSM), completely eliminating "API KEY REQUIRED" watermarks.
+- **Verified Farm Subdivisions Layer (16 Authoritative Schemes):** Directly renders agricultural schemes and subdivisions across all 10 provinces:
+  - *Mashonaland West:* Coburn Estate Subdivisions 1 & 2 (Chegutu), Banket Lot 7 (Zvimba).
+  - *Mashonaland Central:* Mazowe Valley Citrus Lot 3.
+  - *Mashonaland East:* Marondera Floriculture Plot 5, Beatrice Dairy Subdivision 8.
+  - *Manicaland:* Middle Sabi Irrigation Lot 14, Nyanga Highland Orchards Lot B.
+  - *Midlands:* Kwekwe Commercial Ranch Paddock 11, Gweru Vungu Mixed Farming Block 4.
+  - *Masvingo:* Chiredzi Mkwasine Sugarcane Section 9, Lake Mutirikwi Basin Irrigation Parcel 6.
+  - *Matabeleland North:* Umguza Horticultural Allotment 18, Lupane Forestry & Cattle Block A.
+  - *Matabeleland South:* Matobo Hills Breeding Paddock 7, Beitbridge West Citrus & Game Subdivision 2.
+- **Survey Beacons & Centroid Badges:** Displays surveyed polygon boundary lines with gold surveyor corner beacons (`BC-XX`), centroid farm lot badges, and permanent acreage tags.
+- **Interactive Inspection Dossier:** One-click popup card reveals statutory diagram numbers (`DSG-ZW-2026-CHG-0082`), hectares, natural agro-ecological region (I to V), soil classification, water rights, and direct links to inspect the cadastre record or apply for a 99-year lease.
+
 ---
 
 ### 4.3.2 Mobile Application Interface
@@ -779,7 +828,22 @@ The mobile application (`apps/mobile/App.tsx`) is designed primarily for clients
 
 #### 1. Welcome and Sign-in / Registration
 - **Streamlined Onboarding:** Welcome screen with institutional branding, single-touch entry points for existing users, new citizen self-registration, and password/account recovery.
-- **Account Creation:** Captures citizen legal name, National ID, mobile phone number, and password, immediately provisioning a `Role.CLIENT` account.
+- **Account Creation (14 Statutory Fields):** Captures complete statutory particulars of the citizen/farmer under the Agricultural Land Settlement Act:
+  - `Surname` (--required)
+  - `First Name` (--required)
+  - `Other Names` (optional middle names)
+  - `Gender` (--required: touch toggle for *Male* or *Female*)
+  - `Title` (touch pill selector: *Dr.*, *Mr.*, *Mrs.*, *Miss*, *Ms.*)
+  - `Date of Birth` (--required, YYYY-MM-DD)
+  - `National ID Number` (--required, formatted national ID)
+  - `Upload your ID` (--required, one-tap document upload attaching scanned PDF/photo)
+  - `Marital Status` (touch selector: *Single*, *Married*, *Divorced*, *Widowed*)
+  - `Citizenship` (--auto-detect-from-ID-upload: Verified Zimbabwean 🇿🇼 badge)
+  - `Phone Number` (--required, cellular contact number)
+  - `Residential Address` (--required, physical domicile / farm stand)
+  - `Email Address` (optional)
+  - `Farmer Category` (interactive menu: *War Veteran/War Collaborator*, *Uniformed Forces*, *Business Person*, *Youth [35 years and below]*, *Civil Servant*, *MP/Senator*, *ZEPDRA*, *Ordinary*, *Others [specify]* with dedicated specification input)
+- **Mandatory Check & Verify Modal:** When tapping *"Review & Verify Details →"*, the user is shown a structured verification review sheet displaying all 14 fields alongside a statutory declaration notice: *"Please check and verify that all particulars provided below are true, complete, and legally accurate before submitting your registration."* The citizen must affirm accuracy before the *"Confirm & Complete Registration ✓"* button enables submission.
 - **Access Recovery:** Self-service credential recovery dispatching SMS one-time verification tokens to the user's verified phone number.
 
 #### 2. Home Screen
@@ -819,9 +883,42 @@ The mobile application (`apps/mobile/App.tsx`) is designed primarily for clients
 - **Chronological Alert Feed:** Dedicated screen listing all status updates, board docket notifications, and statutory lease expiry reminders.
 - **Categorized Priority Badges:** High-visibility tags for `STATUS_UPDATE`, `EXPIRY_REMINDER`, and `GAZETTE` bulletins.
 
-#### 8. Profile Screen
-- **Citizen Account Management:** Allows farmers to update legal names, contact numbers, email addresses, and physical farm addresses.
-- **Notification Toggles:** Granular toggles to enable or disable SMS status progression alerts, email indenture dispatches, and lease anniversary countdown reminders.
+#### 8. Settings & Preferences Hub (Four Core Functional Categories)
+The Mobile Application houses an institutional **Settings & Preferences Hub** accessed via the Citizen Menu Hub (`apps/mobile/App.tsx`), partitioned into four structured functional categories:
+
+1. **Accounts and Profile:**
+   - *Edit Profile Details:* Allows farmers to maintain their contact information while enforcing strict **Statutory Identity Locks**. Under Section 7 of the Agricultural Land Settlement Act [Cap 20:01] and the One-Person-One-Farm constitutional mandate, **Full Legal Names, National ID Number, Gender, and Citizenship are permanently locked** after account establishment and rendered in disabled inputs with legal warning badges. Farmers can dynamically update their verified *Contact Phone Number*, *Physical Farm / Residential Domicile Address*, *Email Address*, and *Farmer Category* (e.g. Youth, War Veteran, Business Person, Civil Servant).
+   - *Set / Update Password:* Secure credential management modal verifying current password, enforcing minimum 8-character complexity, and updating encrypted authentication credentials.
+
+2. **Behavior and Performance:**
+   - *Toggle Notifications:* Master switch ("ALL ON" / "MUTED") coupled with granular channel toggles for cellular SMS Status Progression Alerts, Official Email Dispatches, and 90-Day / 60-Day Lease Expiry countdown reminders.
+   - *Dark / Light Mode Toggle:* Dynamic theme selector toggling between the default high-contrast Cadastre Dark Mode and Daylight Outdoor Field Theme.
+   - *Font Size:* Interactive typography scaler offering *Compact (90%)*, *Standard (100%)*, and *Large (115%)* options with live gazette scale preview text for field legibility.
+   - *Languages (Mutauro / Ulimi):* Multilingual localization selector supporting Zimbabwe's official languages: *English (ZW)*, *ChiShona*, and *isiNdebele*.
+
+3. **Support and Feedback:**
+   - *Send Feedback or Contact Us:* Displays official direct government support channels (National Toll-Free Helpline `0800 4242`, WhatsApp Land Desk `+263 71 200 4000`, Email `helpdesk@lands.gov.zw`, Headquarters at Ngungunyana Bldg, Harare) alongside an in-app feedback modal for logging categorized inquiry dockets (*General Inquiry*, *Cadastre Query*, *Technical Issue*, *Suggestion*).
+   - *Access FAQ & Terms of Service:* Interactive multi-tab codex providing instant access to:
+     - *Frequently Asked Questions (FAQ):* Explanations of waiting list rankings, 99-year lease bankability, and land transfer restrictions.
+     - *Statutory Terms of Service:* Legal covenants under the Agricultural Land Settlement Act [Cap 20:01] and S.I. 142/2026.
+     - *Data Privacy & Protection:* Citizen information security guarantees under the Cyber and Data Protection Act [Cap 12:07].
+   - *Rate the App or Share:* Interactive 5-star appraisal rating selector and one-tap clipboard share tool distributing the official SLLAS Portal link (`https://sllas.gov.zw/mobile`) to district agricultural networks.
+
+4. **App Info & Developer Credits:**
+   - *Show App Version and About Details:* Dedicated system specifications card detailing application release (`v2.4.0 (Build 2026.11.01-PROD)`), mobile engine (React Native 0.74, Expo 51), spatial cadastre core (PostGIS 3 EPSG:4326), and Vision 2030 statutory mandate.
+   - *Credit Developers:* Institutional engineering attribution honoring the **National Land Cadastre Digitalization Engineering Team** in technical partnership with the **Government Information Technology Department (GITD)**, **Antigravity Enterprise Solutions**, and **DeepMind Spatial Systems**.
+
+#### 9. Themed Curved Scooped Dock Navigation (Harmonized SLLAS Theme)
+The mobile interface features a compact floating bottom dock engineered to match modern curved navigation bar aesthetics while strictly adhering to the SLLAS institutional Dark Emerald palette:
+- **Concave Cradle Notch:** Mathematically rendered via SVG cubic Bézier curves (`getNavScoopPath`) at a compact 56px height, carving an ergonomic cradle in the top border of the deep slate (`#0f172a`) floating pill dock with subtle hairline border (`rgba(255, 255, 255, 0.12)`).
+- **Elevated Circular Action Button:** Positioned directly in the cradle notch with Zimbabwe National Cadastre Emerald Green accent (`#15803d` / active `#16a34a`), vibrant green border (`#4ade80`), soft emerald radial gradient glow (`#22c55e`), and a crisp white Map/GIS icon.
+- **Five-Slot Navigation Matrix (Restored Statutory Names):**
+  1. `Home` (Home Dashboard, client KYC tier, active applications, and featured announcements)
+  2. `Land Search` (Cadastre directory, agro-ecological statistics, and multi-facet parcel search)
+  3. `Map View` (Center elevated button: immediate switch to the Zimbabwe Vector Cadastre GIS Map with satellite telemetry, beacons, and quick action lease tools)
+  4. `My Leases` (Registered 99-year leases, Waiting List queue position, and inspection remarks)
+  5. `Menu` (Menu hub opening Citizen Profile, Settings & Preferences, Support Desk, and Live Gazette News Feed)
+- **Compact Ergonomics:** Reduced dock height (56px) and button diameter (44px) to maximize visible map and dossier canvas while maintaining comfortable touch targets.
 
 ---
 

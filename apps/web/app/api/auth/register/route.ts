@@ -34,16 +34,28 @@ export async function POST(request: Request) {
     }
 
     // Standalone fallback: simulate registered citizen user profile and token
+    const effectiveEmail = body.email || `${(body.nationalIdNumber || 'farmer').toLowerCase().replace(/[^a-z0-9]/g, '')}@sllas.gov.zw`;
     const fallbackUser = {
-      id: `client-${Buffer.from(body.email).toString('hex').slice(0, 16)}`,
-      email: body.email,
+      id: `client-${Buffer.from(effectiveEmail).toString('hex').slice(0, 16)}`,
+      email: effectiveEmail,
       firstName: body.firstName || 'Citizen',
-      lastName: body.lastName || 'Farmer',
+      lastName: body.surname || body.lastName || 'Farmer',
+      surname: body.surname || body.lastName || 'Farmer',
+      otherNames: body.otherNames || null,
+      title: body.title || null,
+      gender: body.gender || 'Male',
+      dateOfBirth: body.dateOfBirth || null,
+      nationalIdNumber: body.nationalIdNumber || null,
+      idDocumentName: body.idDocumentName || 'National_ID.pdf',
+      maritalStatus: body.maritalStatus || null,
+      citizenship: body.citizenship || 'Zimbabwean',
+      phoneNumber: body.phoneNumber || null,
+      address: body.residentialAddress || body.address || 'Harare, Zimbabwe',
+      residentialAddress: body.residentialAddress || body.address || 'Harare, Zimbabwe',
+      farmerCategory: body.farmerCategory || 'Ordinary',
+      farmerCategoryOther: body.farmerCategoryOther || null,
       role: 'CLIENT',
       status: 'ACTIVE',
-      phoneNumber: body.phoneNumber || null,
-      nationalIdNumber: body.nationalIdNumber || null,
-      address: body.address || 'Harare, Zimbabwe',
     };
 
     return NextResponse.json({

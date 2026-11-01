@@ -17,11 +17,13 @@ export function ApplyForParcelModal({
   onClose,
   onSuccess,
 }: ApplyForParcelModalProps) {
-  const [intendedActivity, setIntendedActivity] = useState('Commercial Cropping & Grain Production');
-  const [businessPlanSummary, setBusinessPlanSummary] = useState(
-    'Proposed commercial crop production with conservation tillage, irrigation infrastructure development, and creation of local rural employment in accordance with statutory guidelines.'
+  const [intendedActivity, setIntendedActivity] = useState(
+    parcel.leaseClassification?.permittedEnterprises?.[0] || 'Commercial Cropping & Grain Production'
   );
-  const [requestedTermYears, setRequestedTermYears] = useState(99);
+  const [businessPlanSummary, setBusinessPlanSummary] = useState(
+    `Proposed ${parcel.leaseClassification?.shortName || 'agricultural'} enterprise with modern conservation farming, irrigation infrastructure development, and local employment generation in accordance with ${parcel.leaseClassification?.statutoryAct || 'statutory leasehold regulations'}.`
+  );
+  const [requestedTermYears, setRequestedTermYears] = useState(parcel.leaseClassification?.termYears || 99);
   const [proposedInvestmentUsd, setProposedInvestmentUsd] = useState(15000);
   const [expectedJobsCreated, setExpectedJobsCreated] = useState(8);
 
@@ -182,36 +184,72 @@ export function ApplyForParcelModal({
             {/* Selected Parcel Badge Card */}
             <div style={{
               background: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
+              border: `1px solid ${parcel.leaseClassification?.borderColor || 'rgba(34, 197, 94, 0.3)'}`,
               borderRadius: '8px',
               padding: '14px 18px',
               marginBottom: '20px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              display: 'flex',
+              flexDirection: 'column',
               gap: '12px',
             }}>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Parcel Reference</div>
-                <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--primary-400)', fontSize: '0.875rem' }}>
-                  {parcel.referenceNumber}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+                paddingBottom: '10px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 800, color: parcel.leaseClassification?.color || 'var(--primary-400)', textTransform: 'uppercase' }}>
+                    📜 Lease Classification:
+                  </span>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    color: parcel.leaseClassification?.color || '#4ade80',
+                    background: parcel.leaseClassification?.bgColor || 'rgba(34, 197, 94, 0.15)',
+                    border: `1px solid ${parcel.leaseClassification?.borderColor || 'rgba(34, 197, 94, 0.35)'}`
+                  }}>
+                    {parcel.leaseClassification?.shortName || 'A2 Commercial'}
+                  </span>
                 </div>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Statutory Term: <strong style={{ color: '#ffffff' }}>{parcel.leaseClassification?.termLabel || '99-Year Leasehold'}</strong>
+                </span>
               </div>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Surface Area</div>
-                <div style={{ fontWeight: 700, color: '#ffffff', fontSize: '0.875rem' }}>
-                  {parcel.areaHectares} ha
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '12px',
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Parcel Reference</div>
+                  <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--primary-400)', fontSize: '0.875rem' }}>
+                    {parcel.referenceNumber}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Province / District</div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-main)', fontWeight: 600 }}>
-                  {parcel.district}, {parcel.province}
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Surface Area</div>
+                  <div style={{ fontWeight: 700, color: '#ffffff', fontSize: '0.875rem' }}>
+                    {parcel.areaHectares} ha
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Natural Region</div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--accent-400)', fontWeight: 600 }}>
-                  Region {parcel.naturalRegion || 'II'}
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Province / District</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                    {parcel.district}, {parcel.province}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Natural Region</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--accent-400)', fontWeight: 600 }}>
+                    Region {parcel.naturalRegion || 'II'}
+                  </div>
                 </div>
               </div>
             </div>

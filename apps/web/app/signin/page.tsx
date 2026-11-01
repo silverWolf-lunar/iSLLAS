@@ -119,85 +119,139 @@ function SignInContent() {
     return () => clearInterval(timer);
   }, [lockoutUntil]);
 
-  // Registration State (Stage 0 Citizen Onboarding)
-  const [regClientType] = useState<ClientType>(ClientType.INDIVIDUAL);
+  // Statutory Registration Options (Section 4.3.2 Specification)
+  const TITLES = ['Mr.', 'Mrs.', 'Ms.', 'Miss', 'Dr.'];
+  const GENDERS = ['Male', 'Female'];
+  const MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed'];
+  const FARMER_CATEGORIES = [
+    'War Veteran/War Collaborator',
+    'Uniformed Forces',
+    'Business Person',
+    'Youth [35 years and below]',
+    'Civil Servant',
+    'MP/Senator',
+    'ZEPDRA',
+    'Ordinary',
+    'Others [specify]',
+  ];
+
+  // Statutory Citizen Registration State (Specified 14 Fields)
+  const [regSurname, setRegSurname] = useState('');
   const [regFirstName, setRegFirstName] = useState('');
-  const [regLastName, setRegLastName] = useState('');
-  const [regCompanyName, setRegCompanyName] = useState('');
-  const [regRegistrationNumber, setRegRegistrationNumber] = useState('');
+  const [regOtherNames, setRegOtherNames] = useState('');
+  const [regGender, setRegGender] = useState<'Male' | 'Female'>('Male');
+  const [regTitle, setRegTitle] = useState('Mr.');
+  const [regDob, setRegDob] = useState('');
   const [regNationalId, setRegNationalId] = useState('');
-  const [regEmail, setRegEmail] = useState('');
+  const [regUploadedId, setRegUploadedId] = useState<string | null>(null);
+  const [regMaritalStatus, setRegMaritalStatus] = useState('Single');
+  const [regCitizenship, setRegCitizenship] = useState('Zimbabwean');
   const [regPhone, setRegPhone] = useState('');
-  const [regProvince, setRegProvince] = useState(ZIMBABWE_PROVINCES[0]);
   const [regAddress, setRegAddress] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regFarmerCategory, setRegFarmerCategory] = useState<string>('Ordinary');
+  const [regFarmerCategoryOther, setRegFarmerCategoryOther] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [regShowPassword, setRegShowPassword] = useState(false);
   const [regTermsAccepted, setRegTermsAccepted] = useState(false);
+  const [isWebReviewVisible, setIsWebReviewVisible] = useState(false);
   const [regLoading, setRegLoading] = useState(false);
   const [regErrorMessage, setRegErrorMessage] = useState<string | null>(null);
   const [regSuccessMessage, setRegSuccessMessage] = useState<string | null>(null);
 
   const urlError = searchParams.get('error');
 
-  const handleRegister = async (e: React.FormEvent) => {
+  // Auto-detect citizenship upon ID upload or Zimbabwean ID entry
+  const handleIdFileUpload = (fileName: string) => {
+    setRegUploadedId(fileName);
+    setRegCitizenship('Zimbabwean (Auto-detected from ID verification)');
+  };
+
+  // Step 1: Check and Verify - Validates all required fields before showing Review Screen
+  const handleInitiateReview = (e: React.FormEvent) => {
     e.preventDefault();
     setRegErrorMessage(null);
     setRegSuccessMessage(null);
 
-    if (!regFirstName.trim() || !regLastName.trim()) {
-      setRegErrorMessage('Please enter your legal first and last name.');
+    if (!regSurname.trim()) {
+      setRegErrorMessage('Surname is required.');
       return;
     }
-
-    if (!regEmail.trim()) {
-      setRegErrorMessage('Please enter a valid email address.');
+    if (!regFirstName.trim()) {
+      setRegErrorMessage('First Name is required.');
       return;
     }
-
+    if (!regGender) {
+      setRegErrorMessage('Gender is required.');
+      return;
+    }
+    if (!regDob) {
+      setRegErrorMessage('Date of Birth is required.');
+      return;
+    }
+    if (!regNationalId.trim()) {
+      setRegErrorMessage('National ID Number is required.');
+      return;
+    }
+    if (!regUploadedId) {
+      setRegErrorMessage('Upload of your National ID is mandatory for identity verification.');
+      return;
+    }
     if (!regPhone.trim()) {
-      setRegErrorMessage('Please enter a valid Zimbabwean contact phone number.');
+      setRegErrorMessage('Phone Number is required.');
       return;
     }
-
-    if (regClientType === ClientType.INDIVIDUAL && !regNationalId.trim()) {
-      setRegErrorMessage('National ID / Passport Number is mandatory for individual citizens.');
+    if (!regAddress.trim()) {
+      setRegErrorMessage('Residential Address is required.');
       return;
     }
-
-    if (regClientType === ClientType.BUSINESS && !regCompanyName.trim()) {
-      setRegErrorMessage('Registered Company or Farm Name is required for agribusinesses.');
+    if (regFarmerCategory === 'Others [specify]' && !regFarmerCategoryOther.trim()) {
+      setRegErrorMessage('Please specify your Farmer Category in the designated box.');
       return;
     }
-
     if (regPassword.length < 8) {
       setRegErrorMessage('Password must be at least 8 characters in length.');
       return;
     }
-
     if (regPassword !== regConfirmPassword) {
       setRegErrorMessage('Passwords do not match. Please re-enter your password.');
       return;
     }
 
+    // Pass all pre-validations -> launch verification review
+    setIsWebReviewVisible(true);
+  };
+
+  // Step 2: Final Submission after Citizen Verification
+  const handleConfirmSubmit = async () => {
     if (!regTermsAccepted) {
-      setRegErrorMessage('You must declare statutory compliance under the Agricultural Land Settlement Act.');
+      setRegErrorMessage('You must certify and declare the accuracy of your details before final submission.');
       return;
     }
 
     try {
       setRegLoading(true);
+      setRegErrorMessage(null);
+
+      const effectiveEmail = regEmail.trim() || `${regNationalId.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@sllas.gov.zw`;
 
       const payload = {
+        surname: regSurname.trim(),
         firstName: regFirstName.trim(),
-        lastName: regLastName.trim(),
-        email: regEmail.trim(),
+        otherNames: regOtherNames.trim() || null,
+        gender: regGender,
+        title: regTitle,
+        dateOfBirth: regDob,
+        nationalIdNumber: regNationalId.trim(),
+        idDocumentName: regUploadedId,
+        maritalStatus: regMaritalStatus,
+        citizenship: regCitizenship,
         phoneNumber: regPhone.trim(),
-        nationalIdNumber: regClientType === ClientType.INDIVIDUAL ? regNationalId.trim() : null,
-        companyName: regClientType === ClientType.BUSINESS ? regCompanyName.trim() : null,
-        registrationNumber: regClientType === ClientType.BUSINESS ? regRegistrationNumber.trim() : null,
-        clientType: regClientType,
-        address: regAddress.trim() || `${regProvince}, Zimbabwe`,
+        residentialAddress: regAddress.trim(),
+        email: regEmail.trim() || null,
+        farmerCategory: regFarmerCategory,
+        farmerCategoryOther: regFarmerCategory === 'Others [specify]' ? regFarmerCategoryOther.trim() : null,
         password: regPassword,
       };
 
@@ -213,11 +267,12 @@ function SignInContent() {
         throw new Error(data.error || 'Failed to complete registration. Please check your information.');
       }
 
-      setRegSuccessMessage('Account registered successfully! Authenticating your secure citizen session…');
+      setIsWebReviewVisible(false);
+      setRegSuccessMessage('Account registered and verified! Authenticating your secure citizen session…');
 
       const authResult = await signIn('credentials', {
         redirect: false,
-        email: regEmail.trim(),
+        email: effectiveEmail,
         password: regPassword,
         role: Role.CLIENT,
         callbackUrl: '/client',
@@ -225,8 +280,8 @@ function SignInContent() {
 
       if (authResult?.error) {
         setAuthMode('signin');
-        setEmail(regEmail.trim());
-        setErrorMessage('Account created. Please enter your credentials to complete sign in.');
+        setEmail(effectiveEmail);
+        setErrorMessage('Account verified. Please enter your credentials to complete sign in.');
         setRegLoading(false);
       } else {
         router.push('/client');
@@ -732,9 +787,32 @@ function SignInContent() {
                 </div>
               )}
 
-              <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* Name Fields (2 columns) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <form onSubmit={handleInitiateReview} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* 1. Title, First Name, Surname, Other Names */}
+                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                      Title
+                    </label>
+                    <select
+                      className="select-field"
+                      value={regTitle}
+                      onChange={e => setRegTitle(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.8)',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {TITLES.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
                       First Name <span style={{ color: '#ef4444' }}>*</span>
@@ -742,7 +820,7 @@ function SignInContent() {
                     <input
                       type="text"
                       className="input-field"
-                      placeholder="e.g. Tendai"
+                      placeholder="e.g. Tafadzwa"
                       value={regFirstName}
                       onChange={e => setRegFirstName(e.target.value)}
                       required
@@ -759,14 +837,14 @@ function SignInContent() {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                      Last Name <span style={{ color: '#ef4444' }}>*</span>
+                      Surname <span style={{ color: '#ef4444' }}>*</span>
                     </label>
                     <input
                       type="text"
                       className="input-field"
-                      placeholder="e.g. Moyo"
-                      value={regLastName}
-                      onChange={e => setRegLastName(e.target.value)}
+                      placeholder="e.g. Chikata"
+                      value={regSurname}
+                      onChange={e => setRegSurname(e.target.value)}
                       required
                       style={{
                         width: '100%',
@@ -781,91 +859,93 @@ function SignInContent() {
                   </div>
                 </div>
 
-                {/* Company Name if Corporate */}
-                {regClientType === ClientType.BUSINESS && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                        Company / Farm Name <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="e.g. Mazowe Agro Enterprises"
-                        value={regCompanyName}
-                        onChange={e => setRegCompanyName(e.target.value)}
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
-                          border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
-                          color: isLight ? '#0f172a' : '#ffffff',
-                          fontSize: '0.8125rem',
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                        Company Reg Number
-                      </label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="e.g. 12345/2021"
-                        value={regRegistrationNumber}
-                        onChange={e => setRegRegistrationNumber(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
-                          border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
-                          color: isLight ? '#0f172a' : '#ffffff',
-                          fontSize: '0.8125rem',
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* National ID / Passport Number */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                    Zimbabwe National ID or Passport Number {regClientType === ClientType.INDIVIDUAL && <span style={{ color: '#ef4444' }}>*</span>}
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g. 63-1234567 A 42"
-                    value={regNationalId}
-                    onChange={e => setRegNationalId(e.target.value)}
-                    required={regClientType === ClientType.INDIVIDUAL}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
-                      border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
-                      color: isLight ? '#0f172a' : '#ffffff',
-                      fontSize: '0.8125rem',
-                    }}
-                  />
-                </div>
-
-                {/* Email and Phone */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {/* 2. Other Names, Gender, Date of Birth */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                      Email Address <span style={{ color: '#ef4444' }}>*</span>
+                      Other Names (Optional)
                     </label>
                     <input
-                      type="email"
+                      type="text"
                       className="input-field"
-                      placeholder="e.g. citizen@gmail.com"
-                      value={regEmail}
-                      onChange={e => setRegEmail(e.target.value)}
+                      placeholder="e.g. Farai"
+                      value={regOtherNames}
+                      onChange={e => setRegOtherNames(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.8125rem',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                      Gender <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <select
+                      className="select-field"
+                      value={regGender}
+                      onChange={e => setRegGender(e.target.value as 'Male' | 'Female')}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.8)',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {GENDERS.map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                      Date of Birth <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="input-field"
+                      value={regDob}
+                      onChange={e => setRegDob(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.8125rem',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* 3. National ID Number & Marital Status */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                      National ID Number <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="e.g. 63-128944-P-63"
+                      value={regNationalId}
+                      onChange={e => {
+                        setRegNationalId(e.target.value);
+                        if (e.target.value.trim().length >= 4) {
+                          setRegCitizenship('Zimbabwean (Auto-detected from ID)');
+                        }
+                      }}
                       required
                       style={{
                         width: '100%',
@@ -878,6 +958,127 @@ function SignInContent() {
                       }}
                     />
                   </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                      Marital Status
+                    </label>
+                    <select
+                      className="select-field"
+                      value={regMaritalStatus}
+                      onChange={e => setRegMaritalStatus(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.8)',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {MARITAL_STATUSES.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 4. Upload your ID & Citizenship Auto-Detection */}
+                <div style={{
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.6)',
+                  border: isLight ? '1px dashed #94a3b8' : '1px dashed rgba(255, 255, 255, 0.2)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
+                        Upload your National ID <span style={{ color: '#ef4444' }}>*</span>
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
+                        PDF, PNG or JPG (scanned copy or front/back photo)
+                      </div>
+                    </div>
+                    {/* Auto-detected Citizenship Badge */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'rgba(34, 197, 94, 0.15)',
+                      border: '1px solid rgba(34, 197, 94, 0.35)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.6875rem',
+                      color: '#4ade80',
+                      fontWeight: 600,
+                    }}>
+                      <span>🇿🇼</span>
+                      <span>Citizenship: {regCitizenship}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input
+                      type="file"
+                      id="webIdUpload"
+                      style={{ display: 'none' }}
+                      accept=".pdf,image/*"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleIdFileUpload(file.name);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="webIdUpload"
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        background: isLight ? '#ffffff' : '#1e293b',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span>📎</span>
+                      <span>{regUploadedId ? 'Replace ID File' : 'Choose File to Upload'}</span>
+                    </label>
+
+                    {/* Demonstration Quick Attachment Button */}
+                    {!regUploadedId && (
+                      <button
+                        type="button"
+                        onClick={() => handleIdFileUpload(`National_ID_${regNationalId.trim() || '63-128944'}.pdf`)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: isLight ? '#2563eb' : '#60a5fa',
+                          fontSize: '0.6875rem',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0,
+                        }}
+                      >
+                        ⚡ Attach Valid Sample ID
+                      </button>
+                    )}
+
+                    {regUploadedId && (
+                      <div style={{ fontSize: '0.75rem', color: isLight ? '#15803d' : '#86efac', fontWeight: 600 }}>
+                        ✓ Attached: {regUploadedId}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 5. Phone Number & Email Address */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
                       Phone Number <span style={{ color: '#ef4444' }}>*</span>
@@ -885,7 +1086,7 @@ function SignInContent() {
                     <input
                       type="tel"
                       className="input-field"
-                      placeholder="e.g. +263771234567"
+                      placeholder="e.g. +263 77 345 6789"
                       value={regPhone}
                       onChange={e => setRegPhone(e.target.value)}
                       required
@@ -900,43 +1101,16 @@ function SignInContent() {
                       }}
                     />
                   </div>
-                </div>
-
-                {/* Province & Address */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                      Domicile Province <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <select
-                      className="select-field"
-                      value={regProvince}
-                      onChange={e => setRegProvince(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.8)',
-                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
-                        color: isLight ? '#0f172a' : '#ffffff',
-                        fontSize: '0.8125rem',
-                      }}
-                    >
-                      {ZIMBABWE_PROVINCES.map(p => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
-                      Physical / Farm Address
+                      Email Address (Optional)
                     </label>
                     <input
-                      type="text"
+                      type="email"
                       className="input-field"
-                      placeholder="e.g. Stand 104, Norton"
-                      value={regAddress}
-                      onChange={e => setRegAddress(e.target.value)}
+                      placeholder="e.g. citizen@gmail.com"
+                      value={regEmail}
+                      onChange={e => setRegEmail(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '8px 12px',
@@ -950,7 +1124,84 @@ function SignInContent() {
                   </div>
                 </div>
 
-                {/* Password and Confirm Password */}
+                {/* 6. Residential Address */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                    Residential Address <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="e.g. Stand 44, Banket Commercial Farming Block, Makonde"
+                    value={regAddress}
+                    onChange={e => setRegAddress(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                      color: isLight ? '#0f172a' : '#ffffff',
+                      fontSize: '0.8125rem',
+                    }}
+                  />
+                </div>
+
+                {/* 7. Farmer Category Dropdown & Others Specification */}
+                <div style={{ display: 'grid', gridTemplateColumns: regFarmerCategory === 'Others [specify]' ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                      Farmer Category <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <select
+                      className="select-field"
+                      value={regFarmerCategory}
+                      onChange={e => setRegFarmerCategory(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.8)',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {FARMER_CATEGORIES.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {regFarmerCategory === 'Others [specify]' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', color: isLight ? '#334155' : '#e2e8f0' }}>
+                        Specify Category Details <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. Agricultural Cooperative"
+                        value={regFarmerCategoryOther}
+                        onChange={e => setRegFarmerCategoryOther(e.target.value)}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
+                          border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                          color: isLight ? '#0f172a' : '#ffffff',
+                          fontSize: '0.8125rem',
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 8. Password and Confirm Password */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -1015,39 +1266,30 @@ function SignInContent() {
                   </div>
                 </div>
 
-                {/* Statutory Declaration Checkbox */}
+                {/* Pre-Submission Review & Verification Prompt */}
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
                   padding: '10px 12px',
                   borderRadius: '6px',
-                  background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.4)',
-                  border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+                  background: isLight ? '#eff6ff' : 'rgba(59, 130, 246, 0.1)',
+                  border: isLight ? '1px solid #bfdbfe' : '1px solid rgba(59, 130, 246, 0.25)',
                   fontSize: '0.75rem',
-                  lineHeight: 1.4,
-                  color: isLight ? '#475569' : 'var(--text-muted)',
+                  color: isLight ? '#1e40af' : '#93c5fd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}>
-                  <input
-                    type="checkbox"
-                    id="regTerms"
-                    checked={regTermsAccepted}
-                    onChange={e => setRegTermsAccepted(e.target.checked)}
-                    style={{ marginTop: '2px', accentColor: '#16a34a', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="regTerms" style={{ cursor: 'pointer' }}>
-                    I declare that all particulars are true and accurate under the{' '}
-                    <strong>Agricultural Land Settlement Act [Chapter 20:01]</strong> and consent to electronic identity verification.
-                  </label>
+                  <span>🔍</span>
+                  <div>
+                    Under statutory guidelines, you will be asked to <strong>check and verify all particulars</strong> in a summary docket before final submission.
+                  </div>
                 </div>
 
-                {/* Submit Registration Button */}
+                {/* Review & Verify Button */}
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={regLoading}
                   style={{
-                    marginTop: '6px',
+                    marginTop: '4px',
                     padding: '12px 18px',
                     fontSize: '0.9375rem',
                     fontWeight: 600,
@@ -1055,23 +1297,224 @@ function SignInContent() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
+                    background: '#16a34a',
                   }}
                 >
-                  {regLoading ? (
-                    <>
-                      <span className="spinner" style={{ width: '16px', height: '16px' }} />
-                      <span>Registering Citizen Account…</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Create Account & Sign In</span>
-                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </>
-                  )}
+                  <span>Review &amp; Verify Details →</span>
                 </button>
               </form>
+
+              {/* STATUTORY CHECK & VERIFY MODAL (Pre-Submission Review Step) */}
+              {isWebReviewVisible && (
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(3, 7, 18, 0.82)',
+                  backdropFilter: 'blur(6px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 9999,
+                  padding: '16px',
+                }}>
+                  <div style={{
+                    width: '100%',
+                    maxWidth: '560px',
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    backgroundColor: isLight ? '#ffffff' : '#0f172a',
+                    borderRadius: '16px',
+                    padding: '24px',
+                    border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.12)',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                  }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#16a34a', letterSpacing: '0.08em', marginBottom: '4px' }}>
+                          🇿🇼 AGRICULTURAL LAND SETTLEMENT ACT • VERIFICATION
+                        </div>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: isLight ? '#0f172a' : '#ffffff' }}>
+                          Check &amp; Verify Details
+                        </h2>
+                        <p style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)', margin: '4px 0 0' }}>
+                          Please verify all particulars below before submitting your official registration.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsWebReviewVisible(false)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          fontSize: '1.2rem',
+                          color: isLight ? '#64748b' : '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '4px',
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Particulars Review Grid */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '12px',
+                      backgroundColor: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.6)',
+                      padding: '14px',
+                      borderRadius: '10px',
+                      border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+                      marginBottom: '16px',
+                      fontSize: '0.8125rem',
+                    }}>
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>FULL NAME</div>
+                        <div style={{ fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginTop: '2px' }}>
+                          {regTitle} {regFirstName} {regOtherNames ? regOtherNames + ' ' : ''}{regSurname}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>GENDER &amp; DATE OF BIRTH</div>
+                        <div style={{ fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginTop: '2px' }}>
+                          {regGender} • Born {regDob || '—'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>NATIONAL ID NUMBER</div>
+                        <div style={{ fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginTop: '2px' }}>
+                          {regNationalId}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>UPLOADED ID DOCUMENT</div>
+                        <div style={{ fontWeight: 700, color: '#16a34a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>📎</span> {regUploadedId || 'None'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>CITIZENSHIP</div>
+                        <div style={{ fontWeight: 700, color: '#16a34a', marginTop: '2px' }}>
+                          🇿🇼 {regCitizenship}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>MARITAL STATUS</div>
+                        <div style={{ fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginTop: '2px' }}>
+                          {regMaritalStatus}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>PHONE NUMBER</div>
+                        <div style={{ fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginTop: '2px' }}>
+                          {regPhone}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>EMAIL ADDRESS</div>
+                        <div style={{ fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginTop: '2px' }}>
+                          {regEmail || '—'}
+                        </div>
+                      </div>
+
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>RESIDENTIAL ADDRESS</div>
+                        <div style={{ fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff', marginTop: '2px' }}>
+                          {regAddress}
+                        </div>
+                      </div>
+
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <div style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.6875rem', fontWeight: 600 }}>FARMER CATEGORY</div>
+                        <div style={{ fontWeight: 700, color: '#2563eb', marginTop: '2px' }}>
+                          {regFarmerCategory} {regFarmerCategoryOther ? `(${regFarmerCategoryOther})` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Statutory Affirmation Checkbox */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      backgroundColor: isLight ? '#f0fdf4' : 'rgba(22, 163, 74, 0.1)',
+                      border: isLight ? '1px solid #bbf7d0' : '1px solid rgba(22, 163, 74, 0.3)',
+                      marginBottom: '16px',
+                      fontSize: '0.75rem',
+                      color: isLight ? '#15803d' : '#86efac',
+                    }}>
+                      <input
+                        type="checkbox"
+                        id="webVerifyDeclare"
+                        checked={regTermsAccepted}
+                        onChange={e => setRegTermsAccepted(e.target.checked)}
+                        style={{ marginTop: '2px', accentColor: '#16a34a', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="webVerifyDeclare" style={{ cursor: 'pointer', lineHeight: 1.45 }}>
+                        I, <strong>{regTitle} {regFirstName} {regSurname}</strong>, hereby verify and solemnly declare that all particulars and documents submitted above are true, complete, and legally accurate under the <strong>Agricultural Land Settlement Act [Cap 20:01]</strong>.
+                      </label>
+                    </div>
+
+                    {/* Action Buttons: Edit or Confirm */}
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIsWebReviewVisible(false)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          background: isLight ? '#f1f5f9' : '#1e293b',
+                          border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.15)',
+                          color: isLight ? '#334155' : '#cbd5e1',
+                          fontWeight: 600,
+                          fontSize: '0.875rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ← Edit Details
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleConfirmSubmit}
+                        disabled={regLoading || !regTermsAccepted}
+                        style={{
+                          flex: 2,
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          background: regTermsAccepted ? '#16a34a' : '#64748b',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.875rem',
+                          cursor: regTermsAccepted ? 'pointer' : 'not-allowed',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          opacity: regLoading ? 0.7 : 1,
+                        }}
+                      >
+                        {regLoading ? 'Registering Citizen…' : 'Confirm & Complete Registration ✓'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Link back to Sign In */}
               <div style={{

@@ -64,12 +64,26 @@ export default function ParcelDetailPage() {
       {/* Hero Header */}
       <div className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--primary-400)', fontWeight: 600 }}>
               {parcel.referenceNumber}
             </span>
             <span className={`badge badge-${parcel.status.toLowerCase().replace('_', '-')}`}>
               {parcel.status}
+            </span>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: parcel.leaseClassification.color,
+              background: parcel.leaseClassification.bgColor,
+              border: `1px solid ${parcel.leaseClassification.borderColor}`,
+            }}>
+              📜 {parcel.leaseClassification.fullName}
             </span>
           </div>
           <h1 style={{ fontSize: '1.875rem', color: '#ffffff', marginBottom: '4px' }}>
@@ -106,7 +120,7 @@ export default function ParcelDetailPage() {
                 className="btn btn-primary"
                 style={{ background: 'var(--primary-600)', borderColor: 'var(--primary-400)', fontWeight: 700 }}
               >
-                🌱 Apply for This Land Parcel
+                🌱 Apply for {parcel.leaseClassification.shortName}
               </button>
               <Link
                 href="/officer/allocate"
@@ -158,6 +172,63 @@ export default function ParcelDetailPage() {
           {/* Left Attributes */}
           <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <h2 style={{ fontSize: '1.125rem', color: '#ffffff' }}>Land Characteristics Dossier</h2>
+
+            {/* Statutory Lease Classification & Bankability Dossier */}
+            <div style={{
+              background: parcel.leaseClassification.bgColor,
+              border: `1px solid ${parcel.leaseClassification.borderColor}`,
+              borderRadius: '10px',
+              padding: '16px 18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: parcel.leaseClassification.color, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📜</span> Statutory Lease Classification Matrix
+                </span>
+                <span style={{ fontSize: '0.6875rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', color: parcel.leaseClassification.color, fontWeight: 700 }}>
+                  {parcel.leaseClassification.termLabel}
+                </span>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#ffffff', margin: '0 0 4px 0' }}>
+                  {parcel.leaseClassification.fullName}
+                </h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  {parcel.leaseClassification.description}
+                </p>
+              </div>
+
+              <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: 'rgba(0, 0, 0, 0.25)', padding: '10px 12px', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Statutory Act</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#f8fafc' }}>
+                    {parcel.leaseClassification.statutoryAct}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Tenure Security &amp; Bankability</div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: parcel.leaseClassification.color }}>
+                    {parcel.leaseClassification.bankability}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Statutory Permitted Enterprises for this Lease:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {parcel.leaseClassification.permittedEnterprises.map((ent, i) => (
+                    <span key={i} style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#f1f5f9', fontSize: '0.6875rem' }}>
+                      ✓ {ent}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '8px' }}>
