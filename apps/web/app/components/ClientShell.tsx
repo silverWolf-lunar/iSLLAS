@@ -72,13 +72,16 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
               <span className="spinner" style={{ width: '24px', height: '24px', marginBottom: '12px', display: 'inline-block' }} />
               <p>Loading your SLLAS account profile…</p>
             </div>
-          ) : profileError ? (
-            <div className="account-load-error" role="alert" style={{ margin: '40px auto', maxWidth: '480px' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
-              <p>{profileError}</p>
-              <button type="button" className="btn btn-outline" onClick={retryProfile} style={{ marginTop: '12px' }}>
-                Retry Account Sync
-              </button>
+          ) : profileError && !currentUser ? (
+            <div className="account-load-error glass-panel" role="alert" style={{ margin: '40px auto', maxWidth: '480px', padding: '32px', textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚠️</div>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '8px', color: 'var(--text-main)' }}>Unable to Sync Live Account</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px' }}>{profileError}</p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-outline" onClick={retryProfile}>
+                  Retry Account Sync
+                </button>
+              </div>
             </div>
           ) : (
             <Suspense fallback={<p role="status" style={{ padding: '24px', color: 'var(--text-muted)' }}>Loading portal…</p>}>

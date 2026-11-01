@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { Role } from '@sllas/contracts';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { ROLE_CONFIG, getDefaultDashboardForRole } from '../lib/access';
@@ -31,8 +31,21 @@ export function Header({
   const router = useRouter();
   const [switchingRole, setSwitchingRole] = useState(false);
   const { switchDevRole } = useApp();
+  const { data: session } = useSession();
 
-  const role = currentUser?.role || Role.CLIENT;
+  const sessionUser = session?.user as any;
+  const role =
+    currentUser?.role ||
+    sessionUser?.role ||
+    (pathname.startsWith('/admin')
+      ? Role.SYSTEM_ADMIN
+      : pathname.startsWith('/officer')
+      ? Role.REGISTRY_OFFICER
+      : pathname.startsWith('/estates')
+      ? Role.ESTATES_OFFICER
+      : pathname.startsWith('/approver')
+      ? Role.APPROVER
+      : Role.CLIENT);
   const roleConfig = ROLE_CONFIG[role];
 
   const handleRoleChange = async (newRole: Role) => {
@@ -117,24 +130,25 @@ export function Header({
           <span>Ministry of Lands</span>
         </div>
 
-        {/* Development Role Switcher (Hidden on Farmer Portal) */}
-        {role !== Role.CLIENT && !pathname.startsWith('/client') && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Portal:
-            </span>
-            <select
-              value={role}
-              disabled={switchingRole}
-              onChange={(e) => handleRoleChange(e.target.value as Role)}
-              className="header-role-select"
-            >
-              <option value={Role.SYSTEM_ADMIN}>System Admin</option>
-              <option value={Role.ESTATES_OFFICER}>Estates Officer</option>
-              <option value={Role.REGISTRY_OFFICER}>Resettlement Officer</option>
-            </select>
-          </div>
-        )}
+        {/* Development Role Switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Portal:
+          </span>
+          <select
+            value={role}
+            disabled={switchingRole}
+            onChange={(e) => handleRoleChange(e.target.value as Role)}
+            className="header-role-select"
+          >
+            <option value={Role.SYSTEM_ADMIN}>System Admin</option>
+            <option value={Role.REGISTRY_OFFICER}>Resettlement Officer</option>
+            <option value={Role.ESTATES_OFFICER}>Estates Officer</option>
+            <option value={Role.APPROVER}>Land Board Approver</option>
+            <option value={Role.AUDITOR}>Compliance Auditor</option>
+            <option value={Role.CLIENT}>Citizen / Farmer</option>
+          </select>
+        </div>
 
         <ThemeSwitcher />
 
@@ -144,15 +158,17 @@ export function Header({
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: getRoleBadgeColor(currentUser?.role),
-            boxShadow: `0 0 6px ${getRoleBadgeColor(currentUser?.role)}`,
+            background: getRoleBadgeColor(role),
+            boxShadow: `0 0 6px ${getRoleBadgeColor(role)}`,
           }} />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '0.6875rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-              {roleConfig ? roleConfig.displayName : 'Signed in'}
+              {roleConfig ? roleConfig.displayName : 'Authorised Staff'}
             </span>
             <span style={{ color: 'var(--text-main)', fontSize: '0.8125rem', fontWeight: 600 }}>
-              {currentUser ? currentUser.name : 'Loading profile'}
+              {currentUser
+                ? currentUser.name
+                : sessionUser?.name || sessionUser?.email || 'Authorised SLLAS Official'}
             </span>
           </div>
         </div>
