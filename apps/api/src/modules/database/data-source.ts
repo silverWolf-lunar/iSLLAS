@@ -20,12 +20,21 @@ const isSsl =
 
 const sslConfig = isSsl ? { rejectUnauthorized: false } : false;
 
-const migrationCandidates = [
-  path.resolve(process.cwd(), 'database/migrations/*{.ts,.js}'),
-  path.resolve(__dirname, '../../../../../database/migrations/*{.ts,.js}'),
-  path.resolve(__dirname, '../../../../database/migrations/*{.ts,.js}'),
-  path.resolve(__dirname, '../../../database/migrations/*{.ts,.js}'),
-];
+const isTs =
+  __filename.endsWith('.ts') ||
+  Boolean((process as any)[Symbol.for('ts-node.register.instance')]);
+
+const migrationCandidates = isTs
+  ? [
+      path.resolve(process.cwd(), 'database/migrations/*.ts'),
+      path.resolve(__dirname, '../../../../../database/migrations/*.ts'),
+      path.resolve(__dirname, '../../../../database/migrations/*.ts'),
+    ]
+  : [
+      path.resolve(process.cwd(), 'database/migrations/*.js'),
+      path.resolve(__dirname, '../../../../../database/migrations/*.js'),
+      path.resolve(__dirname, '../../../../database/migrations/*.js'),
+    ];
 
 export const dataSourceOptions: DataSourceOptions = process.env.DATABASE_URL
   ? {
