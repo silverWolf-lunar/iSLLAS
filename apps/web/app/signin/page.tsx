@@ -35,20 +35,12 @@ interface DemoAccount {
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
   {
-    label: 'System Admin',
+    label: 'System Administrator',
     role: Role.SYSTEM_ADMIN,
     email: 'admin@sllas.gov.zw',
     icon: '🛡️',
     badgeColor: '#ef4444',
-    description: 'Executive console & platform management',
-  },
-  {
-    label: 'Estates Officer',
-    role: Role.ESTATES_OFFICER,
-    email: 'estates@sllas.gov.zw',
-    icon: '📜',
-    badgeColor: '#8b5cf6',
-    description: 'Master waiting list & legal leases',
+    description: 'Executive national console & user management',
   },
   {
     label: 'Resettlement Officer',
@@ -57,6 +49,22 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
     icon: '📋',
     badgeColor: '#10b981',
     description: 'Cadastre registration, verification & allocation',
+  },
+  {
+    label: 'Estates Officer',
+    role: Role.ESTATES_OFFICER,
+    email: 'estates@sllas.gov.zw',
+    icon: '📜',
+    badgeColor: '#8b5cf6',
+    description: 'Master waiting list & 99-year legal leases',
+  },
+  {
+    label: 'Client / Citizen',
+    role: Role.CLIENT,
+    email: 'citizen@sllas.gov.zw',
+    icon: '🧑‍🌾',
+    badgeColor: '#22c55e',
+    description: 'Farmer land applicant & lease tracking portal',
   },
 ];
 
@@ -369,33 +377,17 @@ function SignInContent() {
     }
   };
 
-  const handleQuickDemoLogin = async (demo: DemoAccount) => {
+  const handleQuickDemoLogin = (demo: DemoAccount) => {
+    // Pre-fill the email only — the user must enter their own password
     setEmail(demo.email);
-    setPassword('GovernmentSecure2026!');
+    setPassword('');
     setRole(demo.role);
     setErrorMessage(null);
-    setLoading(true);
-
-    try {
-      const targetDashboard = getDefaultDashboardForRole(demo.role);
-      const result = await signIn('credentials', {
-        redirect: false,
-        email: demo.email,
-        password: 'GovernmentSecure2026!',
-        role: demo.role,
-        callbackUrl: targetDashboard,
-      });
-
-      if (result?.error) {
-        setErrorMessage(result.error);
-        setLoading(false);
-      } else if (result?.ok) {
-        router.push(targetDashboard);
-      }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to authenticate demo account.');
-      setLoading(false);
-    }
+    // Focus the password field so the user knows to type their password
+    setTimeout(() => {
+      const pwInput = document.getElementById('signin-password');
+      if (pwInput) (pwInput as HTMLInputElement).focus();
+    }, 50);
   };
 
   return (
@@ -609,6 +601,7 @@ function SignInContent() {
                     </button>
                   </div>
                   <input
+                    id="signin-password"
                     type={showPassword ? 'text' : 'password'}
                     className="input-field"
                     placeholder="••••••••••••"

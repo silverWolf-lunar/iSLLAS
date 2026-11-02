@@ -1,6 +1,8 @@
 import type { NextAuthOptions } from 'next-auth';
 import KeycloakProvider from 'next-auth/providers/keycloak';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { Pool } from 'pg';
+import bcrypt from 'bcryptjs';
 import { Role } from '@sllas/contracts';
 
 const issuer = process.env.OIDC_ISSUER ?? '';
@@ -28,7 +30,7 @@ if (!process.env.NEXTAUTH_URL) {
   }
 }
 
-// Ensure NEXTAUTH_SECRET is explicitly populated in process.env so NextAuth internal validation passes
+// Ensure NEXTAUTH_SECRET is explicitly populated
 if (!process.env.NEXTAUTH_SECRET) {
   process.env.NEXTAUTH_SECRET =
     process.env.JWT_SECRET ||
@@ -37,24 +39,89 @@ if (!process.env.NEXTAUTH_SECRET) {
 
 const authSecret = process.env.NEXTAUTH_SECRET;
 
+// Singleton Postgres pool — reused across hot-module reloads in dev
+declare global {
+  // eslint-disable-next-line no-var
+  var __sllasAuthPool: Pool | undefined;
+}
+
+function getPool(): Pool {
+  if (!global.__sllasAuthPool) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    global.__sllasAuthPool = new Pool({
+      connectionString,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      max: 3,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+  }
+  return global.__sllasAuthPool;
+}
+
+/**
+ * Looks up a user by email in Supabase and verifies their password.
+ * Returns the user row on success, null on failure.
+ */
+async function verifyDatabaseUser(email: string, password: string) {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.query<{
+      id: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+      role: string;
+      status: string;
+      password_hash: string | null;
+    }>(
+      `SELECT id, email, first_name, last_name, role, status, password_hash
+       FROM users
+       WHERE email = $1
+       LIMIT 1`,
+      [email.trim().toLowerCase()],
+    );
+
+    if (result.rows.length === 0) return null;
+    const user = result.rows[0];
+
+    // Only allow ACTIVE accounts
+    if (user.status !== 'ACTIVE') return null;
+
+    // If no password hash is set yet, deny login (admin must set one)
+    if (!user.password_hash) return null;
+
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatch) return null;
+
+    return user;
+  } finally {
+    client.release();
+  }
+}
+
 const authProviders: any[] = [
   CredentialsProvider({
     id: 'credentials',
     name: 'Government Credentials',
     credentials: {
-      email: { label: 'Email or Username', type: 'text', placeholder: 'officer@sllas.gov.zw' },
+      email: { label: 'Email', type: 'text', placeholder: 'officer@sllas.gov.zw' },
       password: { label: 'Password', type: 'password' },
-      role: { label: 'Role', type: 'text' },
     },
     async authorize(credentials) {
       if (!credentials?.email || !credentials?.password) {
-        throw new Error('Please enter both your email/username and password');
+        throw new Error('Please enter both your email and password');
       }
 
       if (credentials.password.trim().length === 0) {
         throw new Error('Password cannot be empty');
       }
 
+      // First try the backend API (if available)
       let apiBaseUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:3001').trim().replace(/\/$/, '');
       if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
         apiBaseUrl = `https://${apiBaseUrl}`;
@@ -64,12 +131,12 @@ const authProviders: any[] = [
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3500);
 
-        const res = await fetch(`${apiBaseUrl}/api/v1/auth/dev-login`, {
+        const res = await fetch(`${apiBaseUrl}/api/v1/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: credentials.email.trim(),
-            role: (credentials.role as Role) || undefined,
+            password: credentials.password,
           }),
           signal: controller.signal,
         }).finally(() => clearTimeout(timeout));
@@ -88,29 +155,31 @@ const authProviders: any[] = [
           }
         }
       } catch (err: any) {
-        console.warn(`[SLLAS_AUTH] Backend API at ${apiBaseUrl} is unreachable (${err?.message}). Activating standalone session authentication.`);
+        console.warn(`[SLLAS_AUTH] Backend API unreachable (${err?.message}). Falling back to direct Supabase authentication.`);
       }
 
-      // Standalone Fallback: When the backend is offline or standalone container is deployed,
-      // authenticate the user directly so workbenches and personas operate reliably.
-      const targetRole = (credentials.role as Role) || Role.CLIENT;
-      const emailPrefix = credentials.email.split('@')[0] || 'User';
-      const formattedName = emailPrefix.replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).trim();
+      // Direct Supabase DB verification (works even when backend is offline)
+      try {
+        const dbUser = await verifyDatabaseUser(credentials.email, credentials.password);
+        if (!dbUser) {
+          throw new Error('Invalid email or password');
+        }
 
-      return {
-        id: `standalone-${Buffer.from(credentials.email).toString('hex').slice(0, 16)}`,
-        email: credentials.email.trim(),
-        name: formattedName || 'Verified SLLAS User',
-        role: targetRole,
-        accessToken: `standalone-session-token-${Buffer.from(
-          JSON.stringify({
-            email: credentials.email,
-            role: targetRole,
-            issuedAt: Date.now(),
-            exp: Date.now() + 24 * 60 * 60 * 1000,
-          }),
-        ).toString('base64')}`,
-      };
+        const fullName = `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim() || dbUser.email;
+        return {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: fullName,
+          role: dbUser.role as Role,
+          accessToken: `db-session-${dbUser.id}-${Date.now()}`,
+        };
+      } catch (dbErr: any) {
+        // Re-throw auth failures with a clear message
+        const msg = dbErr?.message || 'Authentication failed';
+        if (msg === 'Invalid email or password') throw new Error(msg);
+        console.error('[SLLAS_AUTH] DB auth error:', serializeError(dbErr));
+        throw new Error('Authentication service temporarily unavailable. Please try again.');
+      }
     },
   }),
 ];
@@ -185,4 +254,3 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
-

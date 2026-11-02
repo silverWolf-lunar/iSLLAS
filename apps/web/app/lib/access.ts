@@ -16,8 +16,8 @@ export const ROLE_CONFIG: Record<
   }
 > = {
   [Role.CLIENT]: {
-    displayName: 'Citizen / Farmer',
-    description: 'Land applicant and leaseholder portal',
+    displayName: 'Client / Citizen',
+    description: 'Citizen farmer and land applicant portal',
     defaultDashboard: '/client',
     navItems: [
       { label: 'Client Overview', href: '/client' },
@@ -41,16 +41,6 @@ export const ROLE_CONFIG: Record<
       { label: 'Allocation Workbench', href: '/officer/allocate' },
     ],
   },
-  [Role.APPROVER]: {
-    displayName: 'Land Board Approver',
-    description: 'Senior board approval authority',
-    defaultDashboard: '/approver',
-    navItems: [
-      { label: 'Board Approvals Queue', href: '/approver' },
-      { label: 'Parcel Explorer', href: '/parcels' },
-      { label: 'Reports', href: '/reports' },
-    ],
-  },
   [Role.ESTATES_OFFICER]: {
     displayName: 'Estates Officer',
     description: 'Master waiting lists and legal lease documentation',
@@ -63,7 +53,7 @@ export const ROLE_CONFIG: Record<
     ],
   },
   [Role.SYSTEM_ADMIN]: {
-    displayName: 'System Admin',
+    displayName: 'System Administrator',
     description: 'Full national platform administration',
     defaultDashboard: '/admin',
     navItems: [
@@ -71,22 +61,44 @@ export const ROLE_CONFIG: Record<
       { label: 'User & Staff Management', href: '/admin/users' },
       { label: 'Registry Offices', href: '/admin/offices' },
       { label: 'Parcel Explorer', href: '/parcels' },
-      { label: 'Audit Trail', href: '/audit' },
       { label: 'Reports & Analytics', href: '/reports' },
       { label: 'Settings', href: '/settings' },
     ],
   },
-  [Role.AUDITOR]: {
-    displayName: 'National Compliance Auditor',
-    description: 'Read-only compliance and audit history inspector',
-    defaultDashboard: '/audit',
+  [Role.APPROVER]: {
+    displayName: 'Resettlement Officer',
+    description: 'Cadastre registration, verification and allocation',
+    defaultDashboard: '/officer',
     navItems: [
-      { label: 'Audit Log Viewer', href: '/audit' },
-      { label: 'Cadastre Explorer', href: '/parcels' },
-      { label: 'Operational Reports', href: '/reports' },
+      { label: 'Resettlement Dashboard', href: '/officer' },
+      { label: 'Parcel Explorer', href: '/parcels' },
+      { label: 'Applicant Review Queue', href: '/officer/applicants' },
+      { label: 'Allocation Workbench', href: '/officer/allocate' },
+    ],
+  },
+  [Role.AUDITOR]: {
+    displayName: 'System Administrator',
+    description: 'Full national platform administration',
+    defaultDashboard: '/admin',
+    navItems: [
+      { label: 'System Admin Dashboard', href: '/admin' },
+      { label: 'User & Staff Management', href: '/admin/users' },
+      { label: 'Parcel Explorer', href: '/parcels' },
+      { label: 'Reports & Analytics', href: '/reports' },
     ],
   },
 };
+
+export const PRIMARY_DASHBOARDS: Array<{
+  role: Role;
+  displayName: string;
+  defaultDashboard: string;
+}> = [
+  { role: Role.SYSTEM_ADMIN, displayName: 'System Administrator', defaultDashboard: '/admin' },
+  { role: Role.REGISTRY_OFFICER, displayName: 'Resettlement Officer', defaultDashboard: '/officer' },
+  { role: Role.ESTATES_OFFICER, displayName: 'Estates Officer', defaultDashboard: '/estates' },
+  { role: Role.CLIENT, displayName: 'Client / Citizen', defaultDashboard: '/client' },
+];
 
 export const ROUTE_PERMISSIONS: Array<{
   pattern: RegExp;

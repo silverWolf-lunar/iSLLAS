@@ -34,10 +34,8 @@ function NavIcon({ href, collapsed }: { href: string; collapsed?: boolean }) {
     // Dashboards
     case '/client':
     case '/officer':
-    case '/approver':
     case '/estates':
     case '/admin':
-    case '/audit':
       return (
         <svg {...iconProps}>
           <rect x="3" y="3" width="7" height="9" rx="1" />

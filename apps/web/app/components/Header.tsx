@@ -43,8 +43,6 @@ export function Header({
       ? Role.REGISTRY_OFFICER
       : pathname.startsWith('/estates')
       ? Role.ESTATES_OFFICER
-      : pathname.startsWith('/approver')
-      ? Role.APPROVER
       : Role.CLIENT);
   const roleConfig = ROLE_CONFIG[role] || ROLE_CONFIG[Role.CLIENT];
 
@@ -59,11 +57,9 @@ export function Header({
   const getRoleBadgeColor = (r?: Role) => {
     switch (r) {
       case Role.CLIENT: return '#22c55e';
-      case Role.REGISTRY_OFFICER: return '#3b82f6';
-      case Role.APPROVER: return '#f59e0b';
+      case Role.REGISTRY_OFFICER: return '#10b981';
       case Role.ESTATES_OFFICER: return '#8b5cf6';
       case Role.SYSTEM_ADMIN: return '#ef4444';
-      case Role.AUDITOR: return '#06b6d4';
       default: return '#22c55e';
     }
   };
@@ -74,21 +70,19 @@ export function Header({
     if (pathname === '/client/applications') return 'Applications & Waiting List';
     if (pathname === '/client/leases') return 'Offers & 99-Year Leases';
     if (pathname === '/client/kyc') return 'KYC & ID Documents';
-    if (pathname === '/officer') return 'Registry Dashboard';
+    if (pathname === '/officer') return 'Resettlement Dashboard';
     if (pathname === '/officer/applicants') return 'Applicant Review Queue';
     if (pathname === '/officer/allocate') return 'Allocation Workbench';
     if (pathname === '/parcels') return 'Cadastre Parcel Explorer';
     if (pathname === '/parcels/new') return 'Register New Land Parcel';
     if (pathname === '/parcels/verify') return 'Verification Workbench';
     if (pathname === '/parcels/bulk-import') return 'Bulk Cadastre Import';
-    if (pathname === '/approver') return 'Board Approvals Queue';
     if (pathname === '/estates') return 'Estates Directorate Console';
     if (pathname === '/estates/waiting-list') return 'Master Waiting List';
     if (pathname === '/estates/leases') return '99-Year Lease Generator';
-    if (pathname === '/admin') return 'Executive Admin Console';
+    if (pathname === '/admin') return 'System Administrator Console';
     if (pathname === '/admin/users') return 'User & Staff Management';
     if (pathname === '/admin/offices') return 'Registry Offices Directory';
-    if (pathname === '/audit') return 'Statutory Compliance Audit Log';
     if (pathname === '/reports') return 'Executive Reports & Analytics';
     if (pathname === '/settings') return 'Platform Settings';
     return 'Console';
@@ -141,12 +135,10 @@ export function Header({
             onChange={(e) => handleRoleChange(e.target.value as Role)}
             className="header-role-select"
           >
-            <option value={Role.SYSTEM_ADMIN}>System Admin</option>
+            <option value={Role.SYSTEM_ADMIN}>System Administrator</option>
             <option value={Role.REGISTRY_OFFICER}>Resettlement Officer</option>
             <option value={Role.ESTATES_OFFICER}>Estates Officer</option>
-            <option value={Role.APPROVER}>Land Board Approver</option>
-            <option value={Role.AUDITOR}>Compliance Auditor</option>
-            <option value={Role.CLIENT}>Citizen / Farmer</option>
+            <option value={Role.CLIENT}>Client / Citizen</option>
           </select>
         </div>
 
