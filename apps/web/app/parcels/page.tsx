@@ -384,21 +384,38 @@ export default function ParcelsExplorerPage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
                 {selectedParcel.status === ParcelStatus.AVAILABLE && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{
-                      width: '100%',
-                      background: 'var(--primary-600)',
-                      borderColor: 'var(--primary-400)',
-                      fontSize: '0.875rem',
-                      fontWeight: 700,
-                      padding: '10px',
-                    }}
-                    onClick={() => setApplyingParcel(selectedParcel)}
-                  >
-                    🌱 Apply for {selectedParcel.leaseClassification.shortName}
-                  </button>
+                  currentUser?.role === Role.CLIENT ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{
+                        width: '100%',
+                        background: 'var(--primary-600)',
+                        borderColor: 'var(--primary-400)',
+                        fontSize: '0.875rem',
+                        fontWeight: 700,
+                        padding: '10px',
+                      }}
+                      onClick={() => setApplyingParcel(selectedParcel)}
+                    >
+                      🌱 Apply for {selectedParcel.leaseClassification.shortName}
+                    </button>
+                  ) : (currentUser?.role === Role.REGISTRY_OFFICER || currentUser?.role === Role.SYSTEM_ADMIN) ? (
+                    <Link
+                      href={`/officer/allocate?parcelId=${selectedParcel.id}`}
+                      className="btn btn-accent"
+                      style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        fontSize: '0.875rem',
+                        fontWeight: 700,
+                        padding: '10px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      ⚖️ Allocate Parcel to Applicant
+                    </Link>
+                  ) : null
                 )}
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Link href={`/parcels/${selectedParcel.id}`} className="btn btn-outline" style={{ flex: 1, fontSize: '0.8125rem' }}>
@@ -486,14 +503,24 @@ export default function ParcelsExplorerPage() {
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         {parcel.status === ParcelStatus.AVAILABLE && (
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            style={{ padding: '4px 8px', fontSize: '0.75rem', background: 'var(--primary-600)' }}
-                            onClick={() => setApplyingParcel(parcel)}
-                          >
-                            Apply
-                          </button>
+                          currentUser?.role === Role.CLIENT ? (
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', background: 'var(--primary-600)' }}
+                              onClick={() => setApplyingParcel(parcel)}
+                            >
+                              Apply
+                            </button>
+                          ) : (currentUser?.role === Role.REGISTRY_OFFICER || currentUser?.role === Role.SYSTEM_ADMIN) ? (
+                            <Link
+                              href={`/officer/allocate?parcelId=${parcel.id}`}
+                              className="btn btn-accent"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', textDecoration: 'none' }}
+                            >
+                              Allocate
+                            </Link>
+                          ) : null
                         )}
                         <Link href={`/parcels/${parcel.id}`} className="btn btn-outline" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
                           Dossier
@@ -542,14 +569,24 @@ export default function ParcelsExplorerPage() {
                 <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
                   <Link href={`/parcels/${parcel.id}`} className="btn btn-outline" style={{ flex: 1 }}>View parcel</Link>
                   {parcel.status === ParcelStatus.AVAILABLE && (
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      style={{ background: 'var(--primary-600)' }}
-                      onClick={() => setApplyingParcel(parcel)}
-                    >
-                      Apply
-                    </button>
+                    currentUser?.role === Role.CLIENT ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ background: 'var(--primary-600)' }}
+                        onClick={() => setApplyingParcel(parcel)}
+                      >
+                        Apply
+                      </button>
+                    ) : (currentUser?.role === Role.REGISTRY_OFFICER || currentUser?.role === Role.SYSTEM_ADMIN) ? (
+                      <Link
+                        href={`/officer/allocate?parcelId=${parcel.id}`}
+                        className="btn btn-accent"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        Allocate
+                      </Link>
+                    ) : null
                   )}
                 </div>
               </article>

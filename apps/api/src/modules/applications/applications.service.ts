@@ -37,6 +37,7 @@ import { Parcel } from '../parcels/parcel.entity';
 import { ApplicationStatusHistory } from './application-status-history.entity';
 import { LeaseApplication } from './lease-application.entity';
 import { Lease } from './lease.entity';
+import { LeaseStatusHistory } from '../leases/lease-status-history.entity';
 
 @Injectable()
 export class ApplicationsService {
@@ -447,6 +448,24 @@ export class ApplicationsService {
           approvedAt: new Date(),
         });
         const savedLease = await manager.getRepository(Lease).save(lease);
+
+        // Record initial ACTIVE status in lease history
+        const leaseHistoryRepo = manager.getRepository(LeaseStatusHistory);
+        await leaseHistoryRepo.save(
+          leaseHistoryRepo.create({
+            leaseId: savedLease.id,
+            fromStatus: null,
+            toStatus: LeaseStatus.ACTIVE,
+            actorId: user.id,
+            reason: 'Lease agreement signed and activated',
+            comments: 'Initial execution of statutory 99-year agricultural lease',
+            metadata: {
+              applicationId: application.id,
+              applicationNumber: application.applicationNumber,
+              leaseNumber: savedLease.leaseNumber,
+            },
+          }),
+        );
 
         const activeStatus = application.status;
         application.status = ApplicationStatus.ACTIVE;

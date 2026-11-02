@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { ParcelRecord } from '../lib/parcel-data';
+import { useApp } from './AppContext';
+import { Role } from '@sllas/contracts';
 
 interface ApplyForParcelModalProps {
   parcel: ParcelRecord;
@@ -17,6 +19,9 @@ export function ApplyForParcelModal({
   onClose,
   onSuccess,
 }: ApplyForParcelModalProps) {
+  const { currentUser } = useApp();
+  const isCitizen = !currentUser || currentUser.role === Role.CLIENT;
+  const isOfficerOrAdmin = !!currentUser && currentUser.role !== Role.CLIENT;
   const [intendedActivity, setIntendedActivity] = useState(
     parcel.leaseClassification?.permittedEnterprises?.[0] || 'Commercial Cropping & Grain Production'
   );
@@ -35,6 +40,10 @@ export function ApplyForParcelModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isOfficerOrAdmin) {
+      setErrorMsg('Self-service lease applications are strictly reserved for registered Citizens and Farmers. As an administrative officer, use the Allocation Workbench.');
+      return;
+    }
     try {
       setSubmitting(true);
       setErrorMsg(null);
@@ -166,10 +175,10 @@ export function ApplyForParcelModal({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Cadastre Land Allocation Request
+                  Citizen & Farmer Land Portal
                 </span>
                 <h2 style={{ fontSize: '1.375rem', color: '#ffffff', marginTop: '2px' }}>
-                  Apply for Free Land Parcel
+                  Apply for Agricultural Land Lease
                 </h2>
               </div>
               <button
@@ -180,6 +189,34 @@ export function ApplyForParcelModal({
                 ✕
               </button>
             </div>
+
+            {/* Officer Restriction Notice */}
+            {isOfficerOrAdmin && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '8px',
+                padding: '14px 18px',
+                marginBottom: '18px',
+                color: '#fca5a5',
+                fontSize: '0.8125rem',
+                lineHeight: 1.5,
+              }}>
+                <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', color: '#ffffff' }}>
+                  <span>🔒</span> Restricted Function — Citizens & Farmers Only
+                </div>
+                <div>
+                  Self-service land lease applications can only be submitted by registered <strong>Citizens and Farmers</strong>. As an authorized officer (<em>{currentUser?.role ? currentUser.role.replace('_', ' ') : 'Officer'}</em>), you cannot lodge personal lease applications. To allocate this parcel to a verified citizen, please navigate to the{' '}
+                  <Link
+                    href={`/officer/allocate?parcelId=${parcel.id}`}
+                    onClick={onClose}
+                    style={{ color: '#ffffff', fontWeight: 700, textDecoration: 'underline' }}
+                  >
+                    Allocation Workbench →
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* Selected Parcel Badge Card */}
             <div style={{
@@ -354,10 +391,14 @@ export function ApplyForParcelModal({
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={submitting || businessPlanSummary.length < 50}
-                  style={{ background: 'var(--primary-600)', borderColor: 'var(--primary-400)' }}
+                  disabled={submitting || isOfficerOrAdmin || businessPlanSummary.length < 50}
+                  style={{
+                    background: isOfficerOrAdmin ? 'rgba(255, 255, 255, 0.1)' : 'var(--primary-600)',
+                    borderColor: isOfficerOrAdmin ? 'rgba(255, 255, 255, 0.2)' : 'var(--primary-400)',
+                    cursor: isOfficerOrAdmin ? 'not-allowed' : 'pointer',
+                  }}
                 >
-                  {submitting ? 'Lodging Application…' : '✓ Submit Application for Parcel'}
+                  {isOfficerOrAdmin ? '🔒 Citizens / Farmers Only' : submitting ? 'Lodging Application…' : '✓ Submit Application for Parcel'}
                 </button>
               </div>
             </form>

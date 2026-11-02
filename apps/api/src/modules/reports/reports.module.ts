@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Lease } from '../applications/lease.entity';
 import { LeaseApplication } from '../applications/lease-application.entity';
 import { Parcel } from '../parcels/parcel.entity';
+import { AdminArea } from '../organizations/admin-area.entity';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Parcel, LeaseApplication, Lease])],
+  imports: [TypeOrmModule.forFeature([Parcel, LeaseApplication, Lease, AdminArea])],
   controllers: [ReportsController],
   providers: [ReportsService],
   exports: [ReportsService],

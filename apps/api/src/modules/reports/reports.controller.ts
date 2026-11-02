@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body } from '@nestjs/common';
 import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { DashboardData, ExportRequest, JobStatusResponse, Role } from '@sllas/contracts';
+import { DashboardData, ExportRequest, IdleLandReportResponse, JobStatusResponse, Role } from '@sllas/contracts';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ReportsService } from './reports.service';
 
@@ -12,14 +12,21 @@ export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('dashboard')
-  @Roles(Role.REGISTRY_OFFICER, Role.APPROVER, Role.SYSTEM_ADMIN, Role.AUDITOR)
+  @Roles(Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
   @ApiOperation({ summary: 'Get an operational dashboard summary for land registry staff' })
   async getDashboard(): Promise<DashboardData> {
     return this.reportsService.getDashboard();
   }
 
+  @Get('idle-land')
+  @Roles(Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
+  @ApiOperation({ summary: 'Get idle and available land inventory breakdown across Zimbabwean provinces' })
+  async getIdleLandReport(): Promise<IdleLandReportResponse> {
+    return this.reportsService.getIdleLandReport();
+  }
+
   @Post('export')
-  @Roles(Role.REGISTRY_OFFICER, Role.APPROVER, Role.SYSTEM_ADMIN, Role.AUDITOR)
+  @Roles(Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
   @ApiOperation({ summary: 'Queue an operational report export' })
   async exportReport(@Body() request: ExportRequest): Promise<JobStatusResponse> {
     return this.reportsService.exportReport(request);

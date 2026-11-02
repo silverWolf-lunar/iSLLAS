@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const apiBaseUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3001';
+    let apiBaseUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:3001').trim().replace(/\/$/, '');
+    if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
+      apiBaseUrl = `https://${apiBaseUrl}`;
+    }
 
     let res: Response | null = null;
     try {

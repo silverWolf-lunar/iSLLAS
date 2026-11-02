@@ -1,9 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AuditAction, EventType, LeaseStatus, ParcelStatus, Role, UserProfile, LeaseDetail, LeaseLegalDocument } from '@sllas/contracts';
+import { AuditAction, EventType, LeaseStatus, ParcelStatus, Role, UserProfile, LeaseDetail, LeaseLegalDocument, LeaseStatusHistoryEntry } from '@sllas/contracts';
 import { Lease } from '../applications/lease.entity';
 import { Parcel } from '../parcels/parcel.entity';
+import { LeaseStatusHistory } from './lease-status-history.entity';
 import { OutboxService } from '../outbox/outbox.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -14,6 +15,8 @@ export class LeasesService {
     private readonly leaseRepo: Repository<Lease>,
     @InjectRepository(Parcel)
     private readonly parcelRepo: Repository<Parcel>,
+    @InjectRepository(LeaseStatusHistory)
+    private readonly historyRepo: Repository<LeaseStatusHistory>,
     private readonly outboxService: OutboxService,
     private readonly auditService: AuditService,
   ) {}
@@ -73,7 +76,28 @@ export class LeasesService {
     }
 
     this.assertCanAccess(lease, user);
-    return this.toDetail(lease);
+    const detail = this.toDetail(lease);
+
+    const history = await this.historyRepo.find({
+      where: { leaseId: id },
+      relations: ['actor'],
+      order: { createdAt: 'ASC' },
+    });
+
+    detail.statusHistory = history.map(h => ({
+      id: h.id,
+      leaseId: h.leaseId,
+      fromStatus: h.fromStatus,
+      toStatus: h.toStatus,
+      actorId: h.actorId,
+      actorName: h.actor ? `${h.actor.firstName} ${h.actor.lastName}`.trim() : null,
+      reason: h.reason,
+      comments: h.comments,
+      metadata: h.metadata,
+      createdAt: h.createdAt.toISOString(),
+    }));
+
+    return detail;
   }
 
   async getPrintDocument(id: string, user: UserProfile): Promise<LeaseLegalDocument> {
@@ -294,6 +318,20 @@ export class LeasesService {
       await this.parcelRepo.save(lease.parcel);
     }
 
+    if (body.status && body.status !== fromStatus) {
+      await this.historyRepo.save(
+        this.historyRepo.create({
+          leaseId: savedLease.id,
+          fromStatus,
+          toStatus: savedLease.status,
+          actorId: user.id,
+          reason: body.termsConditions ? 'Terms and status updated' : `Status changed from ${fromStatus} to ${savedLease.status}`,
+          comments: body.termsConditions || null,
+          metadata: { fromStatus, toStatus: savedLease.status, leaseNumber: savedLease.leaseNumber },
+        }),
+      );
+    }
+
     await this.outboxService.enqueue({
       eventType: body.status === LeaseStatus.ACTIVE ? EventType.LEASE_CREATED : EventType.APPLICATION_STATUS_CHANGED,
       aggregateType: 'LEASE',
@@ -312,5 +350,46 @@ export class LeasesService {
     });
 
     return this.toDetail(savedLease);
+  }
+
+  /**
+   * Retrieve sequential audit status history for a lease
+   */
+  async getStatusHistory(id: string, user: UserProfile): Promise<LeaseStatusHistoryEntry[]> {
+    const lease = await this.leaseRepo.findOne({
+      where: { id },
+      relations: [
+        'parcel',
+        'parcel.province',
+        'parcel.district',
+        'clientProfile',
+        'clientProfile.user',
+      ],
+    });
+
+    if (!lease) {
+      throw new NotFoundException(`Lease ${id} not found`);
+    }
+
+    this.assertCanAccess(lease, user);
+
+    const history = await this.historyRepo.find({
+      where: { leaseId: id },
+      relations: ['actor'],
+      order: { createdAt: 'ASC' },
+    });
+
+    return history.map(h => ({
+      id: h.id,
+      leaseId: h.leaseId,
+      fromStatus: h.fromStatus,
+      toStatus: h.toStatus,
+      actorId: h.actorId,
+      actorName: h.actor ? `${h.actor.firstName} ${h.actor.lastName}`.trim() : null,
+      reason: h.reason,
+      comments: h.comments,
+      metadata: h.metadata,
+      createdAt: h.createdAt.toISOString(),
+    }));
   }
 }

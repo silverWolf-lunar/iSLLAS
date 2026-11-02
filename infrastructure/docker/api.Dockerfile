@@ -29,7 +29,11 @@ COPY packages/validation/package.json packages/validation/package.json
 COPY --from=build /workspace/packages/validation/dist packages/validation/dist
 COPY packages/config/package.json packages/config/package.json
 COPY --from=build /workspace/packages/config/dist packages/config/dist
+COPY database database
 RUN pnpm install --prod --filter @sllas/api... --frozen-lockfile
+
+# Ensure node user owns workspace to avoid EACCES issues
+RUN chown -R node:node /workspace
 
 ENV NODE_ENV=production
 EXPOSE 3001

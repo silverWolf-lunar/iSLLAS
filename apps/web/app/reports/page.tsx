@@ -4,20 +4,39 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '../components/AppContext';
 
+interface ProvinceIdleSummary {
+  provinceId: string;
+  provinceName: string;
+  totalParcels: number;
+  idleParcels: number;
+  totalHectares: number;
+  idleHectares: number;
+  utilizationRate: number;
+}
+
+interface LeaseExpiryForecastItem {
+  month: string;
+  count: number;
+}
+
 export default function OperationalReportsPage() {
   const { parcels, provinces } = useApp();
   const [waitingListCount, setWaitingListCount] = useState(0);
   const [leasesCount, setLeasesCount] = useState(0);
   const [totalRentUsd, setTotalRentUsd] = useState(0);
+  const [idleLandData, setIdleLandData] = useState<ProvinceIdleSummary[]>([]);
+  const [expiryForecast, setExpiryForecast] = useState<LeaseExpiryForecastItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchReportData() {
       try {
         setLoading(true);
-        const [wlRes, leasesRes] = await Promise.allSettled([
+        const [wlRes, leasesRes, idleRes, dashRes] = await Promise.allSettled([
           fetch('/api/backend/api/v1/applications/waiting-list'),
           fetch('/api/backend/api/v1/leases'),
+          fetch('/api/backend/api/v1/reports/idle-land'),
+          fetch('/api/backend/api/v1/reports/dashboard'),
         ]);
 
         if (wlRes.status === 'fulfilled' && wlRes.value.ok) {
@@ -32,6 +51,22 @@ export default function OperationalReportsPage() {
           const sum = items.reduce((acc: number, item: any) => acc + (Number(item.annualRentUsd) || 0), 0);
           setTotalRentUsd(sum);
         }
+
+        if (idleRes.status === 'fulfilled' && idleRes.value.ok) {
+          const idle = await idleRes.value.json();
+          if (idle && Array.isArray(idle.provinces)) {
+            setIdleLandData(idle.provinces);
+          } else if (Array.isArray(idle)) {
+            setIdleLandData(idle);
+          }
+        }
+
+        if (dashRes.status === 'fulfilled' && dashRes.value.ok) {
+          const dash = await dashRes.value.json();
+          if (dash?.leaseExpiryForecast && Array.isArray(dash.leaseExpiryForecast)) {
+            setExpiryForecast(dash.leaseExpiryForecast);
+          }
+        }
       } catch (err) {
         console.error('Failed to load report data', err);
       } finally {
@@ -41,11 +76,35 @@ export default function OperationalReportsPage() {
     fetchReportData();
   }, []);
 
+  // Compute metrics from backend or local fallback
   const totalHectares = parcels.reduce((sum, p) => sum + p.areaHectares, 0);
   const availableParcels = parcels.filter(p => p.status === 'AVAILABLE');
   const availableHectares = availableParcels.reduce((sum, p) => sum + p.areaHectares, 0);
   const leasedParcels = parcels.filter(p => p.status === 'LEASED' || p.status === 'ALLOCATED');
   const leasedHectares = leasedParcels.reduce((sum, p) => sum + p.areaHectares, 0);
+
+  // If backend idle report is available, use it; otherwise build from context
+  const provincialRows: ProvinceIdleSummary[] = idleLandData.length > 0
+    ? idleLandData
+    : provinces.map(prov => {
+        const provParcels = parcels.filter(p => p.province === prov.name || p.province === prov.id);
+        const provArea = provParcels.reduce((sum, p) => sum + p.areaHectares, 0);
+        const provAvail = provParcels.filter(p => p.status === 'AVAILABLE').reduce((sum, p) => sum + p.areaHectares, 0);
+        const provIdleCount = provParcels.filter(p => p.status === 'AVAILABLE').length;
+        const utilization = provArea > 0 ? Math.round(((provArea - provAvail) / provArea) * 100) : 0;
+        return {
+          provinceId: prov.id,
+          provinceName: prov.name,
+          totalParcels: provParcels.length,
+          idleParcels: provIdleCount,
+          totalHectares: provArea,
+          idleHectares: provAvail,
+          utilizationRate: utilization,
+        };
+      });
+
+  const totalIdleHectares = provincialRows.reduce((acc, r) => acc + r.idleHectares, 0);
+  const totalIdleParcels = provincialRows.reduce((acc, r) => acc + r.idleParcels, 0);
 
   return (
     <div className="page-stack">
@@ -72,7 +131,7 @@ export default function OperationalReportsPage() {
             Executive Operational & Provincial Reports
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Performance metrics across agricultural settlement schemes, land utilization, and statutory leasehold revenues.
+            National monitoring for idle agricultural land identification, settlement schemes, and statutory lease tracking across Zimbabwe.
           </p>
         </div>
 
@@ -97,6 +156,17 @@ export default function OperationalReportsPage() {
           </div>
         </div>
 
+        {/* Objective 1 KPI: Idle Land */}
+        <div className="glass-panel stat-card" style={{ borderColor: 'rgba(56, 189, 248, 0.3)' }}>
+          <div className="stat-label">Identified Idle Land</div>
+          <div className="stat-value" style={{ color: '#38bdf8' }}>
+            {(totalIdleHectares || availableHectares).toLocaleString()} <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>ha</span>
+          </div>
+          <div className="stat-trend" style={{ color: '#38bdf8' }}>
+            <span>{totalIdleParcels || availableParcels.length} idle/available parcels for allocation</span>
+          </div>
+        </div>
+
         <div className="glass-panel stat-card" style={{ borderColor: 'rgba(245, 158, 11, 0.3)' }}>
           <div className="stat-label">National Land Demand</div>
           <div className="stat-value" style={{ color: 'var(--accent-400)' }}>
@@ -113,7 +183,7 @@ export default function OperationalReportsPage() {
             {leasedHectares.toLocaleString()} <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>ha</span>
           </div>
           <div className="stat-trend">
-            <span>{leasedParcels.length} active 99-year leases</span>
+            <span>{leasesCount || leasedParcels.length} active 99-year leases</span>
           </div>
         </div>
 
@@ -123,59 +193,124 @@ export default function OperationalReportsPage() {
             ${totalRentUsd.toLocaleString()} <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>USD</span>
           </div>
           <div className="stat-trend">
-            <span>{leasesCount} statutory lease rolls</span>
+            <span>Statutory lease roll receivables</span>
           </div>
         </div>
       </div>
 
-      {/* Provincial Breakdown Table */}
+      {/* Objective 3: Lease Expiry Tracking Forecast */}
+      {expiryForecast.length > 0 && (
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.125rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <span>📅</span> 6-Month Statutory Lease Expiry Forecast
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
+                Anticipated 99-year lease renewals and expiry audit windows requiring notification under the Land Commission Act.
+              </p>
+            </div>
+            <Link href="/estates/leases" className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '6px 12px' }}>
+              View Lease Roll →
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+            {expiryForecast.map((item, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: '16px',
+                  borderRadius: '8px',
+                  background: 'rgba(15, 23, 42, 0.6)',
+                  border: item.count > 0 ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  {item.month}
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: item.count > 0 ? 'var(--accent-400)' : '#ffffff', margin: '8px 0 4px 0' }}>
+                  {item.count}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: item.count > 0 ? 'var(--accent-400)' : 'var(--text-dim)' }}>
+                  {item.count === 1 ? '1 lease expiring' : `${item.count} leases expiring`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Objective 1: Provincial Idle Land & Cadastre Distribution Table */}
       <div className="glass-panel" style={{ padding: '24px' }}>
-        <h3 style={{ fontSize: '1.125rem', color: '#ffffff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>🏛️</span> Provincial Cadastre & Allocation Distribution
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.125rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <span>🏛️</span> Provincial Idle Land & Cadastre Distribution
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', margin: '4px 0 0 0' }}>
+              Identification of idle and available state land across Zimbabwean provinces for settlement and allocation.
+            </p>
+          </div>
+          <Link href="/officer/allocate" className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '6px 14px' }}>
+            + Allocate Idle Land
+          </Link>
+        </div>
 
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid var(--border-card)' }}>
                 <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>PROVINCE</th>
-                <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>CODE</th>
-                <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>PARCELS</th>
+                <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>TOTAL PARCELS</th>
+                <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>IDLE PARCELS</th>
                 <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>TOTAL EXTENT</th>
                 <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>AVAILABLE IDLE LAND</th>
                 <th style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>UTILIZATION RATE</th>
               </tr>
             </thead>
             <tbody>
-              {provinces.map(prov => {
-                const provParcels = parcels.filter(p => p.province === prov.name || p.province === prov.id);
-                const provArea = provParcels.reduce((sum, p) => sum + p.areaHectares, 0);
-                const provAvail = provParcels.filter(p => p.status === 'AVAILABLE').reduce((sum, p) => sum + p.areaHectares, 0);
-                const utilization = provArea > 0 ? Math.round(((provArea - provAvail) / provArea) * 100) : 0;
+              {provincialRows.map((prov) => {
+                const provCode = provinces.find(p => p.name === prov.provinceName || p.id === prov.provinceId)?.code || 'ZW';
 
                 return (
-                  <tr key={prov.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <tr key={prov.provinceId} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                     <td style={{ padding: '12px 16px', fontWeight: 600, color: '#ffffff', fontSize: '0.875rem' }}>
-                      {prov.name}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--accent-400)' }}>
-                      {prov.code}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{prov.provinceName}</span>
+                        <span style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.6875rem',
+                          color: 'var(--accent-400)',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          padding: '1px 6px',
+                          borderRadius: '3px',
+                        }}>
+                          {provCode}
+                        </span>
+                      </div>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.875rem' }}>
-                      {provParcels.length}
+                      {prov.totalParcels}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: '0.875rem', color: prov.idleParcels > 0 ? '#38bdf8' : 'var(--text-muted)', fontWeight: prov.idleParcels > 0 ? 600 : 400 }}>
+                      {prov.idleParcels}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.875rem' }}>
-                      {provArea.toLocaleString()} ha
+                      {prov.totalHectares.toLocaleString()} ha
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: '0.875rem', color: 'var(--primary-400)' }}>
-                      {provAvail.toLocaleString()} ha
+                    <td style={{ padding: '12px 16px', fontSize: '0.875rem', color: prov.idleHectares > 0 ? 'var(--primary-400)' : 'var(--text-muted)', fontWeight: prov.idleHectares > 0 ? 600 : 400 }}>
+                      {prov.idleHectares.toLocaleString()} ha
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ flex: 1, height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${utilization}%`, height: '100%', background: 'var(--primary-400)' }} />
+                          <div style={{ width: `${Math.min(100, Math.max(0, prov.utilizationRate))}%`, height: '100%', background: 'var(--primary-400)' }} />
                         </div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', width: '36px' }}>{utilization}%</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', width: '42px', textAlign: 'right' }}>
+                          {prov.utilizationRate}%
+                        </span>
                       </div>
                     </td>
                   </tr>

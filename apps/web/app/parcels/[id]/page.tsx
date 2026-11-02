@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useApp } from '../../components/AppContext';
-import { ParcelStatus } from '@sllas/contracts';
+import { ParcelStatus, Role } from '@sllas/contracts';
 import { ApplyForParcelModal } from '../../components/ApplyForParcelModal';
 
 const SpatialMap = dynamic(
@@ -16,7 +16,7 @@ const SpatialMap = dynamic(
 export default function ParcelDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { parcels, submitParcel } = useApp();
+  const { parcels, submitParcel, currentUser } = useApp();
 
   const parcelId = params?.id as string;
   const parcel = parcels.find(p => p.id === parcelId);
@@ -114,21 +114,25 @@ export default function ParcelDetailPage() {
 
           {parcel.status === ParcelStatus.AVAILABLE && (
             <>
-              <button
-                type="button"
-                onClick={() => setShowApplyModal(true)}
-                className="btn btn-primary"
-                style={{ background: 'var(--primary-600)', borderColor: 'var(--primary-400)', fontWeight: 700 }}
-              >
-                🌱 Apply for {parcel.leaseClassification.shortName}
-              </button>
-              <Link
-                href="/officer/allocate"
-                className="btn btn-outline"
-                style={{ borderColor: 'rgba(249, 115, 22, 0.4)', color: '#fdba74' }}
-              >
-                Allocate Lease
-              </Link>
+              {currentUser?.role === Role.CLIENT && (
+                <button
+                  type="button"
+                  onClick={() => setShowApplyModal(true)}
+                  className="btn btn-primary"
+                  style={{ background: 'var(--primary-600)', borderColor: 'var(--primary-400)', fontWeight: 700 }}
+                >
+                  🌱 Apply for {parcel.leaseClassification.shortName}
+                </button>
+              )}
+              {(currentUser?.role === Role.REGISTRY_OFFICER || currentUser?.role === Role.SYSTEM_ADMIN) && (
+                <Link
+                  href={`/officer/allocate?parcelId=${parcel.id}`}
+                  className="btn btn-accent"
+                  style={{ fontWeight: 600 }}
+                >
+                  ⚖️ Allocate Lease
+                </Link>
+              )}
             </>
           )}
         </div>

@@ -1,9 +1,40 @@
 services:
+  # ==========================================
+  # 1. NestJS Backend API Service
+  # ==========================================
+  - type: web
+    name: sllas-api
+    runtime: docker
+    dockerfilePath: ./infrastructure/docker/api.Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /api/docs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WEB_APP_URL
+        fromService:
+          type: web
+          name: sllas-web
+          property: host
+
+  # ==========================================
+  # 2. Next.js Web Frontend Service
+  # ==========================================
   - type: web
     name: sllas-web
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
+    region: oregon
     envVars:
       - key: NODE_ENV
         value: production
@@ -12,7 +43,11 @@ services:
       - key: NEXTAUTH_SECRET
         generateValue: true
       - key: NEXTAUTH_URL
-        value: "https://isllas.onrender.com"
+        sync: false
       - key: API_INTERNAL_URL
-        value: "http://localhost:3001"
+        fromService:
+          type: web
+          name: sllas-api
+          property: host
+
 

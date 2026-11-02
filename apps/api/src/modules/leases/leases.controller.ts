@@ -38,6 +38,13 @@ export class LeasesController {
     return this.leasesService.findOne(id, user);
   }
 
+  @Get(':id/history')
+  @Roles(Role.CLIENT, Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
+  @ApiOperation({ summary: 'Get lease status transition history' })
+  getStatusHistory(@Param('id') id: string, @CurrentUser() user: UserProfile) {
+    return this.leasesService.getStatusHistory(id, user);
+  }
+
   @Get(':id/print')
   @Roles(Role.CLIENT, Role.REGISTRY_OFFICER, Role.APPROVER, Role.ESTATES_OFFICER, Role.SYSTEM_ADMIN, Role.AUDITOR)
   @ApiOperation({ summary: 'Get official print-ready legal lease agreement for Republic of Zimbabwe' })

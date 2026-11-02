@@ -377,6 +377,7 @@ export interface Lease {
 export interface LeaseDetail extends Lease {
   documents?: LeaseDocument[];
   renewals?: LeaseRenewalSummary[];
+  statusHistory?: LeaseStatusHistoryEntry[];
   termsConditions?: string | null;
   approvedBy?: string | null;
   approvedAt?: string | null;
@@ -531,15 +532,50 @@ export interface DownloadResponse {
 
 // ─── Reports ───
 
+export interface IdleLandProvinceSummary {
+  provinceId: string;
+  provinceName: string;
+  totalParcels: number;
+  idleParcels: number;
+  totalHectares: number;
+  idleHectares: number;
+  utilizationRate: number;
+}
+
+export interface IdleLandReportResponse {
+  summary: {
+    totalParcels: number;
+    idleParcels: number;
+    totalHectares: number;
+    idleHectares: number;
+    overallUtilizationRate: number;
+  };
+  provinces: IdleLandProvinceSummary[];
+}
+
 export interface DashboardData {
   parcelsByStatus: Record<string, number>;
   parcelsByProvince: Record<string, number>;
   idleLandHectares: number;
+  idleLandByProvince: IdleLandProvinceSummary[];
   applicationPipeline: Record<string, number>;
   avgProcessingDays: number;
   leaseExpiryForecast: Array<{ month: string; count: number }>;
   approvalRate: number;
   rejectionRate: number;
+}
+
+export interface LeaseStatusHistoryEntry {
+  id: string;
+  leaseId: string;
+  fromStatus: LeaseStatus | null;
+  toStatus: LeaseStatus;
+  actorId: string | null;
+  actorName: string | null;
+  reason: string | null;
+  comments?: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 export interface ExportRequest {

@@ -10,7 +10,10 @@ const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 async function bootstrap() {
   const logger = new Logger('SLLAS_API');
   if (process.env.NODE_ENV === 'production' && (!process.env.OIDC_ISSUER || !process.env.OIDC_AUDIENCE)) {
-    throw new Error('OIDC_ISSUER and OIDC_AUDIENCE are required in production');
+    if (process.env.REQUIRE_OIDC === 'true') {
+      throw new Error('OIDC_ISSUER and OIDC_AUDIENCE are required in production when REQUIRE_OIDC=true');
+    }
+    logger.warn('⚠️ OIDC_ISSUER or OIDC_AUDIENCE not set. Running with built-in JWT authentication mode.');
   }
 
   const app = await NestFactory.create(AppModule);

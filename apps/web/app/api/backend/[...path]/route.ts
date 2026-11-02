@@ -39,7 +39,10 @@ async function proxyApiRequest(
     process.env.NEXTAUTH_SECRET ||
     process.env.JWT_SECRET ||
     'sllas-production-session-fallback-secret-key-32chars-min';
-  const apiBaseUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3001';
+  let apiBaseUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:3001').trim().replace(/\/$/, '');
+  if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
+    apiBaseUrl = `https://${apiBaseUrl}`;
+  }
 
   const sessionToken = await getToken({ req: request, secret });
   if (!sessionToken || typeof sessionToken.accessToken !== 'string') {

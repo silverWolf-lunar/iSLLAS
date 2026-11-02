@@ -9,10 +9,11 @@ import { ApplicationsController } from './applications.controller';
 import { ApplicationsService } from './applications.service';
 import { LeaseApplication } from './lease-application.entity';
 import { Lease } from './lease.entity';
+import { LeaseStatusHistory } from '../leases/lease-status-history.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([LeaseApplication, ApplicationStatusHistory, Lease, ClientProfile, Parcel]),
+    TypeOrmModule.forFeature([LeaseApplication, ApplicationStatusHistory, Lease, LeaseStatusHistory, ClientProfile, Parcel]),
     OutboxModule,
     AuditModule,
   ],

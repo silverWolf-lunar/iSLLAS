@@ -55,7 +55,10 @@ const authProviders: any[] = [
         throw new Error('Password cannot be empty');
       }
 
-      const apiBaseUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3001';
+      let apiBaseUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:3001').trim().replace(/\/$/, '');
+      if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
+        apiBaseUrl = `https://${apiBaseUrl}`;
+      }
 
       try {
         const controller = new AbortController();
