@@ -166,6 +166,7 @@ CREATE TABLE IF NOT EXISTS "users" (
   "office_id" UUID REFERENCES "organizations"("id") ON DELETE SET NULL,
   "province_id" UUID REFERENCES "admin_areas"("id") ON DELETE SET NULL,
   "district_id" UUID REFERENCES "admin_areas"("id") ON DELETE SET NULL,
+  "password_hash" TEXT,
   "last_login_at" TIMESTAMPTZ,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
   "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -494,13 +495,17 @@ INSERT INTO "activity_profiles" ("name", "display_name", "description", "hard_co
 ON CONFLICT ("name") DO NOTHING;
 
 -- Seed Default Administrative Users
-INSERT INTO "users" ("id", "email", "first_name", "last_name", "role", "status") VALUES
-  ('00000000-0000-0000-0000-000000000001', 'admin@sllas.gov.zw', 'System', 'Administrator', 'SYSTEM_ADMIN', 'ACTIVE'),
-  ('00000000-0000-0000-0000-000000000002', 'officer@sllas.gov.zw', 'Tendai', 'Mutasa', 'REGISTRY_OFFICER', 'ACTIVE'),
-  ('00000000-0000-0000-0000-000000000003', 'approver@sllas.gov.zw', 'Chipo', 'Sibanda', 'APPROVER', 'ACTIVE'),
-  ('00000000-0000-0000-0000-000000000004', 'citizen@sllas.gov.zw', 'Farai', 'Moyo', 'CLIENT', 'ACTIVE'),
-  ('00000000-0000-0000-0000-000000000005', 'estates@sllas.gov.zw', 'Kudakwashe', 'Ncube', 'ESTATES_OFFICER', 'ACTIVE')
-ON CONFLICT ("email") DO NOTHING;
+INSERT INTO "users" ("id", "email", "first_name", "last_name", "role", "status", "password_hash") VALUES
+  ('00000000-0000-0000-0000-000000000001', 'admin@sllas.gov.zw', 'System', 'Administrator', 'SYSTEM_ADMIN', 'ACTIVE', crypt('GovernmentSecure2026!', gen_salt('bf', 12))),
+  ('00000000-0000-0000-0000-000000000002', 'officer@sllas.gov.zw', 'Tendai', 'Mutasa', 'REGISTRY_OFFICER', 'ACTIVE', crypt('GovernmentSecure2026!', gen_salt('bf', 12))),
+  ('00000000-0000-0000-0000-000000000003', 'approver@sllas.gov.zw', 'Chipo', 'Sibanda', 'APPROVER', 'ACTIVE', crypt('GovernmentSecure2026!', gen_salt('bf', 12))),
+  ('00000000-0000-0000-0000-000000000004', 'citizen@sllas.gov.zw', 'Farai', 'Moyo', 'CLIENT', 'ACTIVE', crypt('GovernmentSecure2026!', gen_salt('bf', 12))),
+  ('00000000-0000-0000-0000-000000000005', 'estates@sllas.gov.zw', 'Kudakwashe', 'Ncube', 'ESTATES_OFFICER', 'ACTIVE', crypt('GovernmentSecure2026!', gen_salt('bf', 12))),
+  ('00000000-0000-0000-0000-000000000006', 'miller@isllas.com', 'Miller', 'Administrator', 'SYSTEM_ADMIN', 'ACTIVE', crypt('myadmin', gen_salt('bf', 12)))
+ON CONFLICT ("email") DO UPDATE SET
+  "password_hash" = EXCLUDED."password_hash",
+  "role" = EXCLUDED."role",
+  "status" = EXCLUDED."status";
 
 -- Seed Client Profile for Citizen
 INSERT INTO "client_profiles" (

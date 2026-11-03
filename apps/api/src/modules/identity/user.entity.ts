@@ -54,6 +54,9 @@ export class User {
   @Index('idx_users_district_id')
   districtId: string | null;
 
+  @Column({ name: 'password_hash', type: 'text', nullable: true })
+  passwordHash: string | null;
+
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;
 

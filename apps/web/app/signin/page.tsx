@@ -3,7 +3,7 @@
 import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { Logo } from '../components/Logo';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
@@ -325,7 +325,10 @@ function SignInContent() {
           sessionStorage.removeItem('sllas_signin_failed_attempts');
           sessionStorage.removeItem('sllas_signin_lockout_until');
         }
-        router.push(targetDashboard);
+        const session = await getSession();
+        const userRole = (session?.user as any)?.role as Role | undefined;
+        const finalDashboard = userRole ? getDefaultDashboardForRole(userRole) : targetDashboard;
+        router.push(finalDashboard);
       }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Authentication failed. Please check your credentials.');

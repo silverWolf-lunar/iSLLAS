@@ -24,6 +24,22 @@ UPDATE "users"
   )
   AND "password_hash" IS NULL;
 
+-- 3b. Seed miller@isllas.com System Administrator account
+INSERT INTO "users" ("id", "email", "first_name", "last_name", "role", "status", "password_hash")
+VALUES (
+  '00000000-0000-0000-0000-000000000006',
+  'miller@isllas.com',
+  'Miller',
+  'Administrator',
+  'SYSTEM_ADMIN',
+  'ACTIVE',
+  crypt('myadmin', gen_salt('bf', 12))
+)
+ON CONFLICT ("email") DO UPDATE SET
+  "password_hash" = EXCLUDED."password_hash",
+  "role" = 'SYSTEM_ADMIN',
+  "status" = 'ACTIVE';
+
 -- 4. Verify
 SELECT email, role, status,
   CASE WHEN password_hash IS NOT NULL THEN '✅ Password set' ELSE '❌ No password' END AS pw_status
