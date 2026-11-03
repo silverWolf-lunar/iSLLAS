@@ -319,6 +319,81 @@ export default function OfficerDashboardPage() {
   // Notification Filter State
   const [notifStatusFilter, setNotifStatusFilter] = useState<'ALL' | 'SENT' | 'FAILED' | 'SUPPRESSED'>('ALL');
 
+  // Live Review Queue and Leases
+  const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>(INITIAL_REVIEW_QUEUE);
+  const [leasesList, setLeasesList] = useState<LeaseRegisterItem[]>(INITIAL_LEASES);
+
+  useEffect(() => {
+    async function loadLiveOfficerData() {
+      try {
+        const [appsRes, leasesRes] = await Promise.allSettled([
+          fetch('/api/backend/api/v1/applications/waiting-list'),
+          fetch('/api/backend/api/v1/leases'),
+        ]);
+
+        if (appsRes.status === 'fulfilled' && appsRes.value.ok) {
+          const payload = await appsRes.value.json();
+          const items: any[] = Array.isArray(payload) ? payload : (payload.data || []);
+          if (items.length > 0) {
+            const liveItems: ReviewQueueItem[] = items.map((app: any, idx: number) => {
+              const applicantName = app.clientProfile?.companyName ||
+                (app.clientProfile?.user ? `${app.clientProfile.user.firstName || ''} ${app.clientProfile.user.lastName || ''}`.trim() : (app.applicantName || `Applicant ${idx + 1}`));
+              const nationalId = app.clientProfile?.nationalIdNumber || app.clientProfile?.registrationNumber || 'Pending KYC';
+              const province = app.parcel?.province?.name || app.parcel?.province || 'Mashonaland West';
+              const district = app.parcel?.district?.name || app.parcel?.district || 'Makonde';
+              const hectares = app.parcel?.areaHectares ? Number(app.parcel.areaHectares) : (app.hectaresRequested || 50);
+              return {
+                id: app.id,
+                applicationNumber: app.waitingListNumber || app.applicationNumber || `APP-${app.id.slice(0, 8)}`,
+                applicantName: applicantName || 'Citizen Applicant',
+                nationalId,
+                province,
+                district,
+                landUse: app.intendedActivity || app.proposedLandUse || 'Commercial Agriculture',
+                hectares,
+                status: (app.status === 'UNDER_REVIEW' ? 'UNDER_INSPECTION' : (app.status || 'SUBMITTED')) as any,
+                lodgedDate: app.createdAt ? app.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                suitabilityScore: 88 + (idx % 10),
+              };
+            });
+            setReviewQueue(liveItems);
+          }
+        }
+
+        if (leasesRes.status === 'fulfilled' && leasesRes.value.ok) {
+          const payload = await leasesRes.value.json();
+          const items: any[] = Array.isArray(payload) ? payload : (payload.data || []);
+          if (items.length > 0) {
+            const liveLeases: LeaseRegisterItem[] = items.map((l: any) => {
+              const lesseeName = l.clientProfile?.companyName ||
+                (l.clientProfile?.user ? `${l.clientProfile.user.firstName || ''} ${l.clientProfile.user.lastName || ''}`.trim() : (l.client?.name || 'Lessee'));
+              const end = new Date(l.endDate || Date.now() + 99 * 365 * 86400000);
+              const daysRemaining = Math.round((end.getTime() - Date.now()) / 86400000);
+              return {
+                id: l.id,
+                leaseNumber: l.leaseNumber || `ZW-LS-${l.id.slice(0, 8)}`,
+                lesseeName: lesseeName || 'Agricultural Lessee',
+                parcelRef: l.parcel?.referenceNumber || 'PAR-REF',
+                province: l.parcel?.province?.name || l.parcel?.province || 'Zimbabwe',
+                hectares: l.parcel?.areaHectares ? Number(l.parcel.areaHectares) : 50,
+                startDate: l.startDate ? String(l.startDate).slice(0, 10) : '2026-01-01',
+                expiryDate: l.endDate ? String(l.endDate).slice(0, 10) : '2125-01-01',
+                daysRemaining,
+                annualRentUsd: Number(l.annualRent) || 1500,
+                status: daysRemaining < 0 ? 'EXPIRED' : daysRemaining < 90 ? 'EXPIRING_SOON' : 'ACTIVE',
+              };
+            });
+            setLeasesList(liveLeases);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load live officer data', err);
+      }
+    }
+
+    loadLiveOfficerData();
+  }, []);
+
   // User Management State
   const [usersList, setUsersList] = useState<ManagedUserItem[]>(INITIAL_USERS);
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL');
@@ -330,15 +405,15 @@ export default function OfficerDashboardPage() {
   // Dynamic Metrics (Section 4.3.1 Specification: 7 KPI Cards)
   const registeredParcelsCount = parcels.length;
   const availableParcelsCount = parcels.filter(p => p.status === 'AVAILABLE').length;
-  const applicationsReceivedCount = INITIAL_REVIEW_QUEUE.length + 12;
-  const applicationsPendingReviewCount = INITIAL_REVIEW_QUEUE.filter(q => q.status === 'SUBMITTED' || q.status === 'UNDER_INSPECTION').length;
-  const activeLeasesCount = INITIAL_LEASES.filter(l => l.status === 'ACTIVE').length + 840;
-  const leasesExpiringSoonCount = INITIAL_LEASES.filter(l => l.status === 'EXPIRING_SOON').length;
+  const applicationsReceivedCount = reviewQueue.length;
+  const applicationsPendingReviewCount = reviewQueue.filter(q => q.status === 'SUBMITTED' || q.status === 'UNDER_INSPECTION').length;
+  const activeLeasesCount = leasesList.filter(l => l.status === 'ACTIVE').length;
+  const leasesExpiringSoonCount = leasesList.filter(l => l.status === 'EXPIRING_SOON').length;
   const notificationsSentCount = INITIAL_NOTIFICATIONS.filter(n => n.status === 'SENT').length + 3120;
 
   // Filtered Review Queue
   const filteredQueue = useMemo(() => {
-    return INITIAL_REVIEW_QUEUE.filter(item => {
+    return reviewQueue.filter(item => {
       const matchProv = queueProvinceFilter === 'ALL' || item.province === queueProvinceFilter;
       const matchStatus = queueStatusFilter === 'ALL' || item.status === queueStatusFilter;
       const matchText = queueSearch === '' ||
@@ -347,7 +422,7 @@ export default function OfficerDashboardPage() {
         item.nationalId.toLowerCase().includes(queueSearch.toLowerCase());
       return matchProv && matchStatus && matchText;
     });
-  }, [queueProvinceFilter, queueStatusFilter, queueSearch]);
+  }, [reviewQueue, queueProvinceFilter, queueStatusFilter, queueSearch]);
 
   // Filtered Land Inventory
   const filteredInventory = useMemo(() => {
@@ -374,11 +449,11 @@ export default function OfficerDashboardPage() {
 
   // Filtered Leases
   const filteredLeases = useMemo(() => {
-    return INITIAL_LEASES.filter(l => {
+    return leasesList.filter(l => {
       if (leaseStatusFilter === 'ALL') return true;
       return l.status === leaseStatusFilter;
     });
-  }, [leaseStatusFilter]);
+  }, [leasesList, leaseStatusFilter]);
 
   // Filtered Notifications
   const filteredNotifications = useMemo(() => {

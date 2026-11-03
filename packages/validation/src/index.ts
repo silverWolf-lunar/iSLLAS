@@ -355,7 +355,7 @@ export const updateOfficeSchema = z.object({
 export const clientDocumentSchema = z.object({
   type: z.nativeEnum(ClientDocumentType),
   fileName: z.string().min(1).max(255),
-  fileUrl: z.string().url(),
+  fileUrl: z.string().min(1).max(2048),
   fileSizeBytes: z.number().int().nonnegative().optional(),
   mimeType: z.string().max(100).optional(),
 });

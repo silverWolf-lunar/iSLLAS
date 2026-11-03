@@ -139,7 +139,7 @@ export default function ClientKycPage() {
         body: JSON.stringify({
           fileName: uploadFile.name,
           mimeType: uploadFile.type || 'application/octet-stream',
-          contentBase64: base64Data,
+          base64Data,
         }),
       });
 
@@ -149,6 +149,8 @@ export default function ClientKycPage() {
       }
 
       const uploadResult = await uploadRes.json();
+      const uploadData = uploadResult?.data ?? uploadResult;
+      const fileUrl = uploadData?.fileUrl || `/api/backend/api/v1/uploads/files/${uploadFile.name}`;
 
       // 2. Attach document to client profile
       const attachRes = await fetch('/api/backend/api/v1/client-profiles/me/documents', {
@@ -157,9 +159,9 @@ export default function ClientKycPage() {
         body: JSON.stringify({
           type: docType,
           fileName: uploadFile.name,
-          fileSize: uploadFile.size,
+          fileUrl,
+          fileSizeBytes: uploadFile.size,
           mimeType: uploadFile.type || 'application/octet-stream',
-          storageKey: uploadResult.storageKey,
         }),
       });
 

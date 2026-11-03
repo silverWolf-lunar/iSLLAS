@@ -71,11 +71,13 @@ export default function OfficerApplicantsPage() {
       setErrorMsg(null);
 
       const res = await fetch(`/api/backend/api/v1/client-profiles/${selectedProfile.id}/verification`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          decision: status,
           status,
-          notes: verificationNotes || `Processed by Registry Officer on ${new Date().toISOString()}`,
+          reason: verificationNotes || (status === 'VERIFIED' ? `Verified by Resettlement Officer on ${new Date().toLocaleDateString()}` : 'Statutory requirements not satisfied'),
+          notes: verificationNotes || (status === 'VERIFIED' ? `Verified by Resettlement Officer on ${new Date().toLocaleDateString()}` : 'Statutory requirements not satisfied'),
         }),
       });
 

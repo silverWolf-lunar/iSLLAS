@@ -44,54 +44,73 @@ async function proxyApiRequest(
     apiBaseUrl = `https://${apiBaseUrl}`;
   }
 
+  const joinedPath = path.join('/');
+  const isPublicPath =
+    joinedPath.startsWith('api/v1/leases/verify/') ||
+    joinedPath.startsWith('api/v1/uploads/files/') ||
+    joinedPath.startsWith('api/v1/parcels/categories') ||
+    joinedPath.startsWith('api/v1/recommendations') ||
+    (joinedPath === 'api/v1/parcels' && request.method === 'GET') ||
+    (joinedPath === 'api/v1/provinces' && request.method === 'GET') ||
+    (joinedPath === 'api/v1/districts' && request.method === 'GET') ||
+    joinedPath === 'api/v1/auth/login' ||
+    joinedPath === 'api/v1/auth/register' ||
+    joinedPath === 'api/v1/audit/log' ||
+    joinedPath.startsWith('health') ||
+    joinedPath.startsWith('metrics');
+
   const sessionToken = await getToken({ req: request, secret });
   if (!sessionToken || typeof sessionToken.accessToken !== 'string') {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    if (!isPublicPath) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
   }
 
-  let token = sessionToken as JWT & {
+  let token = sessionToken as (JWT & {
     accessToken: string;
     refreshToken?: string;
     accessTokenExpires?: number;
-  };
+  }) | null;
   let refreshSession = false;
 
-  if ((token.accessTokenExpires ?? 0) <= Date.now() + 30_000) {
+  if (token && (token.accessTokenExpires ?? 0) <= Date.now() + 30_000) {
     if (!token.refreshToken || !process.env.KEYCLOAK_CLIENT_ID || !process.env.KEYCLOAK_CLIENT_SECRET) {
-      return NextResponse.json({ error: 'Session expired; sign in again' }, { status: 401 });
+      if (!isPublicPath) {
+        return NextResponse.json({ error: 'Session expired; sign in again' }, { status: 401 });
+      }
+    } else {
+      const refreshUrl = `${process.env.OIDC_ISSUER}/protocol/openid-connect/token`;
+      const refreshResponse = await fetch(refreshUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: process.env.KEYCLOAK_CLIENT_ID,
+          client_secret: process.env.KEYCLOAK_CLIENT_SECRET,
+          refresh_token: token.refreshToken,
+        }),
+        cache: 'no-store',
+      });
+
+      if (!refreshResponse.ok) {
+        if (!isPublicPath) {
+          return NextResponse.json({ error: 'Session expired; sign in again' }, { status: 401 });
+        }
+      } else {
+        const refreshed = await refreshResponse.json();
+        if (typeof refreshed.access_token === 'string' && typeof refreshed.expires_in === 'number') {
+          token = {
+            ...token,
+            accessToken: refreshed.access_token,
+            accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
+            refreshToken: typeof refreshed.refresh_token === 'string'
+              ? refreshed.refresh_token
+              : token.refreshToken,
+          };
+          refreshSession = true;
+        }
+      }
     }
-
-    const refreshUrl = `${process.env.OIDC_ISSUER}/protocol/openid-connect/token`;
-    const refreshResponse = await fetch(refreshUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        client_id: process.env.KEYCLOAK_CLIENT_ID,
-        client_secret: process.env.KEYCLOAK_CLIENT_SECRET,
-        refresh_token: token.refreshToken,
-      }),
-      cache: 'no-store',
-    });
-
-    if (!refreshResponse.ok) {
-      return NextResponse.json({ error: 'Session expired; sign in again' }, { status: 401 });
-    }
-
-    const refreshed = await refreshResponse.json();
-    if (typeof refreshed.access_token !== 'string' || typeof refreshed.expires_in !== 'number') {
-      throw new Error('Keycloak returned an invalid token refresh response');
-    }
-
-    token = {
-      ...token,
-      accessToken: refreshed.access_token,
-      accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
-      refreshToken: typeof refreshed.refresh_token === 'string'
-        ? refreshed.refresh_token
-        : token.refreshToken,
-    };
-    refreshSession = true;
   }
 
   const targetUrl = new URL(
@@ -99,9 +118,11 @@ async function proxyApiRequest(
     `${apiBaseUrl.replace(/\/$/, '')}/`,
   );
   const headers = new Headers({
-    Authorization: `Bearer ${token.accessToken}`,
     Accept: request.headers.get('accept') ?? 'application/json',
   });
+  if (token?.accessToken) {
+    headers.set('Authorization', `Bearer ${token.accessToken}`);
+  }
   for (const headerName of ['content-type', 'x-correlation-id', 'idempotency-key']) {
     const value = request.headers.get(headerName);
     if (value) headers.set(headerName, value);
@@ -136,7 +157,7 @@ async function proxyApiRequest(
     { status: upstream.status, headers: responseHeaders },
   );
 
-  if (refreshSession) {
+  if (refreshSession && token) {
     const secure = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
     const cookieName = secure
       ? '__Secure-next-auth.session-token'

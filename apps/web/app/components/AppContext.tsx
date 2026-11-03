@@ -181,13 +181,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Standalone & Session Fallback: If backend is offline or in standalone deployment,
       // populate the authenticated user identity directly from the active NextAuth session.
       if (session?.user) {
-        let activeRole = (session.user as any).role || Role.SYSTEM_ADMIN;
-        try {
-          const savedRole = localStorage.getItem('sllas_dev_role');
-          if (savedRole && Object.values(Role).includes(savedRole as Role)) {
-            activeRole = savedRole as Role;
-          }
-        } catch {}
+        const sessionRole = (session.user as any).role;
+        let activeRole = sessionRole || Role.SYSTEM_ADMIN;
+        if (!sessionRole) {
+          try {
+            const savedRole = localStorage.getItem('sllas_dev_role');
+            if (savedRole && Object.values(Role).includes(savedRole as Role)) {
+              activeRole = savedRole as Role;
+            }
+          } catch {}
+        }
 
         const userName =
           session.user.name ||
@@ -198,8 +201,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           name: userName,
           role: activeRole,
           office: activeRole === Role.CLIENT ? 'Citizen Land Portal' : 'National Cadastre Office • Harare',
-          provinceId: 'ZW-HA',
-          districtId: 'Harare Urban',
+          provinceId: (session.user as any).provinceId || 'ZW-HA',
+          districtId: (session.user as any).districtId || 'Harare Urban',
         });
         setProfileError(null);
       } else {

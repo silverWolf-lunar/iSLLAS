@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '../../components/AppContext';
 
 interface WaitingApplication {
@@ -34,13 +35,17 @@ interface AvailableParcel {
 
 export default function OfficerAllocationWorkbenchPage() {
   const { provinces, currentUser } = useApp();
+  const searchParams = useSearchParams();
+  const paramAppId = searchParams?.get('appId');
+  const paramParcelId = searchParams?.get('parcelId');
+
   const [applications, setApplications] = useState<WaitingApplication[]>([]);
   const [parcels, setParcels] = useState<AvailableParcel[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Selected for allocation
-  const [selectedAppId, setSelectedAppId] = useState<string>('');
-  const [selectedParcelId, setSelectedParcelId] = useState<string>('');
+  const [selectedAppId, setSelectedAppId] = useState<string>(paramAppId || '');
+  const [selectedParcelId, setSelectedParcelId] = useState<string>(paramParcelId || '');
 
   // Allocation Terms
   const [annualRentUsd, setAnnualRentUsd] = useState<number>(1500);
@@ -70,7 +75,9 @@ export default function OfficerAllocationWorkbenchPage() {
         const a = await appsRes.value.json();
         const appList = Array.isArray(a) ? a : (a.data || []);
         setApplications(appList);
-        if (appList.length > 0 && !selectedAppId) {
+        if (paramAppId && appList.some((app: any) => app.id === paramAppId)) {
+          setSelectedAppId(paramAppId);
+        } else if (appList.length > 0 && !selectedAppId) {
           setSelectedAppId(appList[0].id);
         }
       }
@@ -79,7 +86,9 @@ export default function OfficerAllocationWorkbenchPage() {
         const p = await parcelsRes.value.json();
         const parcelList = Array.isArray(p) ? p : (p.data || []);
         setParcels(parcelList);
-        if (parcelList.length > 0 && !selectedParcelId) {
+        if (paramParcelId && parcelList.some((par: any) => par.id === paramParcelId)) {
+          setSelectedParcelId(paramParcelId);
+        } else if (parcelList.length > 0 && !selectedParcelId) {
           setSelectedParcelId(parcelList[0].id);
         }
       }

@@ -24,50 +24,6 @@ const ZIMBABWE_PROVINCES = [
   'Midlands',
 ];
 
-interface DemoAccount {
-  label: string;
-  role: Role;
-  email: string;
-  icon: string;
-  badgeColor: string;
-  description: string;
-}
-
-const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    label: 'System Administrator',
-    role: Role.SYSTEM_ADMIN,
-    email: 'admin@sllas.gov.zw',
-    icon: '🛡️',
-    badgeColor: '#ef4444',
-    description: 'Executive national console & user management',
-  },
-  {
-    label: 'Resettlement Officer',
-    role: Role.REGISTRY_OFFICER,
-    email: 'officer@sllas.gov.zw',
-    icon: '📋',
-    badgeColor: '#10b981',
-    description: 'Cadastre registration, verification & allocation',
-  },
-  {
-    label: 'Estates Officer',
-    role: Role.ESTATES_OFFICER,
-    email: 'estates@sllas.gov.zw',
-    icon: '📜',
-    badgeColor: '#8b5cf6',
-    description: 'Master waiting list & 99-year legal leases',
-  },
-  {
-    label: 'Client / Citizen',
-    role: Role.CLIENT,
-    email: 'citizen@sllas.gov.zw',
-    icon: '🧑‍🌾',
-    badgeColor: '#22c55e',
-    description: 'Farmer land applicant & lease tracking portal',
-  },
-];
-
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -377,19 +333,6 @@ function SignInContent() {
     }
   };
 
-  const handleQuickDemoLogin = (demo: DemoAccount) => {
-    // Pre-fill the email only — the user must enter their own password
-    setEmail(demo.email);
-    setPassword('');
-    setRole(demo.role);
-    setErrorMessage(null);
-    // Focus the password field so the user knows to type their password
-    setTimeout(() => {
-      const pwInput = document.getElementById('signin-password');
-      if (pwInput) (pwInput as HTMLInputElement).focus();
-    }, 50);
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -442,15 +385,11 @@ function SignInContent() {
 
       {/* Main Container */}
       <main style={{
-        maxWidth: authMode === 'register' ? '860px' : '1000px',
+        maxWidth: authMode === 'register' ? '860px' : '480px',
         width: '100%',
         margin: 'auto',
-        display: 'grid',
-        gridTemplateColumns: authMode === 'register' ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))',
-        gap: '32px',
-        alignItems: 'start',
       }}>
-        {/* Left Column: Form */}
+        {/* Card */}
         <div className="glass-panel" style={{
           padding: '36px',
           borderRadius: '16px',
@@ -1537,115 +1476,7 @@ function SignInContent() {
           )}
         </div>
 
-        {/* Right Column: Fast Demo Access & System Assurance (only shown in Sign In mode) */}
-        {authMode === 'signin' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Quick Demo Switcher Card */}
-            <div className="glass-panel" style={{
-              padding: '28px',
-              borderRadius: '16px',
-              background: isLight ? '#ffffff' : 'rgba(15, 23, 42, 0.6)',
-              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: isLight ? '0 4px 12px rgba(0, 0, 0, 0.05)' : undefined,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <span style={{
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: isLight ? '#dcfce7' : 'rgba(22, 163, 74, 0.2)',
-                  color: isLight ? '#15803d' : 'var(--primary-400)',
-                  border: isLight ? '1px solid #bbf7d0' : '1px solid rgba(22, 163, 74, 0.3)',
-                }}>
-                  RAPID ACCESS
-                </span>
-                <span style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
-                  Demonstration & Role Verification
-                </span>
-              </div>
 
-              <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff', marginBottom: '8px' }}>
-                Select a Persona to Sign In Directly
-              </h2>
-              <p style={{ fontSize: '0.8125rem', color: isLight ? '#64748b' : 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.5 }}>
-                Click any verified role below to automatically authenticate and launch that role's specialized workbench.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
-                {DEMO_ACCOUNTS.map(demo => (
-                  <button
-                    key={demo.role}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => handleQuickDemoLogin(demo)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      background: isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)',
-                      border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = demo.badgeColor;
-                      e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(2, 6, 23, 0.8)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.background = isLight ? '#f8fafc' : 'rgba(2, 6, 23, 0.5)';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '1.25rem' }}>{demo.icon}</span>
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: isLight ? '#0f172a' : '#ffffff' }}>
-                          {demo.label}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: isLight ? '#64748b' : 'var(--text-muted)' }}>
-                          {demo.description}
-                        </div>
-                      </div>
-                    </div>
-
-                    <span style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: `${demo.badgeColor}22`,
-                      color: demo.badgeColor,
-                      border: `1px solid ${demo.badgeColor}44`,
-                    }}>
-                      Log in →
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Statutory Security Note */}
-            <div className="glass-panel" style={{
-              padding: '20px 24px',
-              borderRadius: '12px',
-              background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.4)',
-              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
-              fontSize: '0.75rem',
-              color: isLight ? '#475569' : 'var(--text-dim)',
-              lineHeight: 1.6,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isLight ? '#0f172a' : '#cbd5e1', fontWeight: 600, marginBottom: '4px' }}>
-                <span>⚖️</span>
-                <span>Statutory Compliance Notice</span>
-              </div>
-              Access to SLLAS is governed by the <strong>Agricultural Land Settlement Act (Chapter 20:01)</strong> and the <strong>Gazetted Land Act</strong>. All login attempts, spatial queries, and allocation actions are recorded in an immutable, cryptographically verifiable audit trail.
-            </div>
-          </div>
-        )}
       </main>
 
       {/* Footer */}

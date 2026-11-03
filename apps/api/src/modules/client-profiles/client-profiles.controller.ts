@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role, UserProfile, VerificationStatus } from '@sllas/contracts';
 import {
@@ -69,13 +69,17 @@ export class ClientProfilesController {
   }
 
   @Post(':id/verification')
+  @Patch(':id/verification')
   @Roles(Role.REGISTRY_OFFICER, Role.SYSTEM_ADMIN)
   @ApiOperation({ summary: 'Verify or reject a client profile' })
   verifyProfile(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(verifyClientProfileSchema)) dto: VerifyClientProfileInput,
+    @Body() rawBody: any,
     @CurrentUser() user: UserProfile,
   ) {
+    const decision = rawBody?.decision || rawBody?.status || 'VERIFY';
+    const reason = rawBody?.reason || rawBody?.notes || (decision === 'REJECT' ? 'Application criteria not met' : undefined);
+    const dto: VerifyClientProfileInput = { decision, reason };
     return this.profilesService.verifyProfile(id, dto, user);
   }
 }

@@ -62,6 +62,15 @@ function getPool(): Pool {
   return global.__sllasAuthPool;
 }
 
+import crypto from 'crypto';
+
+function signHs256Jwt(payload: Record<string, any>, secret: string): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${signature}`;
+}
+
 /**
  * Looks up a user by email in Supabase and verifies their password.
  * Returns the user row on success, null on failure.
@@ -77,9 +86,12 @@ async function verifyDatabaseUser(email: string, password: string) {
       last_name: string;
       role: string;
       status: string;
+      office_id: string | null;
+      province_id: string | null;
+      district_id: string | null;
       password_hash: string | null;
     }>(
-      `SELECT id, email, first_name, last_name, role, status, password_hash
+      `SELECT id, email, first_name, last_name, role, status, office_id, province_id, district_id, password_hash
        FROM users
        WHERE email = $1
        LIMIT 1`,
@@ -158,7 +170,7 @@ const authProviders: any[] = [
         console.warn(`[SLLAS_AUTH] Backend API unreachable (${err?.message}). Falling back to direct Supabase authentication.`);
       }
 
-      // Direct Supabase DB verification (works even when backend is offline)
+      // Direct Supabase DB verification (works even when backend is offline or started separately)
       try {
         const dbUser = await verifyDatabaseUser(credentials.email, credentials.password);
         if (!dbUser) {
@@ -166,12 +178,31 @@ const authProviders: any[] = [
         }
 
         const fullName = `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim() || dbUser.email;
+        const jwtSecret = process.env.JWT_SECRET || 'dev-secret-key-for-local-testing-only-12345';
+        const nowSec = Math.floor(Date.now() / 1000);
+        const signedAccessToken = signHs256Jwt({
+          sub: dbUser.id,
+          id: dbUser.id,
+          email: dbUser.email,
+          firstName: dbUser.first_name,
+          lastName: dbUser.last_name,
+          role: dbUser.role,
+          status: dbUser.status,
+          officeId: dbUser.office_id || null,
+          provinceId: dbUser.province_id || null,
+          districtId: dbUser.district_id || null,
+          iat: nowSec,
+          exp: nowSec + 8 * 3600,
+        }, jwtSecret);
+
         return {
           id: dbUser.id,
           email: dbUser.email,
           name: fullName,
           role: dbUser.role as Role,
-          accessToken: `db-session-${dbUser.id}-${Date.now()}`,
+          provinceId: dbUser.province_id || undefined,
+          districtId: dbUser.district_id || undefined,
+          accessToken: signedAccessToken,
         };
       } catch (dbErr: any) {
         // Re-throw auth failures with a clear message
@@ -235,6 +266,8 @@ export const authOptions: NextAuthOptions = {
         token.sub = user.id;
         token.accessToken = (user as any).accessToken;
         token.role = (user as any).role;
+        token.provinceId = (user as any).provinceId;
+        token.districtId = (user as any).districtId;
         token.accessTokenExpires = Date.now() + 24 * 60 * 60 * 1000;
         token.error = undefined;
       }
@@ -245,6 +278,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub;
         (session.user as any).role = token.role;
+        (session.user as any).provinceId = token.provinceId;
+        (session.user as any).districtId = token.districtId;
         (session.user as any).accessToken = token.accessToken;
       }
       if (token.error) {
