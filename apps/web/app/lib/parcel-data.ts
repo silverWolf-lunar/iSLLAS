@@ -194,6 +194,11 @@ export interface ParcelRecord {
   registeredByUserId: string;
   registeredByUserName: string;
   registeredAt: string;
+  isSubdivision?: boolean;
+  schemeName?: string;
+  lotNumber?: string;
+  surveyDiagramNumber?: string;
+  cadastralBeaconRefs?: string[];
   verification?: {
     verifiedByUserId: string;
     verifiedByUserName: string;
@@ -238,12 +243,39 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
     ? parcel.zoningPermittedUses.split(',').map((item: string) => item.trim())
     : [];
 
+  let isSubdivision = Boolean(parcel.isSubdivision || parcel.schemeName || parcel.lotNumber);
+  let schemeName: string | undefined = parcel.schemeName;
+  let lotNumber: string | undefined = parcel.lotNumber;
+  let surveyDiagramNumber: string | undefined = parcel.surveyDiagramNumber;
+  let cadastralBeaconRefs: string[] | undefined = Array.isArray(parcel.cadastralBeaconRefs) ? parcel.cadastralBeaconRefs : undefined;
+  let displayName = parcel.notes ?? parcel.referenceNumber;
+
+  if (parcel.notes) {
+    try {
+      const parsed = JSON.parse(parcel.notes);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.isSubdivision || parsed.lotNumber || parsed.schemeName) {
+          isSubdivision = true;
+          schemeName = parsed.schemeName || schemeName;
+          lotNumber = parsed.lotNumber || lotNumber;
+          surveyDiagramNumber = parsed.surveyDiagramNumber || surveyDiagramNumber;
+          cadastralBeaconRefs = parsed.cadastralBeaconRefs || cadastralBeaconRefs;
+          displayName = parsed.description || (schemeName && lotNumber ? `${schemeName} • ${lotNumber}` : (lotNumber || schemeName || displayName));
+        }
+      }
+    } catch {
+      if (parcel.notes.toLowerCase().includes('subdivision') || parcel.notes.toLowerCase().includes('lot ')) {
+        isSubdivision = true;
+      }
+    }
+  }
+
   const leaseClassification = determineLeaseClassification({
     landCategory: category,
     areaHectares: Number(parcel.areaHectares),
     currentUse: parcel.currentUse,
     notes: parcel.notes,
-    name: parcel.notes,
+    name: displayName,
     district,
     naturalRegion: parcel.naturalRegion,
     permittedUses,
@@ -252,7 +284,7 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
   return {
     id: parcel.id,
     referenceNumber: parcel.referenceNumber,
-    name: parcel.notes ?? parcel.referenceNumber,
+    name: displayName,
     province,
     district,
     ward: parcel.wardId ?? '',
@@ -260,6 +292,11 @@ export function mapApiParcel(parcel: Record<string, any>): ParcelRecord {
     areaHectares: Number(parcel.areaHectares),
     status: parcel.status,
     leaseClassification,
+    isSubdivision,
+    schemeName,
+    lotNumber,
+    surveyDiagramNumber,
+    cadastralBeaconRefs,
     boundary: parcel.boundaryGeojson,
     centroid: { lat: Number(parcel.centroidLat), lng: Number(parcel.centroidLng) },
     naturalRegion: parcel.naturalRegion,

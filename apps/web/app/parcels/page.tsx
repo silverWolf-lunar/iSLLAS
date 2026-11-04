@@ -21,6 +21,7 @@ export default function ParcelsExplorerPage() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedClassification, setSelectedClassification] = useState('');
+  const [selectedLandType, setSelectedLandType] = useState<'ALL' | 'SUBDIVISION' | 'STANDALONE'>('ALL');
   const [viewMode, setViewMode] = useState<'table' | 'map'>('table');
   const [selectedParcel, setSelectedParcel] = useState<ParcelRecord | null>(null);
   const [applyingParcel, setApplyingParcel] = useState<ParcelRecord | null>(null);
@@ -32,9 +33,11 @@ export default function ParcelsExplorerPage() {
       const viewParam = params.get('view');
       const parcelIdParam = params.get('parcelId');
       const classParam = params.get('classification');
+      const typeParam = params.get('type');
 
       if (statusParam) setSelectedStatus(statusParam);
       if (classParam) setSelectedClassification(classParam);
+      if (typeParam === 'subdivision') setSelectedLandType('SUBDIVISION');
       if (viewParam === 'map') setViewMode('map');
       if (parcelIdParam) {
         const found = parcels.find(p => p.id === parcelIdParam);
@@ -48,7 +51,9 @@ export default function ParcelsExplorerPage() {
       const matchesSearch = searchTerm === '' ||
         p.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.district.toLowerCase().includes(searchTerm.toLowerCase());
+        p.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        Boolean(p.schemeName && p.schemeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        Boolean(p.lotNumber && p.lotNumber.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesProvince = selectedProvince === '' ||
         p.province.toLowerCase() === selectedProvince.toLowerCase();
@@ -62,9 +67,14 @@ export default function ParcelsExplorerPage() {
       const matchesClassification = selectedClassification === '' ||
         p.leaseClassification.code === selectedClassification;
 
-      return matchesSearch && matchesProvince && matchesStatus && matchesRegion && matchesClassification;
+      const isSubdiv = Boolean(p.isSubdivision || p.lotNumber || p.schemeName || p.name.toLowerCase().includes('subdivision') || p.name.toLowerCase().includes('lot '));
+      const matchesLandType = selectedLandType === 'ALL' ||
+        (selectedLandType === 'SUBDIVISION' && isSubdiv) ||
+        (selectedLandType === 'STANDALONE' && !isSubdiv);
+
+      return matchesSearch && matchesProvince && matchesStatus && matchesRegion && matchesClassification && matchesLandType;
     });
-  }, [parcels, searchTerm, selectedProvince, selectedStatus, selectedRegion, selectedClassification]);
+  }, [parcels, searchTerm, selectedProvince, selectedStatus, selectedRegion, selectedClassification, selectedLandType]);
 
   const handleExportCSV = () => {
     const headers = ['Reference', 'Name', 'Province', 'District', 'Ward', 'Category', 'Hectares', 'Status', 'LeaseClassification', 'StatutoryAct', 'TermYears', 'Bankability', 'NaturalRegion', 'SoilType'];
@@ -229,7 +239,19 @@ export default function ParcelsExplorerPage() {
           </select>
         </div>
 
-        {(searchTerm || selectedProvince || selectedStatus || selectedRegion || selectedClassification) && (
+        <div>
+          <select
+            className="glass-input"
+            value={selectedLandType}
+            onChange={(e) => setSelectedLandType(e.target.value as any)}
+          >
+            <option value="ALL">All Land Types (Parcels & Subdivisions)</option>
+            <option value="SUBDIVISION">🚜 Farm Subdivisions & Schemes Only</option>
+            <option value="STANDALONE">🏞️ Standalone Farms Only</option>
+          </select>
+        </div>
+
+        {(searchTerm || selectedProvince || selectedStatus || selectedRegion || selectedClassification || selectedLandType !== 'ALL') && (
           <button
             onClick={() => {
               setSearchTerm('');
@@ -237,6 +259,7 @@ export default function ParcelsExplorerPage() {
               setSelectedStatus('');
               setSelectedRegion('');
               setSelectedClassification('');
+              setSelectedLandType('ALL');
             }}
             style={{
               background: 'transparent',
@@ -463,7 +486,33 @@ export default function ParcelsExplorerPage() {
                       {parcel.referenceNumber}
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#ffffff' }}>{parcel.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, color: '#ffffff' }}>{parcel.name}</span>
+                        {(parcel.isSubdivision || parcel.lotNumber || (parcel as any).schemeName) && (
+                          <span style={{
+                            fontSize: '0.625rem',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(34, 197, 94, 0.2)',
+                            color: 'var(--primary-300)',
+                            border: '1px solid rgba(74, 222, 128, 0.35)',
+                          }}>
+                            🚜 SUBDIVISION
+                          </span>
+                        )}
+                      </div>
+                      {(parcel.lotNumber || parcel.schemeName) && (
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--primary-400)', marginTop: '2px' }}>
+                          {parcel.lotNumber && <strong>{parcel.lotNumber}</strong>}
+                          {parcel.schemeName && ` • ${parcel.schemeName}`}
+                        </div>
+                      )}
+                      {parcel.surveyDiagramNumber && (
+                        <div style={{ fontSize: '0.625rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                          DSG: {parcel.surveyDiagramNumber}
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>{parcel.currentUse}</div>
                     </td>
                     <td>

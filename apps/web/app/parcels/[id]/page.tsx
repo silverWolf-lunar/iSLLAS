@@ -71,6 +71,22 @@ export default function ParcelDetailPage() {
             <span className={`badge badge-${parcel.status.toLowerCase().replace('_', '-')}`}>
               {parcel.status}
             </span>
+            {(parcel.isSubdivision || parcel.lotNumber) && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 10px',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: '#38bdf8',
+                background: 'rgba(14, 165, 233, 0.15)',
+                border: '1px solid rgba(14, 165, 233, 0.4)',
+              }}>
+                🚜 FARM SUBDIVISION
+              </span>
+            )}
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -89,6 +105,13 @@ export default function ParcelDetailPage() {
           <h1 style={{ fontSize: '1.875rem', color: '#ffffff', marginBottom: '4px' }}>
             {parcel.name}
           </h1>
+          {(parcel.lotNumber || parcel.schemeName || parcel.surveyDiagramNumber) && (
+            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#38bdf8', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span>{parcel.lotNumber || 'Subdivision Plot'}</span>
+              {parcel.schemeName && <span style={{ color: 'var(--text-muted)' }}>• Parent Scheme: <strong style={{ color: '#f8fafc' }}>{parcel.schemeName}</strong></span>}
+              {parcel.surveyDiagramNumber && <span style={{ color: 'var(--text-muted)' }}>• DSG Diagram: <code style={{ color: '#fed7aa', background: 'rgba(0,0,0,0.3)', padding: '1px 6px', borderRadius: '4px' }}>{parcel.surveyDiagramNumber}</code></span>}
+            </div>
+          )}
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
             {parcel.district}, {parcel.province} Province • {parcel.ward} • {parcel.landCategory}
           </p>
@@ -234,6 +257,64 @@ export default function ParcelDetailPage() {
               </div>
             </div>
 
+            {/* Farm Subdivision & Surveyor General Register */}
+            {(parcel.isSubdivision || parcel.lotNumber || parcel.schemeName || parcel.surveyDiagramNumber) && (
+              <div style={{
+                background: 'rgba(14, 165, 233, 0.08)',
+                border: '1px solid rgba(14, 165, 233, 0.35)',
+                borderRadius: '10px',
+                padding: '16px 18px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#38bdf8', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🚜</span> Farm Subdivision &amp; Surveyor General Registry
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', padding: '3px 10px', borderRadius: '6px', background: 'rgba(14, 165, 233, 0.2)', color: '#bae6fd', fontWeight: 700 }}>
+                    Zimbabwe Cadastral Division
+                  </span>
+                </div>
+
+                <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                  <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '10px 12px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Parent Scheme / Estate</div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#f8fafc' }}>
+                      {parcel.schemeName || 'State Resettlement Scheme'}
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '10px 12px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Subdivision / Lot Designation</div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#38bdf8' }}>
+                      {parcel.lotNumber || 'Subdivision Lot'}
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '10px 12px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Surveyor General Diagram (DSG)</div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#fed7aa' }}>
+                      {parcel.surveyDiagramNumber || 'DSG-ZW-PENDING'}
+                    </div>
+                  </div>
+                </div>
+
+                {parcel.cadastralBeaconRefs && parcel.cadastralBeaconRefs.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Surveyor General Boundary Beacons:
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {parcel.cadastralBeaconRefs.map((beacon, i) => (
+                        <span key={i} style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(14, 165, 233, 0.15)', border: '1px solid rgba(14, 165, 233, 0.3)', color: '#e0f2fe', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                          📍 {beacon}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '8px' }}>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--text-dim)' }}>Cadastral Area</div>
@@ -326,6 +407,21 @@ export default function ParcelDetailPage() {
               <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '12px', borderRadius: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
                 Latitude: <strong>{parcel.centroid.lat}°</strong> | Longitude: <strong>{parcel.centroid.lng}°</strong>
               </div>
+
+              {parcel.cadastralBeaconRefs && parcel.cadastralBeaconRefs.length > 0 && (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                    Surveyor General Cadastral Beacons
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {parcel.cadastralBeaconRefs.map((beacon, idx) => (
+                      <span key={idx} style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(14, 165, 233, 0.15)', border: '1px solid rgba(14, 165, 233, 0.3)', color: '#7dd3fc', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                        📍 {beacon}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', margin: '16px 0 8px' }}>
                 Boundary Vertices (WGS84 Lon, Lat)

@@ -202,6 +202,39 @@ export default function VerificationWorkbenchPage() {
                 <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                   {selectedParcel.district}, {selectedParcel.province} • {selectedParcel.ward}
                 </div>
+
+                {(selectedParcel.isSubdivision || selectedParcel.lotNumber) && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: 'rgba(34, 197, 94, 0.12)',
+                    border: '1px solid rgba(74, 222, 128, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                  }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--primary-300)' }}>
+                      🚜 SUBDIVISION DOSSIER:
+                    </span>
+                    {selectedParcel.lotNumber && (
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#ffffff' }}>
+                        {selectedParcel.lotNumber}
+                      </span>
+                    )}
+                    {selectedParcel.schemeName && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        ({selectedParcel.schemeName})
+                      </span>
+                    )}
+                    {selectedParcel.surveyDiagramNumber && (
+                      <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--primary-400)' }}>
+                        • DSG: {selectedParcel.surveyDiagramNumber}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Segregation of Duties Warning if Same User */}

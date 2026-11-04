@@ -25,8 +25,10 @@ if (!process.env.NEXTAUTH_URL) {
     process.env.NEXTAUTH_URL = process.env.RENDER_EXTERNAL_URL;
   } else if (process.env.VERCEL_URL) {
     process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
-  } else {
+  } else if (process.env.NODE_ENV === 'production') {
     process.env.NEXTAUTH_URL = 'https://isllas.onrender.com';
+  } else {
+    process.env.NEXTAUTH_URL = 'http://localhost:3000';
   }
 }
 
@@ -45,18 +47,44 @@ declare global {
   var __sllasAuthPool: Pool | undefined;
 }
 
+const REALTIME_DATABASE_URL =
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  '';
+
 function getPool(): Pool {
   if (!global.__sllasAuthPool) {
-    const connectionString = process.env.DATABASE_URL;
+    const connectionString =
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      REALTIME_DATABASE_URL;
+
     if (!connectionString) {
-      throw new Error('DATABASE_URL environment variable is not set');
+      throw new Error(
+        'DATABASE_URL environment variable is not set. Please configure DATABASE_URL in your environment or .env file.',
+      );
     }
+
+    const isSsl =
+      process.env.DB_SSL === 'true' ||
+      Boolean(
+        connectionString &&
+          !connectionString.includes('localhost') &&
+          !connectionString.includes('127.0.0.1') &&
+          !connectionString.includes('@db:'),
+      );
+
     global.__sllasAuthPool = new Pool({
       connectionString,
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-      max: 3,
+      ssl: isSsl ? { rejectUnauthorized: false } : false,
+      max: 5,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: 8000,
+    });
+
+    global.__sllasAuthPool.on('error', (err) => {
+      console.error('[SLLAS_AUTH_POOL] Unexpected idle client error:', err.message);
+      global.__sllasAuthPool = undefined;
     });
   }
   return global.__sllasAuthPool;
@@ -72,13 +100,29 @@ function signHs256Jwt(payload: Record<string, any>, secret: string): string {
 }
 
 /**
- * Looks up a user by email in Supabase and verifies their password.
+ * Looks up a user by email in Supabase in real-time and verifies their password.
  * Returns the user row on success, null on failure.
  */
 async function verifyDatabaseUser(email: string, password: string) {
-  const pool = getPool();
-  const client = await pool.connect();
+  let pool: Pool;
   try {
+    pool = getPool();
+  } catch (err) {
+    global.__sllasAuthPool = undefined;
+    throw err;
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err: any) {
+    global.__sllasAuthPool = undefined;
+    console.error('[SLLAS_AUTH] Database connection error:', err?.message);
+    throw err;
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
     const result = await client.query<{
       id: string;
       email: string;
@@ -93,26 +137,39 @@ async function verifyDatabaseUser(email: string, password: string) {
     }>(
       `SELECT id, email, first_name, last_name, role, status, office_id, province_id, district_id, password_hash
        FROM users
-       WHERE email = $1
+       WHERE LOWER(TRIM(email)) = $1
        LIMIT 1`,
-      [email.trim().toLowerCase()],
+      [normalizedEmail],
     );
 
-    if (result.rows.length === 0) return null;
+    if (result.rows.length === 0) {
+      console.warn(`[SLLAS_AUTH] Sign-in failed: No user found for ${normalizedEmail}`);
+      return null;
+    }
+
     const user = result.rows[0];
 
     // Only allow ACTIVE accounts
-    if (user.status !== 'ACTIVE') return null;
+    if (user.status !== 'ACTIVE') {
+      console.warn(`[SLLAS_AUTH] Sign-in failed: User ${normalizedEmail} status is ${user.status}`);
+      return null;
+    }
 
-    // If no password hash is set yet, deny login (admin must set one)
-    if (!user.password_hash) return null;
+    // If no password hash is set yet, deny login
+    if (!user.password_hash) {
+      console.warn(`[SLLAS_AUTH] Sign-in failed: User ${normalizedEmail} has no password_hash set`);
+      return null;
+    }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatch) return null;
+    if (!passwordMatch) {
+      console.warn(`[SLLAS_AUTH] Sign-in failed: Password mismatch for ${normalizedEmail}`);
+      return null;
+    }
 
     return user;
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 
@@ -133,7 +190,43 @@ const authProviders: any[] = [
         throw new Error('Password cannot be empty');
       }
 
-      // First try the backend API (if available)
+      // 1. Direct Real-Time Supabase Database Verification (Primary authoritative source)
+      try {
+        const dbUser = await verifyDatabaseUser(credentials.email, credentials.password);
+        if (dbUser) {
+          const fullName = `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim() || dbUser.email;
+          const jwtSecret = process.env.JWT_SECRET || 'dev-secret-key-for-local-testing-only-12345';
+          const nowSec = Math.floor(Date.now() / 1000);
+          const signedAccessToken = signHs256Jwt({
+            sub: dbUser.id,
+            id: dbUser.id,
+            email: dbUser.email,
+            firstName: dbUser.first_name,
+            lastName: dbUser.last_name,
+            role: dbUser.role,
+            status: dbUser.status,
+            officeId: dbUser.office_id || null,
+            provinceId: dbUser.province_id || null,
+            districtId: dbUser.district_id || null,
+            iat: nowSec,
+            exp: nowSec + 8 * 3600,
+          }, jwtSecret);
+
+          return {
+            id: dbUser.id,
+            email: dbUser.email,
+            name: fullName,
+            role: dbUser.role as Role,
+            provinceId: dbUser.province_id || undefined,
+            districtId: dbUser.district_id || undefined,
+            accessToken: signedAccessToken,
+          };
+        }
+      } catch (dbErr: any) {
+        console.warn('[SLLAS_AUTH] Direct DB verification encountered error, checking backend API fallback:', dbErr?.message);
+      }
+
+      // 2. Secondary: Try Backend API if available
       let apiBaseUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:3001').trim().replace(/\/$/, '');
       if (!apiBaseUrl.startsWith('http://') && !apiBaseUrl.startsWith('https://')) {
         apiBaseUrl = `https://${apiBaseUrl}`;
@@ -167,50 +260,11 @@ const authProviders: any[] = [
           }
         }
       } catch (err: any) {
-        console.warn(`[SLLAS_AUTH] Backend API unreachable (${err?.message}). Falling back to direct Supabase authentication.`);
+        console.warn(`[SLLAS_AUTH] Backend API login attempt failed: ${err?.message}`);
       }
 
-      // Direct Supabase DB verification (works even when backend is offline or started separately)
-      try {
-        const dbUser = await verifyDatabaseUser(credentials.email, credentials.password);
-        if (!dbUser) {
-          throw new Error('Invalid email or password');
-        }
-
-        const fullName = `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim() || dbUser.email;
-        const jwtSecret = process.env.JWT_SECRET || 'dev-secret-key-for-local-testing-only-12345';
-        const nowSec = Math.floor(Date.now() / 1000);
-        const signedAccessToken = signHs256Jwt({
-          sub: dbUser.id,
-          id: dbUser.id,
-          email: dbUser.email,
-          firstName: dbUser.first_name,
-          lastName: dbUser.last_name,
-          role: dbUser.role,
-          status: dbUser.status,
-          officeId: dbUser.office_id || null,
-          provinceId: dbUser.province_id || null,
-          districtId: dbUser.district_id || null,
-          iat: nowSec,
-          exp: nowSec + 8 * 3600,
-        }, jwtSecret);
-
-        return {
-          id: dbUser.id,
-          email: dbUser.email,
-          name: fullName,
-          role: dbUser.role as Role,
-          provinceId: dbUser.province_id || undefined,
-          districtId: dbUser.district_id || undefined,
-          accessToken: signedAccessToken,
-        };
-      } catch (dbErr: any) {
-        // Re-throw auth failures with a clear message
-        const msg = dbErr?.message || 'Authentication failed';
-        if (msg === 'Invalid email or password') throw new Error(msg);
-        console.error('[SLLAS_AUTH] DB auth error:', serializeError(dbErr));
-        throw new Error('Authentication service temporarily unavailable. Please try again.');
-      }
+      // If user was not verified via database or backend API
+      throw new Error('Invalid email or password');
     },
   }),
 ];
@@ -231,6 +285,11 @@ export const authOptions: NextAuthOptions = {
   providers: authProviders,
   secret: authSecret,
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
+  useSecureCookies:
+    process.env.NODE_ENV === 'production' &&
+    (process.env.NEXTAUTH_URL?.startsWith('https://') ?? false) &&
+    !process.env.NEXTAUTH_URL?.includes('localhost') &&
+    !process.env.NEXTAUTH_URL?.includes('127.0.0.1'),
   pages: {
     signIn: '/signin',
     error: '/signin',

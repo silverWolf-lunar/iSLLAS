@@ -143,7 +143,32 @@ describe('ParcelsService (Land Registry Engine)', () => {
       expect(mockAuditService.logEvent).toHaveBeenCalled();
     });
 
-    it('should reject parcel creation outside the officer jurisdiction', async () => {
+    it('should allow resettlement officers to create parcels across all provinces (nationwide jurisdiction)', async () => {
+      const result = await service.create(
+        {
+          provinceId: 'prov-mash-east',
+          districtId: 'dist-goromonzi',
+          landCategoryId: 'cat-state-land',
+          boundary: { type: 'Polygon', coordinates: sampleBoundary },
+        },
+        harareOfficer, // Harare Officer logging parcel in Mashonaland East under statutory nationwide resettlement authority
+      );
+      expect(result).toBeDefined();
+      expect(result.provinceId).toBe('prov-mash-east');
+    });
+
+    it('should reject parcel creation outside jurisdiction for unauthorized roles', async () => {
+      const unauthorizedClient: UserProfile = {
+        id: 'usr-client-1',
+        email: 'citizen@email.zw',
+        firstName: 'Tatenda',
+        lastName: 'Moyo',
+        roles: [Role.CLIENT],
+        role: Role.CLIENT,
+        officeId: null,
+        provinceId: 'prov-harare',
+      };
+
       await expect(
         service.create(
           {
@@ -152,7 +177,7 @@ describe('ParcelsService (Land Registry Engine)', () => {
             landCategoryId: 'cat-state-land',
             boundary: { type: 'Polygon', coordinates: sampleBoundary },
           },
-          harareOfficer, // Assigned to Harare, attempting Mashonaland East
+          unauthorizedClient,
         ),
       ).rejects.toThrow(ForbiddenException);
     });

@@ -38,6 +38,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV COREPACK_ENABLE_NETWORK=0
 ENV NEXTAUTH_SECRET="sllas-production-session-fallback-secret-key-32chars-min"
 ENV NEXTAUTH_URL="https://isllas.onrender.com"
+ENV DATABASE_URL=""
+ENV DB_SSL="true"
 EXPOSE 3000
 USER node
 CMD ["node", "node_modules/next/dist/bin/next", "start"]

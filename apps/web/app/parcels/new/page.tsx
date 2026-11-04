@@ -40,6 +40,23 @@ export default function NewParcelPage() {
   const [permittedUses, setPermittedUses] = useState('');
   const [knownRestrictions, setKnownRestrictions] = useState('');
 
+  // Farm Subdivision & Scheme State
+  const [isSubdivision, setIsSubdivision] = useState(false);
+  const [schemeName, setSchemeName] = useState('');
+  const [lotNumber, setLotNumber] = useState('');
+  const [surveyDiagramNumber, setSurveyDiagramNumber] = useState('');
+  const [cadastralBeaconRefs, setCadastralBeaconRefs] = useState('');
+
+  // Check query params for subdivision mode
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('subdivision') === 'true') {
+        setIsSubdivision(true);
+      }
+    }
+  }, []);
+
   const provinceDistricts = useMemo(
     () => districts.filter(d => d.parentId === provinceId),
     [districts, provinceId],
@@ -55,12 +72,8 @@ export default function NewParcelPage() {
   }, [provinceId, currentUser?.provinceId, provinces]);
 
   // Boundary State
-  const [boundaryCoords, setBoundaryCoords] = useState<number[][]>(
-    [],
-  );
-  const [rawCoordsText, setRawCoordsText] = useState(
-    '',
-  );
+  const [boundaryCoords, setBoundaryCoords] = useState<number[][]>([]);
+  const [rawCoordsText, setRawCoordsText] = useState('');
 
   // Boundary Geometry Calculations
   const computedArea = useMemo(() => calculatePolygonAreaHa(boundaryCoords), [boundaryCoords]);
@@ -100,8 +113,197 @@ export default function NewParcelPage() {
     });
   }, [boundaryCoords, validationErrors, parcels]);
 
+  const SUBDIVISION_PRESETS: Record<string, {
+    provinceName: string;
+    schemeName: string;
+    lotNumber: string;
+    diagramNumber: string;
+    beacons: string;
+    region: NaturalRegion;
+    soil: SoilType;
+    water: string;
+    road: RoadAccess;
+    electricity: boolean;
+    gridKm: number;
+    terrain: Terrain;
+    currentUse: string;
+    permitted: string;
+    coords: number[][];
+  }> = {
+    coburn: {
+      provinceName: 'Mashonaland West',
+      schemeName: 'Coburn Estate Master Scheme',
+      lotNumber: 'Subdivision 1 of Lot 4',
+      diagramNumber: 'DSG-ZW-2026-CHG-0082',
+      beacons: 'BC-CHE-101, BC-CHE-102, BC-CHE-103, BC-CHE-104',
+      region: NaturalRegion.II,
+      soil: SoilType.LOAM,
+      water: 'Manyame River Riparian Rights, 2x Commercial Boreholes',
+      road: RoadAccess.TARRED,
+      electricity: true,
+      gridKm: 1.2,
+      terrain: Terrain.GENTLY_UNDULATING,
+      currentUse: 'Prepared Arable for Summer Grain (Wheat & Seed Maize)',
+      permitted: 'Commercial Grain Production, Oilseed Rotation, Agro-processing Storage',
+      coords: [[30.132, -18.125], [30.155, -18.128], [30.151, -18.145], [30.128, -18.142], [30.132, -18.125]],
+    },
+    beatrice: {
+      provinceName: 'Mashonaland East',
+      schemeName: 'Beatrice Dairy & Beef Paddock Scheme',
+      lotNumber: 'Subdivision 8 of Umfuli Bank',
+      diagramNumber: 'DSG-ZW-2026-MRE-0041',
+      beacons: 'BC-MRE-801, BC-MRE-802, BC-MRE-803, BC-MRE-804',
+      region: NaturalRegion.II,
+      soil: SoilType.LOAM,
+      water: 'Umfuli River Pumping Rights, 3x High-Yield Boreholes',
+      road: RoadAccess.TARRED,
+      electricity: true,
+      gridKm: 0.5,
+      terrain: Terrain.FLAT,
+      currentUse: 'Irrigated Silage & Certified Pasture Paddock',
+      permitted: 'Intensive Dairy Production, Beef Fattening, Pasture Silage',
+      coords: [[30.825, -18.245], [30.852, -18.248], [30.848, -18.272], [30.821, -18.269], [30.825, -18.245]],
+    },
+    mazowe: {
+      provinceName: 'Mashonaland Central',
+      schemeName: 'Mazowe Citrus & Seed Maize Scheme',
+      lotNumber: 'Subdivision 12 of Iron Mask Range',
+      diagramNumber: 'DSG-ZW-2026-MZW-0015',
+      beacons: 'BC-MZW-121, BC-MZW-122, BC-MZW-123, BC-MZW-124',
+      region: NaturalRegion.II,
+      soil: SoilType.SILT,
+      water: 'Mazowe Dam Canal Concession, 2x Solar Micro-Dams',
+      road: RoadAccess.TARRED,
+      electricity: true,
+      gridKm: 0.9,
+      terrain: Terrain.GENTLY_UNDULATING,
+      currentUse: 'Drip-Irrigated Valencia Orange Groves',
+      permitted: 'Citrus Production, Export Floriculture, Hybrid Seed Maize',
+      coords: [[30.952, -17.512], [30.978, -17.515], [30.974, -17.535], [30.948, -17.532], [30.952, -17.512]],
+    },
+    chipinge: {
+      provinceName: 'Manicaland',
+      schemeName: 'Chipinge Eastern Highlands Concession',
+      lotNumber: 'Subdivision 9 of Mount Selinda Escarpment',
+      diagramNumber: 'DSG-ZW-2026-CHG-0033',
+      beacons: 'BC-CHP-901, BC-CHP-902, BC-CHP-903, BC-CHP-904',
+      region: NaturalRegion.I,
+      soil: SoilType.LOAM,
+      water: 'Perennial Mountain Stream Gravity Feed, High Natural Rainfall',
+      road: RoadAccess.TARRED,
+      electricity: true,
+      gridKm: 1.5,
+      terrain: Terrain.HILLY,
+      currentUse: 'Terraced Macadamia Nut Orchard',
+      permitted: 'Macadamia Nut Production, Specialty Coffee, Export Avocado',
+      coords: [[32.612, -20.188], [32.635, -20.191], [32.631, -20.212], [32.608, -20.209], [32.612, -20.188]],
+    },
+    gweru: {
+      provinceName: 'Midlands',
+      schemeName: 'Gweru Vungu Arable & Livestock Scheme',
+      lotNumber: 'Subdivision 4 of Block 4 Vungu',
+      diagramNumber: 'DSG-ZW-2026-GWR-0077',
+      beacons: 'BC-GWR-401, BC-GWR-402, BC-GWR-403, BC-GWR-404',
+      region: NaturalRegion.III,
+      soil: SoilType.MIXED,
+      water: 'Vungu River Weir Rights, 2x Livestock Windmills',
+      road: RoadAccess.GRAVEL,
+      electricity: true,
+      gridKm: 2.1,
+      terrain: Terrain.FLAT,
+      currentUse: 'Summer Soya Rotation & Cattle Grazing Paddock',
+      permitted: 'Mixed Farming, Drought-Tolerant Sorghum, Commercial Cattle',
+      coords: [[29.742, -19.412], [29.768, -19.415], [29.764, -19.438], [29.738, -19.435], [29.742, -19.412]],
+    },
+    chiredzi: {
+      provinceName: 'Masvingo',
+      schemeName: 'Chiredzi Lowveld Sugar Scheme',
+      lotNumber: 'Subdivision 18 of Mkwasine Estate',
+      diagramNumber: 'DSG-ZW-2026-MKW-0092',
+      beacons: 'BC-MKW-181, BC-MKW-182, BC-MKW-183, BC-MKW-184',
+      region: NaturalRegion.V,
+      soil: SoilType.CLAY,
+      water: 'Mutirikwi-Tugwi Mukosi Canal Allocations (Tier-1 Rights)',
+      road: RoadAccess.TARRED,
+      electricity: true,
+      gridKm: 0.6,
+      terrain: Terrain.FLAT,
+      currentUse: 'Flood & Drip-Irrigated Commercial Sugarcane',
+      permitted: 'Sugarcane Production, Citrus, Industrial Agro-Processing',
+      coords: [[31.545, -21.035], [31.578, -21.038], [31.574, -21.065], [31.541, -21.062], [31.545, -21.035]],
+    },
+    matobo: {
+      provinceName: 'Matabeleland South',
+      schemeName: 'Matobo Hills Pastoral Breeding Concession',
+      lotNumber: 'Subdivision 7 of Shashi Ranch',
+      diagramNumber: 'DSG-ZW-2026-MTB-0055',
+      beacons: 'BC-MTB-701, BC-MTB-702, BC-MTB-703, BC-MTB-704',
+      region: NaturalRegion.V,
+      soil: SoilType.MIXED,
+      water: 'Solar-Powered Borehole Troughs, 1x Earth Dam',
+      road: RoadAccess.GRAVEL,
+      electricity: false,
+      gridKm: 5.5,
+      terrain: Terrain.GENTLY_UNDULATING,
+      currentUse: 'Breeding Paddock for Indigenous Tuli Cattle',
+      permitted: 'Pedigree Cattle Breeding, Goat Ranching, Game Conservancy',
+      coords: [[28.485, -20.542], [28.515, -20.545], [28.511, -20.575], [28.481, -20.572], [28.485, -20.542]],
+    },
+    nyamandlovu: {
+      provinceName: 'Matabeleland North',
+      schemeName: 'Nyamandlovu Aquifer Horticultural Scheme',
+      lotNumber: 'Subdivision 22 of Riverbank Concession',
+      diagramNumber: 'DSG-ZW-2026-NYM-0021',
+      beacons: 'BC-NYM-221, BC-NYM-222, BC-NYM-223, BC-NYM-224',
+      region: NaturalRegion.IV,
+      soil: SoilType.SANDY,
+      water: 'Nyamandlovu Deep Sandstone Aquifer High-Yield Borehole',
+      road: RoadAccess.TARRED,
+      electricity: true,
+      gridKm: 1.1,
+      terrain: Terrain.FLAT,
+      currentUse: 'Shade-Net High-Value Export Tomatoes & Onions',
+      permitted: 'Commercial Horticulture, Grain Legumes, Small Livestock',
+      coords: [[28.245, -19.865], [28.272, -19.868], [28.268, -19.892], [28.241, -19.889], [28.245, -19.865]],
+    },
+  };
+
   const handleApplyPreset = (key: string) => {
-    void key;
+    const preset = SUBDIVISION_PRESETS[key];
+    if (!preset) return;
+
+    setIsSubdivision(true);
+    setSchemeName(preset.schemeName);
+    setLotNumber(preset.lotNumber);
+    setSurveyDiagramNumber(preset.diagramNumber);
+    setCadastralBeaconRefs(preset.beacons);
+    setName(`${preset.schemeName} • ${preset.lotNumber}`);
+
+    // Resolve matching province
+    const targetProv = provinces.find(p => p.name.toLowerCase().includes(preset.provinceName.toLowerCase()));
+    if (targetProv) {
+      setProvinceId(targetProv.id);
+      const provDistricts = districts.filter(d => d.parentId === targetProv.id);
+      if (provDistricts.length > 0) {
+        setDistrictId(provDistricts[0].id);
+      }
+    }
+
+    if (landCategories.length > 0) {
+      setLandCategoryId(landCategories[0].id);
+    }
+
+    setNaturalRegion(preset.region);
+    setSoilType(preset.soil);
+    setWaterSources(preset.water);
+    setRoadAccess(preset.road);
+    setElectricityAccess(preset.electricity);
+    setGridProximityKm(preset.gridKm);
+    setTerrain(preset.terrain);
+    setCurrentUse(preset.currentUse);
+    setPermittedUses(preset.permitted);
+    setBoundaryCoords(preset.coords);
+    setRawCoordsText(JSON.stringify(preset.coords));
   };
 
   const handleCoordsChange = (text: string) => {
@@ -133,6 +335,21 @@ export default function NewParcelPage() {
       return;
     }
 
+    const effectiveDisplayName = isSubdivision
+      ? (name.trim() || (schemeName && lotNumber ? `${schemeName.trim()} • ${lotNumber.trim()}` : (lotNumber || schemeName || 'Farm Subdivision Plot')))
+      : (name.trim() || undefined);
+
+    const finalNotes = isSubdivision
+      ? JSON.stringify({
+          isSubdivision: true,
+          schemeName: schemeName.trim() || undefined,
+          lotNumber: lotNumber.trim() || undefined,
+          surveyDiagramNumber: surveyDiagramNumber.trim() || undefined,
+          cadastralBeaconRefs: cadastralBeaconRefs.split(',').map(s => s.trim()).filter(Boolean),
+          description: effectiveDisplayName,
+        })
+      : (effectiveDisplayName || undefined);
+
     setSaving(true);
     const result = await createParcel(
       {
@@ -140,7 +357,7 @@ export default function NewParcelPage() {
         districtId,
         landCategoryId,
         boundary: { type: 'Polygon', coordinates: [boundaryCoords] },
-        notes: name.trim() || undefined,
+        notes: finalNotes,
         attributes: {
           naturalRegion: naturalRegion || null,
           soilType: soilType || null,
@@ -233,23 +450,189 @@ export default function NewParcelPage() {
       {/* Step 1: Identification & Location */}
       {currentStep === 1 && (
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <h2 style={{ fontSize: '1.125rem', color: '#ffffff' }}>Step 1: Jurisdiction & Identification</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <h2 style={{ fontSize: '1.125rem', color: '#ffffff', margin: 0 }}>Step 1: Jurisdiction & Identification</h2>
+            
+            {/* Land Type Toggle */}
+            <div style={{
+              display: 'inline-flex',
+              background: 'rgba(15, 23, 42, 0.6)',
+              padding: '3px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}>
+              <button
+                type="button"
+                onClick={() => setIsSubdivision(false)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: !isSubdivision ? 'var(--primary-600)' : 'transparent',
+                  color: !isSubdivision ? '#ffffff' : 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                🏞️ Standalone Parcel
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSubdivision(true)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: isSubdivision ? 'var(--primary-600)' : 'transparent',
+                  color: isSubdivision ? '#ffffff' : 'var(--text-muted)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                🚜 Farm Subdivision / Scheme Plot
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Presets across Zimbabwe */}
+          <div style={{
+            padding: '12px 16px',
+            background: 'rgba(2, 6, 23, 0.4)',
+            borderRadius: '10px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>
+              ⚡ Quick Subdivision Presets across Zimbabwe (All 10 Provinces):
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { key: 'coburn', label: 'Coburn Estate (Mash West)' },
+                { key: 'beatrice', label: 'Beatrice Dairy (Mash East)' },
+                { key: 'mazowe', label: 'Mazowe Citrus (Mash Central)' },
+                { key: 'chipinge', label: 'Chipinge Concession (Manicaland)' },
+                { key: 'gweru', label: 'Gweru Vungu (Midlands)' },
+                { key: 'chiredzi', label: 'Chiredzi Sugar (Masvingo)' },
+                { key: 'matobo', label: 'Matobo Hills (Mat South)' },
+                { key: 'nyamandlovu', label: 'Nyamandlovu Plot (Mat North)' },
+              ].map(p => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => handleApplyPreset(p.key)}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(74, 222, 128, 0.3)',
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    color: 'var(--primary-300)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(34, 197, 94, 0.25)';
+                    e.currentTarget.style.borderColor = 'var(--primary-400)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(34, 197, 94, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(74, 222, 128, 0.3)';
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="form-grid mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+            {/* Subdivision Dedicated Fields */}
+            {isSubdivision && (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary-300)', marginBottom: '6px' }}>
+                    Master Farm / Agricultural Scheme Name *
+                  </label>
+                  <input
+                    type="text"
+                    className="glass-input"
+                    placeholder="e.g. Coburn Estate Master Scheme"
+                    value={schemeName}
+                    onChange={(e) => {
+                      setSchemeName(e.target.value);
+                      if (!name || name.includes('•')) {
+                        setName(`${e.target.value}${lotNumber ? ` • ${lotNumber}` : ''}`);
+                      }
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary-300)', marginBottom: '6px' }}>
+                    Subdivision / Lot Number *
+                  </label>
+                  <input
+                    type="text"
+                    className="glass-input"
+                    placeholder="e.g. Subdivision 1 of Lot 4"
+                    value={lotNumber}
+                    onChange={(e) => {
+                      setLotNumber(e.target.value);
+                      if (!name || name.includes('•')) {
+                        setName(`${schemeName ? `${schemeName} • ` : ''}${e.target.value}`);
+                      }
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary-300)', marginBottom: '6px' }}>
+                    Surveyor General Diagram Number (DSG) *
+                  </label>
+                  <input
+                    type="text"
+                    className="glass-input"
+                    placeholder="e.g. DSG-ZW-2026-CHG-0082"
+                    value={surveyDiagramNumber}
+                    onChange={(e) => setSurveyDiagramNumber(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary-300)', marginBottom: '6px' }}>
+                    Cadastral Beacon References (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    className="glass-input"
+                    placeholder="e.g. BC-CHE-101, BC-CHE-102, BC-CHE-103"
+                    value={cadastralBeaconRefs}
+                    onChange={(e) => setCadastralBeaconRefs(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
             <div style={{ gridColumn: 'span 2' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Parcel Description / Notes
+                {isSubdivision ? 'Subdivision Dossier Designation / Notes' : 'Parcel Description / Notes'}
               </label>
               <input
                 type="text"
                 className="glass-input"
-                placeholder="e.g. Norton Agricultural Commercial Plot 4"
+                placeholder={isSubdivision ? 'e.g. Coburn Estate • Subdiv 1 (Arable Commercial)' : 'e.g. Norton Agricultural Commercial Plot 4'}
                 value={name}
                 maxLength={2000}
                 onChange={(e) => setName(e.target.value)}
               />
               <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '4px' }}>
-                The official reference number is generated by the registry when the parcel is saved.
+                {isSubdivision
+                  ? 'Subdivision details are automatically recorded in the statutory cadastre registry and mapped to the Surveyor General index.'
+                  : 'The official reference number is generated by the registry when the parcel is saved.'}
               </div>
             </div>
 

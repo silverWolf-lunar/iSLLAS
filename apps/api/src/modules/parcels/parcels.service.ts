@@ -411,10 +411,8 @@ export class ParcelsService {
       qb.andWhere('parcel.status = :status', { status: query.status });
     }
 
-    // Role-based jurisdiction scoping for registry officers
-    if (currentUser?.role === Role.REGISTRY_OFFICER && currentUser.provinceId) {
-      qb.andWhere('parcel.provinceId = :userProvince', { userProvince: currentUser.provinceId });
-    }
+    // Nationwide identification: Resettlement Officers and System Admins have visibility across
+    // all 10 provinces of Zimbabwe. Specific province filtering applies only if explicitly requested in query.
 
     // Attribute Filters
     if (query.provinceId) qb.andWhere('parcel.provinceId = :provinceId', { provinceId: query.provinceId });
@@ -472,11 +470,17 @@ export class ParcelsService {
    * Helper: asserts user has jurisdiction over the given province/district
    */
   private assertJurisdiction(user: UserProfile, provinceId: string, districtId: string): void {
-    if (user.role === Role.SYSTEM_ADMIN || user.role === Role.AUDITOR) {
-      return; // National jurisdiction
+    // System Administrators, Auditors, and Resettlement Officers have statutory national
+    // jurisdiction across all 10 provinces of Zimbabwe to identify, survey, and log land & subdivisions.
+    if (
+      user.role === Role.SYSTEM_ADMIN ||
+      user.role === Role.AUDITOR ||
+      user.role === Role.REGISTRY_OFFICER
+    ) {
+      return; // National jurisdiction across all 10 provinces of Zimbabwe
     }
 
-    if (user.role === Role.REGISTRY_OFFICER || user.role === Role.APPROVER) {
+    if (user.role === Role.APPROVER) {
       if (user.provinceId && user.provinceId !== provinceId) {
         throw new ForbiddenException(
           `Jurisdiction violation: you are assigned to province '${user.provinceId}' and cannot act on '${provinceId}'`,
@@ -487,6 +491,17 @@ export class ParcelsService {
           `Jurisdiction violation: you are assigned to district '${user.districtId}' and cannot act on '${districtId}'`,
         );
       }
+    }
+
+    if (user.provinceId && user.provinceId !== provinceId) {
+      throw new ForbiddenException(
+        `Jurisdiction violation: you are assigned to province '${user.provinceId}' and cannot act on '${provinceId}'`,
+      );
+    }
+    if (user.districtId && user.districtId !== districtId) {
+      throw new ForbiddenException(
+        `Jurisdiction violation: you are assigned to district '${user.districtId}' and cannot act on '${districtId}'`,
+      );
     }
   }
 

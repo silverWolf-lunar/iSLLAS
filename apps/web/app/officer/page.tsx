@@ -557,7 +557,10 @@ export default function OfficerDashboardPage() {
 
         {/* Shortcut Quick Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <Link href="/parcels/new" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <Link href="/parcels/new?subdivision=true" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span>🚜</span> Log Farm Subdivision
+          </Link>
+          <Link href="/parcels/new" className="btn btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <span>➕</span> Register Land Parcel
           </Link>
           <Link href="/officer/allocate" className="btn btn-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -715,11 +718,10 @@ export default function OfficerDashboardPage() {
                 onChange={e => setQueueProvinceFilter(e.target.value)}
                 style={{ padding: '6px 10px', fontSize: '0.8125rem' }}
               >
-                <option value="ALL">All Provinces</option>
-                <option value="Mashonaland West">Mashonaland West</option>
-                <option value="Midlands">Midlands</option>
-                <option value="Manicaland">Manicaland</option>
-                <option value="Mashonaland East">Mashonaland East</option>
+                <option value="ALL">All Provinces (10)</option>
+                {provinces.map(p => (
+                  <option key={p.code} value={p.name}>{p.name}</option>
+                ))}
               </select>
               <select
                 className="glass-input"
@@ -872,7 +874,30 @@ export default function OfficerDashboardPage() {
                     <td style={{ padding: '10px', fontFamily: 'var(--font-mono)', color: 'var(--primary-400)', fontWeight: 600 }}>
                       {p.referenceNumber}
                     </td>
-                    <td style={{ padding: '10px', fontWeight: 600, color: '#ffffff' }}>{p.name}</td>
+                    <td style={{ padding: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, color: '#ffffff' }}>{p.name}</span>
+                        {(p.isSubdivision || p.lotNumber || (p as any).schemeName) && (
+                          <span style={{
+                            fontSize: '0.625rem',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(34, 197, 94, 0.2)',
+                            color: 'var(--primary-300)',
+                            border: '1px solid rgba(74, 222, 128, 0.35)',
+                          }}>
+                            🚜 SUBDIVISION
+                          </span>
+                        )}
+                      </div>
+                      {(p.lotNumber || p.schemeName) && (
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--primary-400)', marginTop: '2px' }}>
+                          {p.lotNumber && <strong>{p.lotNumber}</strong>}
+                          {p.schemeName && ` • ${p.schemeName}`}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding: '10px' }}>{p.district}, {p.province}</td>
                     <td style={{ padding: '10px' }}>{p.landCategory}</td>
                     <td style={{ padding: '10px', fontWeight: 700 }}>{p.areaHectares} ha</td>

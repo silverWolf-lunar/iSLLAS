@@ -36,6 +36,8 @@ RUN pnpm install --prod --filter @sllas/api... --frozen-lockfile
 RUN chown -R node:node /workspace
 
 ENV NODE_ENV=production
+ENV DATABASE_URL=""
+ENV DB_SSL="true"
 EXPOSE 3001
 USER node
 CMD ["node", "apps/api/dist/main.js"]

@@ -45,13 +45,14 @@ services:
       NODE_ENV: production
       PORT: 3001
       WEB_APP_URL: https://${DOMAIN:?Set DOMAIN}
+      DATABASE_URL: ${DATABASE_URL:-}
+      DB_SSL: "true"
       DB_HOST: db
       DB_PORT: 5432
       DB_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       DB_DATABASE: ${POSTGRES_DB:?Set POSTGRES_DB}
       DB_SYNCHRONIZE: "false"
-      DB_SSL: "false"
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       WORKER_API_TOKEN: ${WORKER_API_TOKEN:?Set WORKER_API_TOKEN}
       ALLOW_DEV_LOGIN: "false"
@@ -74,12 +75,14 @@ services:
       dockerfile: infrastructure/docker/web.Dockerfile
     environment:
       NODE_ENV: production
-      NEXTAUTH_URL: https://${DOMAIN:?Set DOMAIN}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET}
       OIDC_ISSUER: ${OIDC_ISSUER:?Set OIDC_ISSUER}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:?Set KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?Set KEYCLOAK_CLIENT_SECRET}
       API_INTERNAL_URL: http://api:3001
+      DATABASE_URL: ${DATABASE_URL:-}
+      DB_SSL: "true"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
